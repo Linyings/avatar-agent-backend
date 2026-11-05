@@ -2,10 +2,10 @@
 
 2026-11-05 起，项目使用两个独立 Git 仓库。拆分前根仓库尚无提交，也没有远程地址，因此没有旧提交历史需要重写；首次提交保存各自现有源码快照。
 
-| 仓库 | 当前本地根目录 | 跟踪内容 |
+| GitHub 私有仓库 | 当前本地根目录 | 跟踪内容 |
 | --- | --- | --- |
-| avatar-agent-backend | `D:\pro\ai_cat\avatar-agent` | `backend/`、`deploy/`、`docs/` 及根说明 |
-| avatar-agent-frontend | `D:\pro\ai_cat\avatar-agent\frontend` | React/Mantine 前端、锁文件、前端 Dockerfile、测试及文档 |
+| [Linyings/avatar-agent-backend](https://github.com/Linyings/avatar-agent-backend) | `D:\pro\ai_cat\avatar-agent` | `backend/`、`deploy/`、`docs/` 及根说明 |
+| [Linyings/avatar-agent-frontend](https://github.com/Linyings/avatar-agent-frontend) | `D:\pro\ai_cat\avatar-agent\frontend` | React/Mantine 前端、锁文件、前端 Dockerfile、测试及文档 |
 
 保留后端源码子目录和现有部署入口以兼容当前路径。前端目录虽然默认放在后端工作区内，但有独立 `.git`，被后端根 `.gitignore` 的 `/frontend/` 排除；后端没有前端源码或 gitlink，不是 submodule，也不要求同步提交版本。
 
@@ -23,15 +23,15 @@ git -C D:\pro\ai_cat\avatar-agent\frontend add src
 git -C D:\pro\ai_cat\avatar-agent\frontend commit -m "说明前端改动"
 ```
 
-各自设置 `origin` 后分别 `git push -u origin main`；标签也分别创建和推送。拆分操作不自动连接参考仓库、父目录的无关仓库或未知远程地址。实际远程地址由项目所有者指定。
+两个仓库的 `origin` 已分别设置为上表对应 GitHub 仓库；各自执行 `git push`，标签也分别创建和推送。两个仓库默认分支均为 `main`、可见性均为 private，不使用参考仓库或父目录无关仓库的远程地址。
 
 ## 在其他机器独立克隆
 
-将下面占位地址替换为实际的两个不同仓库地址：
+使用有权访问这两个私有仓库的 GitHub 账号：
 
 ```powershell
-git clone <后端仓库地址> avatar-agent-backend
-git clone <前端仓库地址> avatar-agent-frontend
+git clone https://github.com/Linyings/avatar-agent-backend.git avatar-agent-backend
+git clone https://github.com/Linyings/avatar-agent-frontend.git avatar-agent-frontend
 cd avatar-agent-backend
 .\deploy\wsl2\deploy.ps1 -FrontendPath ..\avatar-agent-frontend
 ```

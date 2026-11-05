@@ -1,0 +1,29 @@
+{
+  "repository": "https://github.com/Vincentwei1021/mg-styles-15",
+  "commit": "49052d80bfaf9fa8412cc9710530e5e95a3b8d8c",
+  "author": "Vincent Wei",
+  "license": "MIT",
+  "version": "mg-native/3",
+  "source": "03-isometric",
+  "production_mode": "native-source",
+  "implementation": "Three.js 正交相机搭的等轴场景，所有模型和材质都在 js/ 里用代码生成。",
+  "prompt_source": "prompts/03-isometric.md",
+  "prompt_sha256": "619c02cd91012f5bb38b4037a7267889c8d46ab85c8d3c8d2b72ad8e9ac4ca74",
+  "files": {
+    "demos/03-isometric/audio.py": "1f143453d78d1b1a3306d23501ebd9ffbe794dec1c79a276dacd9a5dfef7e19a",
+    "demos/03-isometric/cues.json": "e71f14d2fd863e6c5f6e2b594bfde705e9a512447d02712d0f51e800d5843cb1",
+    "demos/03-isometric/index.html": "ad84437ae37f2023974d82443dba33f2698761ea6ad357dff1726b69a9c561c5",
+    "demos/03-isometric/js/anim.js": "50760316b07c8677f7e32c53355335c5a007a436ec68f3e795e2f454740b9609",
+    "demos/03-isometric/js/main.js": "8e294625355d7768c8363adb0e561aae4fab51887a14e6d025e9f4049b57cd85",
+    "demos/03-isometric/js/night5.js": "75daa55433c03c703ed302c6d9eead45b4d6d8ee9a1da799fcd61709ae9611df",
+    "demos/03-isometric/js/render.js": "e2f29fb1cc020fb7af435bcc6b38740a5fd1e3d74a5977ce62102e1f508a3f0f",
+    "demos/03-isometric/js/title.js": "b64a763311057867705e58e7757eacf282b800fce775e264fe0f08e03a68b10a",
+    "demos/03-isometric/js/title5.js": "7a9ecc489ed96ddb5ad1e016069b56de6c32a78366a004e519d41c5cdcc7640a",
+    "demos/03-isometric/js/ui.js": "737d8a78e41d69f2a7626d2a7d55521267f0960733e924550957cd595189f8a1",
+    "demos/03-isometric/js/world.js": "66dfcde2dd51a23ac13ded84f1f771b5fc6e2047ec97a69e1dd2332f6edbff0a"
+  },
+  "reference_sha256": "c5db2f47882df17f500622c7079313625b41200d4c5c485577d0b92c8dc50635",
+  "poster_sha256": "5d0f308346bc77d0f9db1844c567283996afb3697bb587f5835bf5115dad5b0f",
+  "font_adaptation": "Font binaries excluded upstream; bundled open fonts where needed and installed Noto fallback. See mg-upstream/FONT-SOURCES.json. Original video previews are unchanged.",
+  "adaptation": "Original geometry and motion retained; reviewed text substitutions only, timeline mapped to narration duration. No generated replacement graphics. 3D uses the original final video because Blender plates are absent; Liquid uses its original final video because its raymarcher is expensive on the WSL software GPU. Baked text in those two films is not editable."
+}

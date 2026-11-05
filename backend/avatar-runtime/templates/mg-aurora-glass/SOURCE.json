@@ -1,0 +1,23 @@
+{
+  "repository": "https://github.com/Vincentwei1021/mg-styles-15",
+  "commit": "49052d80bfaf9fa8412cc9710530e5e95a3b8d8c",
+  "author": "Vincent Wei",
+  "license": "MIT",
+  "version": "mg-native/3",
+  "source": "12-aurora-glass",
+  "production_mode": "native-source",
+  "implementation": "WebGL2 着色器画极光和玻璃折射（shaders.js），界面用 Canvas 画。音频脚本会顺带写出 out/env.json，让画面上的声波跟着音乐动。",
+  "prompt_source": "prompts/12-aurora-glass.md",
+  "prompt_sha256": "11d8b2d1fb7ac93719f929bd4ba8940f3f2118445a02f584649aa16d9eecb43d",
+  "files": {
+    "demos/12-aurora-glass/audio.py": "22acba97b9d42dfe33fe56fedcbd73a374a2b1759e2b671e078217d307fc663c",
+    "demos/12-aurora-glass/cues.json": "b6c10beb9b160750024a896588ce2adffe4cf48455d4472bad894acf5a0071a4",
+    "demos/12-aurora-glass/index.html": "e91e683d43e15f1ed0762f28b9687bb4d6206c1093c38a471eec1ebc29ef7c95",
+    "demos/12-aurora-glass/main.js": "fb8c3a7ff8637b0dc7ea8ed54391c2786cb0d98aeca537c9800a2c885e05644d",
+    "demos/12-aurora-glass/shaders.js": "7e4f0c65f4ab5234750df15967397895c07921e0149e52244ceeed87c603f0e0"
+  },
+  "reference_sha256": "d2575b46549b27f67c4823206caaccedae8cf397be0a351d0989db878c5fe364",
+  "poster_sha256": "52b2d1e3b8141345367b8acdbb97eb177482237346908f77e2c9501d62b0d72a",
+  "font_adaptation": "Font binaries excluded upstream; bundled open fonts where needed and installed Noto fallback. See mg-upstream/FONT-SOURCES.json. Original video previews are unchanged.",
+  "adaptation": "Original geometry and motion retained; reviewed text substitutions only, timeline mapped to narration duration. No generated replacement graphics. 3D uses the original final video because Blender plates are absent; Liquid uses its original final video because its raymarcher is expensive on the WSL software GPU. Baked text in those two films is not editable."
+}

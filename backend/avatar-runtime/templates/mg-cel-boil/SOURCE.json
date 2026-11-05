@@ -1,0 +1,32 @@
+{
+  "repository": "https://github.com/Vincentwei1021/mg-styles-15",
+  "commit": "49052d80bfaf9fa8412cc9710530e5e95a3b8d8c",
+  "author": "Vincent Wei",
+  "license": "MIT",
+  "version": "mg-native/3",
+  "source": "05-cel-boil",
+  "production_mode": "native-source",
+  "implementation": "Canvas 2D 自制笔刷引擎（js/engine.js），每两帧重画一次线条，纸张底纹由 tools/ 生成。",
+  "prompt_source": "prompts/05-cel-boil.md",
+  "prompt_sha256": "6e3bcdb070863f77ef334e04319589540bee9ad2edea0643946cb46d999faadb",
+  "files": {
+    "demos/05-cel-boil/assets/dust_ink_01.png": "9f4f294c67b97a356daa226d10df91c345ded00fb46e6e1e5fc6f53c51d7c541",
+    "demos/05-cel-boil/assets/dust_ink_02.png": "067e2bf40722d3c6a791504724209888917dc1b3c2c0d4912e421f57577fce79",
+    "demos/05-cel-boil/assets/dust_ink_03.png": "992e23bd8e77eba52cdae7022ff78f683a8fe24df0a076d2e5c75501c838578b",
+    "demos/05-cel-boil/assets/dust_ink_04.png": "71721ee72e631188fd9351a9f84ecfd6e26be1c7a6d53e7b5672dedd55c511d8",
+    "demos/05-cel-boil/assets/paper_base.jpg": "756bcd3c97f0a3a477988fab2c5893dcf20ca6fa4705348df786832191f0d296",
+    "demos/05-cel-boil/assets/paper_tooth.png": "d9ffc62ae783fd8915be658f4b675785fe6b5aa1e8bf17d7277fbb194eda5451",
+    "demos/05-cel-boil/audio.py": "dcd697478f36b503322327bc24af2c58f93d9d89871f8decd5826a59675eea9f",
+    "demos/05-cel-boil/cues.json": "34105155dea05d423629f0b2cb712296c254c1fd04c72fe1d0b44746b6943a82",
+    "demos/05-cel-boil/index.html": "6a8ab1c6549fbe5996dbb786fe5e38cbf2a890010ffadb67f41a88aa9cab90b4",
+    "demos/05-cel-boil/js/engine.js": "b3185ef1fcb5a381a7f1473a25013e4fb09bc79d29ad21c59cf9f789b177d73c",
+    "demos/05-cel-boil/js/scene.js": "dae67b974fa6d7ce93f3b10ee8e5f94530a33369121fd5fbdfa3ca9450747a80",
+    "demos/05-cel-boil/tools/gen_dust.py": "c88633e6a12a0313f4065bd85dd8f7a4a8572d8d61dc23c73c214e603cce49d3",
+    "demos/05-cel-boil/tools/gen_paper.py": "67e5909c1a3b3a921c8c56ab15c8a10b5b68d6ea95e040afe40e52bd4903e8c1",
+    "demos/05-cel-boil/tools/hitmax.py": "9307ee228434fdeeab9f82088758062423f008961661ab76346d6154b4f82a34"
+  },
+  "reference_sha256": "4f4398983b231d75ceb90847af717cb4298c7f2d6e1c90cbdddef1919fbb2c9f",
+  "poster_sha256": "143a705ed68bf43edeb72c48f016212aad80953e0a6c9554fbee120e20d63569",
+  "font_adaptation": "Font binaries excluded upstream; bundled open fonts where needed and installed Noto fallback. See mg-upstream/FONT-SOURCES.json. Original video previews are unchanged.",
+  "adaptation": "Original geometry and motion retained; reviewed text substitutions only, timeline mapped to narration duration. No generated replacement graphics. 3D uses the original final video because Blender plates are absent; Liquid uses its original final video because its raymarcher is expensive on the WSL software GPU. Baked text in those two films is not editable."
+}

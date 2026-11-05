@@ -1,0 +1,42 @@
+[
+  {
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/lxgwmarkergothic/LXGWMarkerGothic-Regular.ttf",
+    "path": "assets/fonts/cjk/lxgwmarkergothic/LXGWMarkerGothic-Regular.ttf",
+    "sha256": "e6a55cfd5f18dc393f92670a164397a69242cb4eabe1d3feb5dc22fc4947a8ba",
+    "license": "SIL OFL 1.1",
+    "license_path": "assets/fonts/cjk/lxgwmarkergothic/lxgwmarkergothic-OFL.txt",
+    "note": "Variable font files retained where static cuts were excluded upstream; browser typography may differ."
+  },
+  {
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/unbounded/Unbounded%5Bwght%5D.ttf",
+    "path": "demos/03-isometric/assets/fonts/Unbounded-800-static.ttf",
+    "sha256": "323b511be380c8d474ef030686b71aedde501f8d9cd46da558b7c40454372c3f",
+    "license": "SIL OFL 1.1",
+    "license_path": "demos/03-isometric/assets/fonts/unbounded-OFL.txt",
+    "note": "Variable font files retained where static cuts were excluded upstream; browser typography may differ."
+  },
+  {
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/mrdafoe/MrDafoe-Regular.ttf",
+    "path": "demos/10-synthwave/assets/fonts/MrDafoe-Regular.ttf",
+    "sha256": "a42a3c66a709927f358243fdfcbc437bd8eb188e2ee6a680c52f5be12c670fd2",
+    "license": "SIL OFL 1.1",
+    "license_path": "demos/10-synthwave/assets/fonts/mrdafoe-OFL.txt",
+    "note": "Variable font files retained where static cuts were excluded upstream; browser typography may differ."
+  },
+  {
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/fraunces/Fraunces%5BSOFT%2CWONK%2Copsz%2Cwght%5D.ttf",
+    "path": "demos/07-liquid/assets/Fraunces-Liquid-72-900-Soft.ttf",
+    "sha256": "177ff6c0f14e5550a3c624247cd1189611d4eb65d000b14944c63d967958abbb",
+    "license": "SIL OFL 1.1",
+    "license_path": "demos/07-liquid/assets/fraunces-OFL.txt",
+    "note": "Variable font files retained where static cuts were excluded upstream; browser typography may differ."
+  },
+  {
+    "source": "https://raw.githubusercontent.com/google/fonts/main/ofl/outfit/Outfit%5Bwght%5D.ttf",
+    "path": "demos/08-morph/assets/fonts/Outfit-SemiBold.ttf",
+    "sha256": "fc7287273e66929776e2ba54f144fe699080bec29f61bf649d70d871468aeade",
+    "license": "SIL OFL 1.1",
+    "license_path": "demos/08-morph/assets/fonts/outfit-OFL.txt",
+    "note": "Variable font files retained where static cuts were excluded upstream; browser typography may differ."
+  }
+]

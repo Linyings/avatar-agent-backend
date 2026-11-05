@@ -1,0 +1,16 @@
+[
+  {
+    "component": "backend",
+    "reference_directory": "参考/NarratoAI-SaaS-B-Go",
+    "repository": "https://github.com/linyqh/NarratoAI-SaaS-B-Go.git",
+    "commit": "b51c1c23124fced1d6dbc33004b66725bc3f2801",
+    "license_note": "Upstream sources and notices retained. No new blanket license is granted by this project."
+  },
+  {
+    "component": "frontend",
+    "reference_directory": "参考/NarratoAI-SaaS-F",
+    "repository": "https://github.com/linyqh/NarratoAI-SaaS-F.git",
+    "commit": "98dddedc69914ddec02ef96a568dddc8228eee17",
+    "license_note": "Upstream sources and notices retained. No new blanket license is granted by this project."
+  }
+]

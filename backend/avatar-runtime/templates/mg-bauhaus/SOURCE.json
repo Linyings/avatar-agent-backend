@@ -1,0 +1,22 @@
+{
+  "repository": "https://github.com/Vincentwei1021/mg-styles-15",
+  "commit": "49052d80bfaf9fa8412cc9710530e5e95a3b8d8c",
+  "author": "Vincent Wei",
+  "license": "MIT",
+  "version": "mg-native/3",
+  "source": "09-bauhaus",
+  "production_mode": "native-source",
+  "implementation": "120 px 网格上的几何图形，film.js 按 120 BPM 的节拍逐拍搭建。",
+  "prompt_source": "prompts/09-bauhaus.md",
+  "prompt_sha256": "109b043d44622995c8fa20d08cc7db4236c007bbc1f4e5cb2f74e71c9ba7fb42",
+  "files": {
+    "demos/09-bauhaus/audio.py": "1d36eb052735500db8715fbb322a6d1d4c710197ca9f12761c12ee11cf26caec",
+    "demos/09-bauhaus/cues.json": "815aef7ad83bf3a526afd7adc45b3e0229541440586377f4855c8309871cfc3c",
+    "demos/09-bauhaus/film.js": "eccb8f4e16fe077016cc86f6c5d1522aa4faef027b2a268a32f7239704fd169e",
+    "demos/09-bauhaus/index.html": "8710d6ab942a04fe1be5918f656ff86f2fe40d5b37847fdd9022055e38d890d4"
+  },
+  "reference_sha256": "7938c337896f5ec340a1e133e6ab74b9cac77be615defe6a2db228236465bb26",
+  "poster_sha256": "b0a50381778a2c1175f968e4523007931ff0f358272f31729a8b5cf9b6bdb795",
+  "font_adaptation": "Font binaries excluded upstream; bundled open fonts where needed and installed Noto fallback. See mg-upstream/FONT-SOURCES.json. Original video previews are unchanged.",
+  "adaptation": "Original geometry and motion retained; reviewed text substitutions only, timeline mapped to narration duration. No generated replacement graphics. 3D uses the original final video because Blender plates are absent; Liquid uses its original final video because its raymarcher is expensive on the WSL software GPU. Baked text in those two films is not editable."
+}

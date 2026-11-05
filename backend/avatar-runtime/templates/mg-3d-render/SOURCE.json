@@ -1,0 +1,32 @@
+{
+  "repository": "https://github.com/Vincentwei1021/mg-styles-15",
+  "commit": "49052d80bfaf9fa8412cc9710530e5e95a3b8d8c",
+  "author": "Vincent Wei",
+  "license": "MIT",
+  "version": "mg-native/3",
+  "source": "04-3d-render",
+  "production_mode": "original-video",
+  "implementation": "Blender Cycles 渲染：blender/sim.py 算出全部运动，scene.py 搭场景，render.py 出序列帧；index.html 再叠上文字和颗粒合成。序列帧体积大，没有收录。",
+  "prompt_source": "prompts/04-3d-render.md",
+  "prompt_sha256": "2fa9f1fd7367d7e87fbbacf315d62a92d9bf3cd83af97d4e8612eea2e524504c",
+  "files": {
+    "demos/04-3d-render/assets/mesh/glyph_f.ply": "41ac72de0fab7bc8a8a3733127e50196c222f7347fe3bf8dfeef6801aa141315",
+    "demos/04-3d-render/assets/mesh/glyph_o.ply": "f64a033dbc1b0b3d93951463502db77fbbb76c354d1772038db36d33a152b790",
+    "demos/04-3d-render/assets/mesh/glyph_s.ply": "07b1b455d1de2f2b5c5045ef2c591dfd7ff0dd15be6faf2b62f8ba401baf050d",
+    "demos/04-3d-render/assets/mesh/glyph_t.ply": "09917a1a5be58489e1647573297020edb0086d76c3a49a4902883b7de3d418f6",
+    "demos/04-3d-render/assets/mesh/glyphs.json": "eabcd844f7893cea672d2fa94dc756f5cfc9a725288b043a9b22608cd283c4fe",
+    "demos/04-3d-render/audio.py": "7799669b4539e09ebbf9f558e4ee641938a788edb0718e797a5963d4d304a05b",
+    "demos/04-3d-render/blender/common.py": "19b123dfb8089026a8f85c3548a73d4ce0a4f72cca3e2d4e61283b211cdc00ed",
+    "demos/04-3d-render/blender/make_letters.py": "761c33e23c88eed3b1f9fa5cb2b5e162137331ffb7f956e5b91ffd930e207249",
+    "demos/04-3d-render/blender/render.py": "f16d4a9a300af5fbe7020632d39766a3465ac25beb99d426625240f6e8c62b8f",
+    "demos/04-3d-render/blender/scene.py": "d98cedafcd176225d2b5cf3067f12c0f3f34bb7cbff10cb9b85e2151208d81e2",
+    "demos/04-3d-render/blender/sim.py": "22170787f59b8d42a02e6c0dde817f7084a6b352a103b34b21f91ba81a8521c8",
+    "demos/04-3d-render/cues.json": "3d8de14c7683601d793f00abae34c6ec8075960b7bbbdce9c7f9cf8262964fb6",
+    "demos/04-3d-render/index.html": "aa70e6cdc2f9ec77b2466e8c3875e112016de62e0010f328cb0652497795369d",
+    "demos/04-3d-render/README.md": "578b0ba329ce85f7e8195f2eff24c4489c49c5898c2e48dd4c6346a0ddf1de48"
+  },
+  "reference_sha256": "ad0756c4358e56a7e1a5b27772d66506f5b18c9131a73d5a93c932849e8110c0",
+  "poster_sha256": "0bf75f2acd8403085624ee166a9413e2476ff4b65dac1cea16cf8c2af4797ec9",
+  "font_adaptation": "Font binaries excluded upstream; bundled open fonts where needed and installed Noto fallback. See mg-upstream/FONT-SOURCES.json. Original video previews are unchanged.",
+  "adaptation": "Original geometry and motion retained; reviewed text substitutions only, timeline mapped to narration duration. No generated replacement graphics. 3D uses the original final video because Blender plates are absent; Liquid uses its original final video because its raymarcher is expensive on the WSL software GPU. Baked text in those two films is not editable."
+}

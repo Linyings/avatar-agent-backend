@@ -1,0 +1,20 @@
+# Used only after deploy.sh verifies identical runtime lock/requirements files.
+FROM golang:1.26.2-bookworm AS builder
+WORKDIR /src
+ARG GOPROXY=https://goproxy.cn,direct
+ENV GOPROXY=${GOPROXY}
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN --mount=type=cache,target=/root/.cache/go-build CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/narratoai-api ./cmd/api \
+ && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/setup-admin ./scripts/setup_admin.go \
+ && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/avatar-catalog ./cmd/avatar-catalog
+FROM aicat-avatar-runtime-cache:local
+USER root
+WORKDIR /app
+COPY --from=builder /out/ /usr/local/bin/
+COPY avatar-runtime ./avatar-runtime
+COPY prompt ./prompt
+RUN node avatar-runtime/workflow-render.mjs catalog \
+ && chown -R node:node /app/avatar-runtime /app/prompt
+USER node

@@ -1,0 +1,27 @@
+{
+  "name": "narrato-avatar-talkcraft-renderer",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "tsc --noEmit",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.519",
+    "@remotion/cli": "4.0.519",
+    "@remotion/renderer": "4.0.519",
+    "d3": "7.9.0",
+    "opentype.js": "2.0.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "remotion": "4.0.519",
+    "simplex-noise": "4.0.3",
+    "three": "0.186.1",
+    "topojson-client": "3.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "typescript": "5.9.3"
+  }
+}

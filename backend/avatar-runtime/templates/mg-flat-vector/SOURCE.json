@@ -1,0 +1,21 @@
+{
+  "repository": "https://github.com/Vincentwei1021/mg-styles-15",
+  "commit": "49052d80bfaf9fa8412cc9710530e5e95a3b8d8c",
+  "author": "Vincent Wei",
+  "license": "MIT",
+  "version": "mg-native/3",
+  "source": "01-flat-vector",
+  "production_mode": "native-source",
+  "implementation": "一个 HTML 页面，SVG 图形 + 手写缓动，按时间逐帧画出。",
+  "prompt_source": "prompts/01-flat-vector.md",
+  "prompt_sha256": "736c1ffcca4b5bb6b3dfc51e318a01dc4e752a13e00b29dcb3d76b36d15bf1f6",
+  "files": {
+    "demos/01-flat-vector/audio.py": "0f99ed00bf503235bea2b76d4bdf4acd9ae80432f285acc954a8abdc9f175fc6",
+    "demos/01-flat-vector/cues.json": "7f215e5413f0f22766f7db0a046dbd10222a90b208d591a641ed0ec454d12d3a",
+    "demos/01-flat-vector/index.html": "08667bf50aff9341ae71be9a1cf437e38dc328853b4142ce73d172417bcc9ce6"
+  },
+  "reference_sha256": "31015b94762c221b3517e97ea3e3a5c870776e763e8a1b0cf14a038a9e0eaf4c",
+  "poster_sha256": "17221383a32a573db1de3d7cae039e037e6986fbfe4d1c62d6476376ac08110f",
+  "font_adaptation": "Font binaries excluded upstream; bundled open fonts where needed and installed Noto fallback. See mg-upstream/FONT-SOURCES.json. Original video previews are unchanged.",
+  "adaptation": "Original geometry and motion retained; reviewed text substitutions only, timeline mapped to narration duration. No generated replacement graphics. 3D uses the original final video because Blender plates are absent; Liquid uses its original final video because its raymarcher is expensive on the WSL software GPU. Baked text in those two films is not editable."
+}

@@ -1,0 +1,77 @@
+name: aicat-avatar
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: avatar
+      POSTGRES_USER: avatar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?missing database password}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U avatar -d avatar"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    shm_size: 256m
+  api:
+    labels:
+      com.aicat.project: avatar-agent
+      com.aicat.component: backend
+    build:
+      context: ./src/backend
+      dockerfile: ${AVATAR_API_DOCKERFILE:-deploy/Dockerfile.avatar-wsl}
+    restart: unless-stopped
+    env_file: .env
+    environment:
+      DATABASE_URL: postgres://avatar:${POSTGRES_PASSWORD}@postgres:5432/avatar?sslmode=disable
+      AUTO_MIGRATE: "true"
+      API_V1_PREFIX: /api/v1
+      AVATAR_MVP_ENABLED: "true"
+      AVATAR_MVP_RUNTIME_ROOT: /app/avatar-runtime
+      AVATAR_MVP_DATA_ROOT: /app/data/avatar-mvp
+      AVATAR_MVP_PYTHON: /opt/avatar-venv/bin/python
+      AVATAR_MVP_FFMPEG: ffmpeg
+      AVATAR_MVP_FFPROBE: ffprobe
+      FRONTEND_BASE_URL: http://localhost:${WEB_PORT:-8080}
+      PUBLIC_API_BASE_URL: http://localhost:${WEB_PORT:-8080}
+    ports:
+      - "127.0.0.1:${API_PORT:-18000}:8000"
+    volumes:
+      - task_data:/app/data
+      - model_cache:/home/node/.cache
+    shm_size: 1gb
+    dns_opt:
+      - timeout:2
+      - attempts:3
+      - ndots:0
+    depends_on:
+      postgres:
+        condition: service_healthy
+  web:
+    labels:
+      com.aicat.project: avatar-agent
+      com.aicat.component: frontend
+    build:
+      context: ./src/frontend
+      args:
+        VITE_API_BASE_URL: ""
+        VITE_R2_BASE_URL: ""
+    restart: unless-stopped
+    ports:
+      - "0.0.0.0:${WEB_PORT:-8080}:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD-SHELL, "wget -qO- http://127.0.0.1/api-health >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+volumes:
+  postgres_data:
+  task_data:
+  model_cache:

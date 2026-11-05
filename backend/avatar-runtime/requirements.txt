@@ -1,0 +1,8 @@
+faster-whisper>=1.2,<2
+numpy>=2,<3
+scipy>=1.14,<2
+opencv-python-headless>=4.10,<5
+pypinyin>=0.53,<1
+zhconv>=1.4,<2
+sherpa-onnx==1.13.8
+# Optional FireRed backend: sherpa-onnx + soundfile, with locally downloaded model weights.

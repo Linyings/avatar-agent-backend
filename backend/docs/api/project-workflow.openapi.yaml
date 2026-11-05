@@ -1,0 +1,286 @@
+openapi: 3.0.3
+info:
+  title: NarratoAI Project Workflow Contract
+  version: 1.0.0
+  description: Canonical API contract for project editing workflow steps.
+servers:
+  - url: /
+security:
+  - BearerAuth: []
+paths:
+  /api/v1/projects/{project_id}/workflow:
+    get:
+      operationId: getProjectWorkflow
+      tags: [project-workflow]
+      summary: Read the canonical workflow summary for a project.
+      parameters:
+        - $ref: '#/components/parameters/ProjectID'
+      responses:
+        '200':
+          description: Workflow summary.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowSummary'
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+  /api/v1/projects/{project_id}/workflow/steps/{step}:
+    put:
+      operationId: putProjectWorkflowStep
+      tags: [project-workflow]
+      summary: Save one canonical workflow step with optimistic concurrency.
+      parameters:
+        - $ref: '#/components/parameters/ProjectID'
+        - $ref: '#/components/parameters/WorkflowStep'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/WorkflowStepSaveRequest'
+      responses:
+        '200':
+          description: Saved workflow step payload plus hash metadata.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowStepResponse'
+        '400':
+          $ref: '#/components/responses/Error'
+        '401':
+          $ref: '#/components/responses/Error'
+        '404':
+          $ref: '#/components/responses/Error'
+        '409':
+          description: Workflow revision or dependency hash conflict.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WorkflowConflict'
+        '500':
+          $ref: '#/components/responses/Error'
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    ProjectID:
+      name: project_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    WorkflowStep:
+      name: step
+      in: path
+      required: true
+      schema:
+        $ref: '#/components/schemas/WorkflowStepName'
+  responses:
+    Error:
+      description: Error response.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+  schemas:
+    WorkflowStepName:
+      type: string
+      enum: [video-source, subtitles, config, script, voiceover]
+    WorkflowSummary:
+      type: object
+      required: [project_id, workflow_revision, video_source, subtitles, config, script, voiceover]
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        workflow_revision:
+          type: integer
+          minimum: 1
+        video_source:
+          $ref: '#/components/schemas/WorkflowStepPayload'
+        subtitles:
+          $ref: '#/components/schemas/WorkflowStepPayload'
+        config:
+          $ref: '#/components/schemas/WorkflowStepPayload'
+        script:
+          $ref: '#/components/schemas/WorkflowStepPayload'
+        voiceover:
+          $ref: '#/components/schemas/WorkflowStepPayload'
+        workflow_root:
+          $ref: '#/components/schemas/WorkflowRoot'
+        updated_at:
+          type: string
+          format: date-time
+    WorkflowStepSaveRequest:
+      type: object
+      required: [workflow_revision]
+      properties:
+        workflow_revision:
+          type: integer
+          minimum: 1
+          description: Revision observed by the client from the latest workflow read.
+        dependency_hash:
+          type: string
+          nullable: true
+          description: Hash of the active upstream step. Required when the upstream step exists.
+        status:
+          type: string
+          default: active
+        data:
+          description: Canonical payload for the selected workflow step.
+          oneOf:
+            - $ref: '#/components/schemas/VideoSourcePayload'
+            - $ref: '#/components/schemas/SubtitlesPayload'
+            - $ref: '#/components/schemas/ConfigPayload'
+            - $ref: '#/components/schemas/ScriptPayload'
+            - $ref: '#/components/schemas/VoiceoverPayload'
+      additionalProperties: true
+    WorkflowStepResponse:
+      type: object
+      required: [project_id, step, workflow_revision]
+      properties:
+        project_id:
+          type: string
+          format: uuid
+        step:
+          $ref: '#/components/schemas/WorkflowStepName'
+        workflow_revision:
+          type: integer
+          minimum: 1
+        step_id:
+          type: string
+          format: uuid
+        content_hash:
+          type: string
+        dependency_hash:
+          type: string
+        input_hash:
+          type: string
+        payload_hash:
+          type: string
+        idempotent:
+          type: boolean
+        video_source:
+          $ref: '#/components/schemas/VideoSourcePayload'
+        subtitles:
+          $ref: '#/components/schemas/SubtitlesPayload'
+        config:
+          $ref: '#/components/schemas/ConfigPayload'
+        script:
+          $ref: '#/components/schemas/ScriptPayload'
+        voiceover:
+          $ref: '#/components/schemas/VoiceoverPayload'
+    WorkflowStepPayload:
+      type: object
+      additionalProperties: true
+      properties:
+        step_id:
+          type: string
+          format: uuid
+        content_hash:
+          type: string
+        dependency_hash:
+          type: string
+        input_hash:
+          type: string
+        payload_hash:
+          type: string
+        workflow_revision:
+          type: integer
+    WorkflowRoot:
+      type: object
+      properties:
+        workflow_id:
+          type: string
+          format: uuid
+        project_id:
+          type: string
+          format: uuid
+        current_step:
+          type: string
+          nullable: true
+        revision:
+          type: integer
+          minimum: 1
+        status:
+          type: string
+          enum: [active, failed, completed, paused]
+        failure_reason:
+          type: string
+          nullable: true
+        last_step_type:
+          type: string
+          nullable: true
+        last_step_id:
+          type: string
+          format: uuid
+          nullable: true
+        updated_at:
+          type: string
+          format: date-time
+    VideoSourcePayload:
+      type: object
+      additionalProperties: true
+      properties:
+        video_url:
+          type: string
+          nullable: true
+        video_context:
+          type: object
+          additionalProperties: true
+    SubtitlesPayload:
+      type: object
+      additionalProperties: true
+      description: Subtitle map or subtitle extraction payload.
+    ConfigPayload:
+      type: object
+      additionalProperties: true
+      description: Generation configuration payload.
+    ScriptPayload:
+      type: object
+      additionalProperties: true
+      properties:
+        items:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+    VoiceoverPayload:
+      type: object
+      additionalProperties: true
+      properties:
+        audio_url:
+          type: string
+          nullable: true
+        mp3_url:
+          type: string
+          nullable: true
+    WorkflowConflict:
+      type: object
+      properties:
+        error:
+          type: string
+          example: conflict
+        message:
+          type: string
+        detail:
+          type: object
+          additionalProperties: true
+        success:
+          type: boolean
+          example: false
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        success:
+          type: boolean

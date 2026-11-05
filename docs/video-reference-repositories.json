@@ -1,0 +1,69 @@
+{
+  "recorded_at": "2026-11-04",
+  "purpose": "Independent local references for architecture and future video Agent development; no application source imported by this record.",
+  "workspace": "D:\\pro\\ai_cat",
+  "analysis": "docs/opus-video-reference-analysis.md",
+  "repositories": [
+    {
+      "name": "lemo-opuscar",
+      "repository": "https://github.com/lemomo-ai/lemo-opuscar.git",
+      "local_directory": "D:\\pro\\ai_cat\\参考\\lemo-opuscar",
+      "commit": "bebbbe1aa92a3cb4bb6f83500e61b23a17d1aa00",
+      "role": "Style specifications, example source, deterministic browser rendering, audio and production checks",
+      "entrypoints": [
+        "README.zh-CN.md",
+        "DIRECTOR.md",
+        "TECHNIQUE.md",
+        "core/README.md",
+        "core/render/video.mjs",
+        "styles/README.md"
+      ],
+      "license_note": "Code/docs MIT; demo films/stills CC BY 4.0 with attribution; third-party assets and specifically excluded voice tracks retain separate terms."
+    },
+    {
+      "name": "awesome-opus5-5-videos",
+      "repository": "https://github.com/yihui-dev/awesome-opus5-5-videos.git",
+      "local_directory": "D:\\pro\\ai_cat\\参考\\awesome-opus5-5-videos",
+      "commit": "92aee2f586ac0715cb3cbcb6384834f98a33383d",
+      "role": "Structured prompt and case index; no standalone video generation backend",
+      "entrypoints": [
+        "README.md",
+        "data/videos.json",
+        "prompts/"
+      ],
+      "license_note": "Repository MIT; original videos and prompts belong to their respective creators."
+    },
+    {
+      "name": "opus-video-prompts",
+      "repository": "https://github.com/joeseesun/opus-video-prompts.git",
+      "local_directory": "D:\\pro\\ai_cat\\参考\\opus-video-prompts",
+      "commit": "7977c807781d4ba7c235247b8899a72575a30d00",
+      "role": "Curated Chinese explanations, prompt templates and case metadata; no standalone execution engine",
+      "entrypoints": [
+        "README.md",
+        "cases.json",
+        "prompts/10-talking-head-to-lineart.md"
+      ],
+      "license_note": "No standalone LICENSE found in the inspected snapshot; README reserves original creators' rights."
+    },
+    {
+      "name": "onetake",
+      "repository": "https://github.com/feitangyuan/onetake.git",
+      "local_directory": "D:\\pro\\ai_cat\\参考\\onetake",
+      "commit": "013a61ac8d98883c73733f59c06e49e9ba444f14",
+      "role": "Continuous motion, UI reconstruction, deterministic rendering, motion blur and continuity inspection",
+      "entrypoints": [
+        "README.md",
+        "lib/motion.js",
+        "lib/ui_kit.js",
+        "templates/comp.html",
+        "scripts/render.py",
+        "scripts/probe.py",
+        "scripts/verify_promo.py"
+      ],
+      "license_note": "PolyForm Noncommercial 1.0.0; commercial use requires separate authorization; complete case film sources are not included."
+    }
+  ],
+  "reference_root": "D:\\pro\\ai_cat\\参考",
+  "reference_index": "参考/README.md"
+}

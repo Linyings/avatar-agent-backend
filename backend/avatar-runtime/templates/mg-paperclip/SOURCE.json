@@ -1,0 +1,31 @@
+{
+  "repository": "https://github.com/Vincentwei1021/mg-styles-15",
+  "commit": "49052d80bfaf9fa8412cc9710530e5e95a3b8d8c",
+  "author": "Vincent Wei",
+  "license": "MIT",
+  "version": "mg-native/3",
+  "source": "19-paperclip",
+  "production_mode": "native-source",
+  "implementation": "一张超大画布配相机运镜，图表用 D3 + TopoJSON 画，贴纸由 tools/stickers.py 抠图描边。",
+  "prompt_source": "prompts/19-paperclip.md",
+  "prompt_sha256": "f017426c0b1480e5b9b6ab207fa7d1a869ed5595b51ac936269369f06260c702",
+  "files": {
+    "demos/19-paperclip/assets/countries-110m.json": "a73ecc17bac82de28af19fa593f9e1a2e76619c51855490da735b7883ec48715",
+    "demos/19-paperclip/assets/stickers/battery.png": "d5b4861a27041774c80b19eddc4b3f1c18263a455c8fae5ca4e2b3f30b04b2c5",
+    "demos/19-paperclip/assets/stickers/cobalt.png": "04f28fc49604677c9f6ac7ccef638e24dc58812057f97975ef4e5992c970174c",
+    "demos/19-paperclip/assets/stickers/lithium.png": "4157b3403dd58d7187f15e8a1e4bcb1d31617c41cc56763bd40a0a1bb9f132de",
+    "demos/19-paperclip/assets/stickers/meta.json": "a19b1dc3f05b4a3c90109bb5168d833005dfe8d1fae44b0a391fd5dd51ca8c3c",
+    "demos/19-paperclip/assets/stickers/pcb.png": "cea8fe611cae70efc56b4205c4abb9ad4072946980ef89b9f1dcb309314e1aca",
+    "demos/19-paperclip/assets/stickers/phone.png": "de0afa81d3a0540b71a820a7489d88b9881b679f4112ff0cfe4788d9f2517662",
+    "demos/19-paperclip/assets/stickers/rareearth.png": "4542fd24102b14a30d3e37dac9cc129472d99f9db63fd40b6e5ce0dba8ac035a",
+    "demos/19-paperclip/assets/stickers/tin.png": "a242d63603cfee103cdd6b2c9a109eac29576b5f06716cf6e673cb0b8faa5639",
+    "demos/19-paperclip/audio.py": "5eefc7dbbb007f7720bef69d2582b79935dbb74884a09e5a907baad75b8e6f20",
+    "demos/19-paperclip/cues.json": "cb576b043edc0a4db932ef7271e4eaf1adb2cfc5665c9a8d12b6cb0d1b5f43a5",
+    "demos/19-paperclip/index.html": "856abda6ea21622251899f1e0ab08196e24dc1e6c4e65a3d488a25782e3a1711",
+    "demos/19-paperclip/tools/stickers.py": "97081bf528c98d18ef6c2af03c30ba0a27d0290bc600a6cb663ebcdddc1ecacf"
+  },
+  "reference_sha256": "615d1ef7810463861572093e4ab707a42bd996ef060b4f1b7ba85ebd4d77a905",
+  "poster_sha256": "d5dd22224061be1062bb314a187432c2f3a62c2c4a6e955f3e03cd229dc77094",
+  "font_adaptation": "Font binaries excluded upstream; bundled open fonts where needed and installed Noto fallback. See mg-upstream/FONT-SOURCES.json. Original video previews are unchanged.",
+  "adaptation": "Original geometry and motion retained; reviewed text substitutions only, timeline mapped to narration duration. No generated replacement graphics. 3D uses the original final video because Blender plates are absent; Liquid uses its original final video because its raymarcher is expensive on the WSL software GPU. Baked text in those two films is not editable."
+}

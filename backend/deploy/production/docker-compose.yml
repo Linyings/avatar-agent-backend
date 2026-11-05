@@ -1,0 +1,133 @@
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  ingress:
+    image: caddy:2.10-alpine
+    container_name: narratoai-ingress
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      frontend:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    networks: [narratoai]
+    logging: *default-logging
+
+  frontend:
+    image: ${FRONTEND_IMAGE:?FRONTEND_IMAGE is required}
+    container_name: narratoai-frontend
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://127.0.0.1/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks: [narratoai]
+    logging: *default-logging
+
+  api:
+    image: ${BACKEND_IMAGE:?BACKEND_IMAGE is required}
+    container_name: narratoai-api
+    restart: unless-stopped
+    env_file: [.env.production]
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8000
+      ENVIRONMENT: production
+      DEBUG: "false"
+      DATABASE_URL: postgres://narratoai:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@postgres:5432/narratoai?sslmode=disable
+      PUBLIC_API_BASE_URL: https://narratoai.cn
+      FRONTEND_BASE_URL: https://narratoai.cn
+      FRONTEND_BASE_URLS: https://narratoai.cn
+      CORS_ORIGINS: https://narratoai.cn,app://narratoai
+      WECHAT_CERT_DIR: /app/data/wechat_certs
+      DESKTOP_UPDATE_ROOT: /app/data/desktop-updates
+    volumes:
+      - ${WECHAT_CERT_HOST_DIR:-/root/narratoai-backend-go/wechat_certs}:/app/data/wechat_certs:ro
+      - ${ALIPAY_CERT_HOST_DIR:-/root/narratoai/alipay_certs}:/app/data/alipay_certs:ro
+      - ${DESKTOP_UPDATE_HOST_DIR:-/srv/narratoai-updates}:/app/data/desktop-updates:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --output-document=/dev/null http://127.0.0.1:8000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    stop_grace_period: 30s
+    networks: [narratoai]
+    logging: *default-logging
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: narratoai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: narratoai
+      POSTGRES_USER: narratoai
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+    command:
+      - postgres
+      - -c
+      - max_connections=${POSTGRES_MAX_CONNECTIONS:-50}
+      - -c
+      - shared_buffers=${POSTGRES_SHARED_BUFFERS:-768MB}
+      - -c
+      - effective_cache_size=${POSTGRES_EFFECTIVE_CACHE_SIZE:-2GB}
+      - -c
+      - maintenance_work_mem=${POSTGRES_MAINTENANCE_WORK_MEM:-128MB}
+      - -c
+      - work_mem=${POSTGRES_WORK_MEM:-8MB}
+      - -c
+      - wal_buffers=${POSTGRES_WAL_BUFFERS:-16MB}
+      - -c
+      - checkpoint_completion_target=${POSTGRES_CHECKPOINT_COMPLETION_TARGET:-0.9}
+      - -c
+      - checkpoint_timeout=${POSTGRES_CHECKPOINT_TIMEOUT:-10min}
+      - -c
+      - max_wal_size=${POSTGRES_MAX_WAL_SIZE:-1GB}
+      - -c
+      - min_wal_size=${POSTGRES_MIN_WAL_SIZE:-256MB}
+      - -c
+      - random_page_cost=${POSTGRES_RANDOM_PAGE_COST:-1.1}
+      - -c
+      - log_min_duration_statement=${POSTGRES_LOG_MIN_DURATION_STATEMENT:-500}
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    shm_size: ${POSTGRES_SHM_SIZE:-512mb}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U narratoai -d narratoai"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    stop_grace_period: 1m
+    networks: [narratoai]
+    logging: *default-logging
+
+networks:
+  narratoai:
+    name: narratoai-production
+
+volumes:
+  postgres_data:
+    external: true
+    name: ${POSTGRES_VOLUME_NAME:-narratoai_postgres_data}
+  caddy_data:
+  caddy_config:

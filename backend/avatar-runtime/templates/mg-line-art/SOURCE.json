@@ -1,0 +1,24 @@
+{
+  "repository": "https://github.com/Vincentwei1021/mg-styles-15",
+  "commit": "49052d80bfaf9fa8412cc9710530e5e95a3b8d8c",
+  "author": "Vincent Wei",
+  "license": "MIT",
+  "version": "mg-native/3",
+  "source": "02-line-art",
+  "production_mode": "native-source",
+  "implementation": "一条 SVG 路径贯穿全片，描边进度由 film.js 按时间计算。tools/ 里的脚本从路径算出转角和速度，给配乐卡点。",
+  "prompt_source": "prompts/02-line-art.md",
+  "prompt_sha256": "08cb77ff01a50ec0dc2cb9eaceb3d7100b129eb8c4108b1416f1117aa5cade54",
+  "files": {
+    "demos/02-line-art/audio.py": "f5d3b8bceb82997a4c394441170b1bc30289ca303f8d17115df29297a68c814d",
+    "demos/02-line-art/cues.json": "4cd92e9dce3626b05695b1e5761316d98939bd58f8dcd8b0b379b0b5817fb3cc",
+    "demos/02-line-art/film.js": "a8403224e5b0438be19ba3e24c0510330fae798463f4718e007b9cf173cdd148",
+    "demos/02-line-art/index.html": "408e093b49478e1e491d750e6c6ea70e4e6d7a5759395f6a450e898c9f438d75",
+    "demos/02-line-art/tools/dump_timing.mjs": "2db6cfeb2cd0cfc0bc93d59fbefc5c2178fd95926955814b88274f03f3859ba1",
+    "demos/02-line-art/tools/retime.py": "cc3aa8b94050da56627424307c9b75524afba83b8bf7ec68abf92478ed05d688"
+  },
+  "reference_sha256": "b9ec31dc45a6883b156cb19c52301580024058f5dd90bdd9aad0f1b18d245576",
+  "poster_sha256": "c26aef209063c7acb81f76b03f9e50f73cd46eedc7dd1f63f5d6735ca02c7b0a",
+  "font_adaptation": "Font binaries excluded upstream; bundled open fonts where needed and installed Noto fallback. See mg-upstream/FONT-SOURCES.json. Original video previews are unchanged.",
+  "adaptation": "Original geometry and motion retained; reviewed text substitutions only, timeline mapped to narration duration. No generated replacement graphics. 3D uses the original final video because Blender plates are absent; Liquid uses its original final video because its raymarcher is expensive on the WSL software GPU. Baked text in those two films is not editable."
+}

@@ -1,0 +1,49 @@
+FROM golang:1.26.2-bookworm AS go-base
+FROM go-base AS builder
+WORKDIR /src
+ARG GOPROXY=https://goproxy.cn,direct
+ENV GOPROXY=${GOPROXY}
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/narratoai-api ./cmd/api \
+ && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/setup-admin ./scripts/setup_admin.go \
+ && CGO_ENABLED=1 go build -trimpath -ldflags="-s -w" -o /out/avatar-catalog ./cmd/avatar-catalog
+
+FROM node:24-bookworm-slim
+ENV DEBIAN_FRONTEND=noninteractive TZ=Asia/Shanghai \
+    HOST=0.0.0.0 PORT=8000 ENVIRONMENT=production DEBUG=false \
+    AVATAR_MVP_RUNTIME_ROOT=/app/avatar-runtime AVATAR_MVP_DATA_ROOT=/app/data/avatar-mvp \
+    AVATAR_MVP_PYTHON=/opt/avatar-venv/bin/python AVATAR_MVP_NODE=node \
+    AVATAR_MVP_FFMPEG=ffmpeg AVATAR_MVP_FFPROBE=ffprobe \
+    HF_HOME=/home/node/.cache/huggingface
+COPY --from=go-base /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+RUN printf 'Acquire::ForceIPv4 "true";\nAcquire::Languages "none";\n' >/etc/apt/apt.conf.d/99-avatar-network \
+ && sed -i 's|http://deb.debian.org/debian-security|https://mirrors.aliyun.com/debian-security|g; s|http://deb.debian.org/debian|https://mirrors.aliyun.com/debian|g' /etc/apt/sources.list.d/debian.sources \
+ && apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates tzdata python3 python3-venv ffmpeg fonts-noto-cjk \
+    libnss3 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 libxkbcommon0 \
+    libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 libpango-1.0-0 libcairo2 \
+ && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY avatar-runtime/package.json avatar-runtime/package-lock.json ./avatar-runtime/
+RUN npm ci --prefix avatar-runtime
+COPY avatar-runtime/requirements.txt /tmp/avatar-requirements.txt
+RUN --mount=type=cache,target=/root/.cache/pip python3 -m venv /opt/avatar-venv \
+ && /opt/avatar-venv/bin/pip install --upgrade pip --timeout 120 --retries 5 \
+ && /opt/avatar-venv/bin/pip install --timeout 120 --retries 5 -r /tmp/avatar-requirements.txt
+COPY avatar-runtime ./avatar-runtime
+RUN node --input-type=module -e "import {ensureBrowser} from './avatar-runtime/node_modules/@remotion/renderer/dist/esm/index.mjs'; await ensureBrowser();"
+# The media adapter runs with avatar-runtime as cwd; share the browser baked at /app.
+RUN ln -s /app/.remotion /app/avatar-runtime/node_modules/.remotion
+RUN node avatar-runtime/workflow-render.mjs catalog
+COPY --from=builder /out/ /usr/local/bin/
+COPY prompt ./prompt
+RUN mkdir -p /app/data/avatar-mvp /home/node/.cache \
+ && chown -R node:node /app /home/node/.cache
+USER node
+LABEL org.opencontainers.image.title="Avatar Agent API" com.aicat.project="avatar-agent"
+EXPOSE 8000
+HEALTHCHECK --interval=15s --timeout=5s --start-period=30s --retries=10 \
+ CMD node -e "fetch('http://127.0.0.1:8000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+CMD ["narratoai-api"]

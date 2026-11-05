@@ -1,0 +1,22 @@
+{
+  "repository": "https://github.com/Vincentwei1021/mg-styles-15",
+  "commit": "49052d80bfaf9fa8412cc9710530e5e95a3b8d8c",
+  "author": "Vincent Wei",
+  "license": "MIT",
+  "version": "mg-native/3",
+  "source": "20-pixel",
+  "production_mode": "native-source",
+  "implementation": "320×180 的画布逐点绘制再放大，调色板轮换做出昼夜光线。",
+  "prompt_source": "prompts/20-pixel.md",
+  "prompt_sha256": "80b4a045e588bd8f39e95bea27700bf9901f7f4dc8d21fc1e6cf852f105cb681",
+  "files": {
+    "demos/20-pixel/audio.py": "2ffaa516aa2c759d490f1bcbefdb3330048163924a91a07d828584de89c5b919",
+    "demos/20-pixel/cues.json": "1bd760c5f14a958a9f0873c96b5bd549a0a35cc5acbda7f77abd54ee57ac757e",
+    "demos/20-pixel/film.js": "6a33e6b53accb95ee022bc1a0b2d736bf4968566f679f66e3855ff010bd865e7",
+    "demos/20-pixel/index.html": "a4bde1c447b72f1e98c2d5ceb1dec9d69c6440c9a208b66dd84415792061a524"
+  },
+  "reference_sha256": "30768583c87795d57fd7d0d9a9ae7747d8cfe68b6c1af92a981a2c174798a6c8",
+  "poster_sha256": "73cdfe31728b64aa2bb1ec320957cc1b04c565a899f7bd2e8b998de31dcae58d",
+  "font_adaptation": "Font binaries excluded upstream; bundled open fonts where needed and installed Noto fallback. See mg-upstream/FONT-SOURCES.json. Original video previews are unchanged.",
+  "adaptation": "Original geometry and motion retained; reviewed text substitutions only, timeline mapped to narration duration. No generated replacement graphics. 3D uses the original final video because Blender plates are absent; Liquid uses its original final video because its raymarcher is expensive on the WSL software GPU. Baked text in those two films is not editable."
+}

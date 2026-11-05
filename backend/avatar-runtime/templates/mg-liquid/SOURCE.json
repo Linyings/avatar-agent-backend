@@ -1,0 +1,28 @@
+{
+  "repository": "https://github.com/Vincentwei1021/mg-styles-15",
+  "commit": "49052d80bfaf9fa8412cc9710530e5e95a3b8d8c",
+  "author": "Vincent Wei",
+  "license": "MIT",
+  "version": "mg-native/3",
+  "source": "07-liquid",
+  "production_mode": "original-video",
+  "implementation": "WebGL2 片元着色器里的 SDF 融球，字标也转成了距离场参与融合。",
+  "prompt_source": "prompts/07-liquid.md",
+  "prompt_sha256": "2914fdd20f70711a524556566dd94361af819086dc637dc7e40c2a1c3eeb5535",
+  "files": {
+    "demos/07-liquid/audio.py": "880b9556fada8be92fbf7154e44211d6e929cb70873989aa47df3ac93eb47770",
+    "demos/07-liquid/cues.json": "7c798d5a8ff25f80300798dee79e2168fd1d911d816a457faa4b3e94cc0c2bbd",
+    "demos/07-liquid/index.html": "167a9f9afb75ff884e8f5f2c437ac934b7b7c70f54a1c161b879dc1cf363d946",
+    "demos/07-liquid/js/engine.js": "9aed56a52f276de596092f20d4604485855808ffcad883c973ba7467a8f0e81b",
+    "demos/07-liquid/js/links.js": "e8a18e99bd1c63c26fb63856a7ffdbd8ef54f4546fb38e41632cf3e100b50e36",
+    "demos/07-liquid/js/lookdev.js": "63e58b335ead50a4d7600e13ebdcc98da87e03e49b895f0af3ce0860c0c399e7",
+    "demos/07-liquid/js/scene.js": "e52875f15704865ef4f61673d4c7b8ebf3f35f1273e68ebd93fd1797b82dd9c5",
+    "demos/07-liquid/js/shaders.js": "05ca3497ef7e2e52478eea5af300431cf4731392a6bb23c6629084527b3906c8",
+    "demos/07-liquid/js/textsdf.js": "5cad7e6597ddc438fc3bba503750045d7584966f74869fa048bf245354befe56",
+    "demos/07-liquid/js/type.js": "3dd0137a51cf88a701d9cc121b228e876c657b369f2b0e7a29bbca7e47866369"
+  },
+  "reference_sha256": "01712cd0a22c91a61aeb7058c148c08bf487c3c87db3cc0fbe5d6d7003709151",
+  "poster_sha256": "22d784aa1c694007339e7fa44c8e531242080d02619ec0ebb7d87a7dbe127857",
+  "font_adaptation": "Font binaries excluded upstream; bundled open fonts where needed and installed Noto fallback. See mg-upstream/FONT-SOURCES.json. Original video previews are unchanged.",
+  "adaptation": "Original geometry and motion retained; reviewed text substitutions only, timeline mapped to narration duration. No generated replacement graphics. 3D uses the original final video because Blender plates are absent; Liquid uses its original final video because its raymarcher is expensive on the WSL software GPU. Baked text in those two films is not editable."
+}

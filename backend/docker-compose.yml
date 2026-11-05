@@ -1,0 +1,105 @@
+x-default-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GOPROXY: ${GOPROXY:-https://goproxy.cn,direct}
+    image: ${BACKEND_IMAGE:-narratoai-backend-go:latest}
+    container_name: narratoai-api
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      HOST: 0.0.0.0
+      PORT: 8000
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DEBUG: ${DEBUG:-false}
+      DATABASE_URL: ${DOCKER_DATABASE_URL:-postgres://narratoai:narratoai@postgres:5432/narratoai?sslmode=disable}
+      PUBLIC_API_BASE_URL: ${PUBLIC_API_BASE_URL:-http://localhost:8000}
+      WECHAT_CERT_DIR: ${WECHAT_CERT_DIR:-/app/data/wechat_certs}
+      ALIPAY_PRIVATE_KEY_FILE: ${ALIPAY_PRIVATE_KEY_FILE:-/app/data/alipay_certs/app_private_key.pem}
+      ALIPAY_PUBLIC_KEY_FILE: ${ALIPAY_PUBLIC_KEY_FILE:-/app/data/alipay_certs/alipay_public_key.pem}
+      DESKTOP_UPDATE_ROOT: ${DESKTOP_UPDATE_CONTAINER_ROOT:-/app/data/desktop-updates}
+    command: >
+      sh -c 'until nc -z postgres 5432; do
+        echo "waiting for postgres";
+        sleep 2;
+      done;
+      exec narratoai-api'
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - ${WECHAT_CERT_HOST_DIR:-./data/wechat_certs}:${WECHAT_CERT_DIR:-/app/data/wechat_certs}:ro
+      - ${ALIPAY_CERT_HOST_DIR:-./data/alipay_certs}:/app/data/alipay_certs:ro
+      - ${DESKTOP_UPDATE_HOST_DIR:-/srv/narratoai-updates}:${DESKTOP_UPDATE_CONTAINER_ROOT:-/app/data/desktop-updates}:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --output-document=/dev/null http://127.0.0.1:8000/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    stop_grace_period: 30s
+    logging: *default-logging
+
+  postgres:
+    image: postgres:17-alpine
+    container_name: narratoai-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-narratoai}
+      POSTGRES_USER: ${POSTGRES_USER:-narratoai}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-narratoai}
+    command:
+      - postgres
+      - -c
+      - max_connections=${POSTGRES_MAX_CONNECTIONS:-50}
+      - -c
+      - shared_buffers=${POSTGRES_SHARED_BUFFERS:-768MB}
+      - -c
+      - effective_cache_size=${POSTGRES_EFFECTIVE_CACHE_SIZE:-2GB}
+      - -c
+      - maintenance_work_mem=${POSTGRES_MAINTENANCE_WORK_MEM:-128MB}
+      - -c
+      - work_mem=${POSTGRES_WORK_MEM:-8MB}
+      - -c
+      - wal_buffers=${POSTGRES_WAL_BUFFERS:-16MB}
+      - -c
+      - checkpoint_completion_target=${POSTGRES_CHECKPOINT_COMPLETION_TARGET:-0.9}
+      - -c
+      - checkpoint_timeout=${POSTGRES_CHECKPOINT_TIMEOUT:-10min}
+      - -c
+      - max_wal_size=${POSTGRES_MAX_WAL_SIZE:-1GB}
+      - -c
+      - min_wal_size=${POSTGRES_MIN_WAL_SIZE:-256MB}
+      - -c
+      - random_page_cost=${POSTGRES_RANDOM_PAGE_COST:-1.1}
+      - -c
+      - log_min_duration_statement=${POSTGRES_LOG_MIN_DURATION_STATEMENT:-500}
+    ports:
+      # Temporary public migration port. Restrict it with security-group/firewall rules,
+      # then change POSTGRES_BIND_ADDRESS to 127.0.0.1 or remove this mapping after migration.
+      - "${POSTGRES_BIND_ADDRESS:-0.0.0.0}:${POSTGRES_PORT:-15432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    shm_size: ${POSTGRES_SHM_SIZE:-512mb}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-narratoai} -d $${POSTGRES_DB:-narratoai}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 5s
+    stop_grace_period: 1m
+    logging: *default-logging
+
+volumes:
+  postgres_data:

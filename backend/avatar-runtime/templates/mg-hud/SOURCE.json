@@ -1,0 +1,27 @@
+{
+  "repository": "https://github.com/Vincentwei1021/mg-styles-15",
+  "commit": "49052d80bfaf9fa8412cc9710530e5e95a3b8d8c",
+  "author": "Vincent Wei",
+  "license": "MIT",
+  "version": "mg-native/3",
+  "source": "22-hud",
+  "production_mode": "native-source",
+  "implementation": "Three.js 线框地球 + Canvas 界面层 + 辉光后期，地图数据是 assets/land-50m.json。",
+  "prompt_source": "prompts/22-hud.md",
+  "prompt_sha256": "e5c467627372b7374863c10506161c79ac30e1fb875edc48ccfd4a267be2c30b",
+  "files": {
+    "demos/22-hud/assets/land-50m.json": "8451c71391667142a7b45acd6f363f2606c95aedccfe77eba35b549634f70bab",
+    "demos/22-hud/audio.py": "76323056e99baff80bf6a05eda99de1b129bd0237fd8937ceb2220560a9202a1",
+    "demos/22-hud/cues.json": "896c7d3e3b5c27a00a61a442be95312d1fada981a47464585e58446cc518415d",
+    "demos/22-hud/index.html": "eb91c5de17a03eddd68f43cef48c353d65c07db5ddf78b8f400b4e0befb5b03d",
+    "demos/22-hud/js/holo.js": "ea4b64966c763d823ba450f5c57d351078c5ec842da55c91b6e81aec57856174",
+    "demos/22-hud/js/hud.js": "f4d4e3bffbace62616417c9a26817786401fa00f94b2d1f8f66f9d7f8bc7d7d1",
+    "demos/22-hud/js/post.js": "9aaaf4f65863e2530869d7d2daf04d51a4b8d3bd0f3e99a9e5347bfcac4cb2a2",
+    "demos/22-hud/js/util.js": "fb2f12d6106f49ee4ba8eb0a7fbceee6d3e83fa9831524e460dafa6c0e1c47a1",
+    "demos/22-hud/js/v5.js": "dc02ea964bb9c237c0ea667f0b396236e43e50b3a9e7422eb352e2d23d89b5ae"
+  },
+  "reference_sha256": "9c0a78d0b9f3107a1a59acc3716bf4276692e4c1e883d690c76995d64df543f0",
+  "poster_sha256": "236ce8eeedf544c920090de78738b6890be36eebf91fb4b4d9d9acbc70ca62b5",
+  "font_adaptation": "Font binaries excluded upstream; bundled open fonts where needed and installed Noto fallback. See mg-upstream/FONT-SOURCES.json. Original video previews are unchanged.",
+  "adaptation": "Original geometry and motion retained; reviewed text substitutions only, timeline mapped to narration duration. No generated replacement graphics. 3D uses the original final video because Blender plates are absent; Liquid uses its original final video because its raymarcher is expensive on the WSL software GPU. Baked text in those two films is not editable."
+}

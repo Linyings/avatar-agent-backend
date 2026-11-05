@@ -1,0 +1,15 @@
+{
+  "repository": "https://github.com/Vincentwei1021/mg-styles-15",
+  "source": "01-flat-vector",
+  "version": "1",
+  "adaptation": "Parameterised SVG explainer scenes use the source palette, stroke style and easing/motion conventions. Demo story, logo, fixed duration and soundtrack are not used.",
+  "sources": {
+    "demos/01-flat-vector/index.html": "08667bf50aff9341ae71be9a1cf437e38dc328853b4142ce73d172417bcc9ce6"
+  },
+  "commit": "49052d80bfaf9fa8412cc9710530e5e95a3b8d8c",
+  "license": "MIT",
+  "author": "Vincent Wei",
+  "implementation": "src/workflow-entry.tsx: AnimationScene; parameter adaptation of palette, shapes and motion conventions",
+  "prompt_source": "prompts/01-flat-vector.md",
+  "prompt_sha256": "736c1ffcca4b5bb6b3dfc51e318a01dc4e752a13e00b29dcb3d76b36d15bf1f6"
+}

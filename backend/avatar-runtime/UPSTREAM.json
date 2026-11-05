@@ -1,0 +1,100 @@
+{
+  "repository": "https://github.com/Vincentwei1021/video-talkcraft",
+  "notice": "Copyright (c) 2026 Vincent Wei. PolyForm Noncommercial; commercial use requires authorization.",
+  "sources": {
+    "scripts/timestamps_cpu.py": {
+      "sha256": "1d70e8ea7fff7a297ffc550c4b1b05f81615f747e20c80361146b3be83fce668",
+      "vendored": "talkcraft/timestamps_cpu.py"
+    },
+    "scripts/make_timing.py": {
+      "sha256": "d241a1e5ca90aac1cf8ba37abc8408787d1d513547078544a3fb4922a87439d5",
+      "vendored": "talkcraft/make_timing.py"
+    },
+    "scripts/face_bbox.py": {
+      "sha256": "33fe17a2868bbe9bad4247c2645910dbb8df3bcb7b708ce75b6c11fb32193f3f",
+      "vendored": "talkcraft/face_bbox.py"
+    },
+    "template/motion-systems/camera.tsx": {
+      "sha256": "53decbeafbb64ac3b74fd5fc19d49888cd39da9f592d74e5aa99d53622615016",
+      "vendored": "src/talkcraft/camera.tsx"
+    },
+    "template/cards/impact-open-title.tsx": {
+      "sha256": "5766bd9e7dec55e742b7597bf235f7eca0efa5f1e063bec88d1e76c427904de7",
+      "vendored": "src/talkcraft/impact-open-title.tsx"
+    },
+    "template/cards/highlighter-sweep.tsx": {
+      "sha256": "fc943253400a057145ec648c91963b7003a2b235f92de0c60e5e22f172cd1a91",
+      "vendored": "src/talkcraft/highlighter-sweep.tsx"
+    },
+    "template/cards/chapter-title-card.tsx": {
+      "sha256": "6b10c356b7f4da9f6d988bcf26b51d37abb19aa27b95d7aa3ddbeea84d79637b",
+      "vendored": "src/talkcraft/chapter-title-card.tsx"
+    },
+    "scripts/semantic_annotate.py": {
+      "sha256": "ea9107377ee52fe0bb57b194aae383054f0cd2f8369b1c1883bdddc56467e6a3",
+      "vendored": "talkcraft/flow/scripts/semantic_annotate.py"
+    },
+    "scripts/shotbook_parse.py": {
+      "sha256": "516904670b7cfef22d18b92a1a3cf58561875eadfa9590e1ee7f405f5874ed11",
+      "vendored": "talkcraft/flow/scripts/shotbook_parse.py"
+    },
+    "scripts/cards_index.py": {
+      "sha256": "538c081ff867293eb87a328688af7ecdc0a2df2d89d0b728695070019d4b9768",
+      "vendored": "talkcraft/flow/scripts/cards_index.py"
+    },
+    "scripts/card_match.py": {
+      "sha256": "df31f57d82945e4e800ad25c2fffe533c925b97bb65cdca15097a5546dca4849",
+      "vendored": "talkcraft/flow/scripts/card_match.py"
+    },
+    "scripts/preflight.py": {
+      "sha256": "1514497bee46764bedaec4f0e90769a54a9889d3765bc1782aa408fe4d1ccdd5",
+      "vendored": "talkcraft/flow/scripts/preflight.py"
+    },
+    "scripts/frame_signature.py": {
+      "sha256": "74dc72e36dd17a11613a76e77ef2a79ce9e8a1b7bd440bf78beff0c13a384e6c",
+      "vendored": "talkcraft/flow/scripts/frame_signature.py"
+    },
+    "scripts/beat_lint.py": {
+      "sha256": "66e13b84a713d9e146fde1e3e2c069c4558650513e75ee1014b4ffed9a5e460b",
+      "vendored": "talkcraft/flow/scripts/beat_lint.py"
+    },
+    "scripts/beat_gap_check.py": {
+      "sha256": "1dcf9af39f4413aa2ae3778e2c7b89be05e3c3d88982d4cb1e24721370959178",
+      "vendored": "talkcraft/flow/scripts/beat_gap_check.py"
+    },
+    "scripts/voice_trim.py": {
+      "sha256": "42306074790f0f20622693eb8cdad639320d585bedd89d7a39132ed717bb6a8a",
+      "vendored": "talkcraft/flow/scripts/voice_trim.py"
+    },
+    "scripts/pipeline_state.mjs": {
+      "sha256": "f8ea9ee57d8d5abd2446c5a3ef82a59c6bfa9435d9726caff0d63be7caab3fce",
+      "vendored": "talkcraft/flow/scripts/pipeline_state.mjs"
+    },
+    "references/cards-index.json": {
+      "sha256": "bfb976ddf5e4dbd68dd8b23ae58f43a97d57d208ed1ad7f51c0418614f6d861b",
+      "vendored": "talkcraft/flow/references/cards-index.json"
+    },
+    "scripts/render_shots.mjs": {
+      "sha256": "ebaa967f197c8dfa820942bde6ed0327f0fc5999588ae5b1eeb040c60330581a",
+      "vendored": "talkcraft/flow/scripts/render_shots.mjs",
+      "adaptation": "Quality frame assertions are warnings; missing output remains an execution error."
+    },
+    "scripts/remotion_project_config.mjs": {
+      "sha256": "304954a0623429baa31e8ae9850f7034ea3b37e9c3aecb933427cb01469d8417",
+      "vendored": "talkcraft/flow/scripts/remotion_project_config.mjs",
+      "adaptation": "Quality frame assertions are warnings; missing output remains an execution error."
+    },
+    "references/cards/impact-open-title.md": {
+      "sha256": "0736eeb83aca37697fddc0b5f992aedc36cba48e71e539f6a580f93b10eda0c3",
+      "vendored": "talkcraft/flow/references/cards/impact-open-title.md"
+    },
+    "references/cards/highlighter-sweep.md": {
+      "sha256": "9975a4825144c7b9793037cd4d66f53377d1cedc012fe0e84b51890a4875a6f6",
+      "vendored": "talkcraft/flow/references/cards/highlighter-sweep.md"
+    },
+    "references/cards/chapter-title-card.md": {
+      "sha256": "fdfaa098e2d5ed2b4b12ecec0a9312ef19bf1d84a7a8d7e0c011831719ecef78",
+      "vendored": "talkcraft/flow/references/cards/chapter-title-card.md"
+    }
+  }
+}

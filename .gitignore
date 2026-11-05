@@ -1,0 +1,43 @@
+# Local service configuration and credentials
+# The frontend has its own Git repository; never stage it in the backend repo.
+/frontend/
+.env
+.env.*
+!.env.example
+!.env*.example
+!env.example
+LOCAL_ACCESS.txt
+*.pem
+*.key
+
+# Local dependencies, generated media, caches and backups
+.local/
+**/node_modules/
+**/.venv*/
+**/__pycache__/
+**/.cache/
+**/.remotion/
+**/dist/
+**/test-results/
+**/playwright-report/
+**/coverage/
+backend/data/
+backend/uploads/
+backend/backups/
+backend/exports/
+*.exe
+*.log
+*.db
+*.db-*
+*.sqlite
+*.sqlite3
+.DS_Store
+
+# Local acceptance artifacts; original files remain available on this machine.
+/docs/evidence/
+
+# Rebuilt by workflow-render.mjs catalog; retain only original reference assets.
+/backend/avatar-runtime/catalog/*
+!/backend/avatar-runtime/catalog/*-reference.mp4
+!/backend/avatar-runtime/catalog/*-reference.jpg
+

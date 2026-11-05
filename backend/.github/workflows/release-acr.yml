@@ -1,0 +1,172 @@
+name: Release Backend Image
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*"
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      image_tag:
+        description: Optional image tag for a manual publish. Defaults to the current ref name.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: production-backend
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.26.2"
+  IMAGE_REPOSITORY: ${{ vars.ALIYUN_IMAGE_REPOSITORY || 'narratoai-backend-go' }}
+  PLATFORMS: ${{ vars.DOCKER_PLATFORMS || 'linux/amd64' }}
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: go.sum
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test ./...
+
+  build-and-push:
+    name: Build and push Alibaba Cloud ACR image
+    runs-on: ubuntu-latest
+    needs: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Check Alibaba Cloud ACR settings
+        env:
+          ALIYUN_REGISTRY: ${{ secrets.ALIYUN_REGISTRY }}
+          ALIYUN_REGISTRY_NAMESPACE: ${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}
+          ALIYUN_REGISTRY_USERNAME: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+          ALIYUN_REGISTRY_PASSWORD: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          missing=0
+          for name in ALIYUN_REGISTRY ALIYUN_REGISTRY_NAMESPACE ALIYUN_REGISTRY_USERNAME ALIYUN_REGISTRY_PASSWORD; do
+            if [ -z "${!name}" ]; then
+              echo "::error::Missing GitHub secret: ${name}"
+              missing=1
+            fi
+          done
+          exit "${missing}"
+
+      - name: Prepare image metadata
+        id: image
+        env:
+          ALIYUN_REGISTRY: ${{ secrets.ALIYUN_REGISTRY }}
+          ALIYUN_REGISTRY_NAMESPACE: ${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          INPUT_TAG: ${{ inputs.image_tag }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          raw_tag="${RELEASE_TAG:-${INPUT_TAG:-${REF_NAME}}}"
+          raw_tag="${raw_tag#refs/tags/}"
+          raw_tag="${raw_tag#refs/heads/}"
+          image_tag="$(printf '%s' "${raw_tag}" | sed -E 's/[^A-Za-z0-9_.-]+/-/g; s/^-+//; s/-+$//')"
+          if [ -z "${image_tag}" ]; then
+            echo "::error::Unable to determine a Docker image tag"
+            exit 1
+          fi
+
+          image="$(printf '%s/%s/%s' "${ALIYUN_REGISTRY}" "${ALIYUN_REGISTRY_NAMESPACE}" "${IMAGE_REPOSITORY}" | tr '[:upper:]' '[:lower:]')"
+          short_sha="$(printf '%s' "${GITHUB_SHA}" | cut -c1-7)"
+
+          echo "image=${image}" >> "${GITHUB_OUTPUT}"
+          echo "tag=${image_tag}" >> "${GITHUB_OUTPUT}"
+          echo "short_sha=${short_sha}" >> "${GITHUB_OUTPUT}"
+          echo "Publishing ${image}:${image_tag}"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Login to Alibaba Cloud ACR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ secrets.ALIYUN_REGISTRY }}
+          username: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+          password: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+
+      - name: Build and push image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ env.PLATFORMS }}
+          push: true
+          tags: |
+            ${{ steps.image.outputs.image }}:${{ steps.image.outputs.tag }}
+            ${{ steps.image.outputs.image }}:sha-${{ steps.image.outputs.short_sha }}
+            ${{ steps.image.outputs.image }}:latest
+          labels: |
+            org.opencontainers.image.title=NarratoAI SaaS Backend Go
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ steps.image.outputs.tag }}
+          # Alibaba Cloud ACR rejects the OCI empty manifest produced by buildx
+          # attestations ("unknown manifest class for
+          # application/vnd.oci.empty.v1+json"); this image needs no SBOM or
+          # provenance metadata, so disable them.
+          provenance: false
+          sbom: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    name: Deploy production backend
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    needs: build-and-push
+    runs-on: ubuntu-latest
+    steps:
+      - name: Start SSH agent
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.PRODUCTION_SSH_PRIVATE_KEY }}
+
+      - name: Add production host key
+        env:
+          PRODUCTION_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+        run: |
+          set -euo pipefail
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$PRODUCTION_SSH_HOST" >> ~/.ssh/known_hosts
+
+      - name: Login server to ACR and deploy
+        env:
+          ALIYUN_REGISTRY: ${{ secrets.ALIYUN_REGISTRY }}
+          ALIYUN_REGISTRY_USERNAME: ${{ secrets.ALIYUN_REGISTRY_USERNAME }}
+          ALIYUN_REGISTRY_PASSWORD: ${{ secrets.ALIYUN_REGISTRY_PASSWORD }}
+          PRODUCTION_SSH_HOST: ${{ secrets.PRODUCTION_SSH_HOST }}
+          PRODUCTION_SSH_USER: ${{ secrets.PRODUCTION_SSH_USER }}
+          ALIYUN_REGISTRY_NAMESPACE: ${{ secrets.ALIYUN_REGISTRY_NAMESPACE }}
+        run: |
+          set -euo pipefail
+          short_sha="$(printf '%s' "$GITHUB_SHA" | cut -c1-7)"
+          image="$(printf '%s/%s/%s:sha-%s' "$ALIYUN_REGISTRY" "$ALIYUN_REGISTRY_NAMESPACE" "$IMAGE_REPOSITORY" "$short_sha" | tr '[:upper:]' '[:lower:]')"
+          printf '%s' "$ALIYUN_REGISTRY_PASSWORD" | ssh "$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST" \
+            "docker login '$ALIYUN_REGISTRY' --username '$ALIYUN_REGISTRY_USERNAME' --password-stdin"
+          ssh "$PRODUCTION_SSH_USER@$PRODUCTION_SSH_HOST" \
+            "/root/narratoai/deploy-service.sh api '$image'"

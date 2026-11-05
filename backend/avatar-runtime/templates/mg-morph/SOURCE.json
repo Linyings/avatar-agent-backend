@@ -1,0 +1,23 @@
+{
+  "repository": "https://github.com/Vincentwei1021/mg-styles-15",
+  "commit": "49052d80bfaf9fa8412cc9710530e5e95a3b8d8c",
+  "author": "Vincent Wei",
+  "license": "MIT",
+  "version": "mg-native/3",
+  "source": "08-morph",
+  "production_mode": "native-source",
+  "implementation": "SVG 形状逐点插值，字标轮廓由 tools/glyphs.py 从字体里提取成 glyphs.json。",
+  "prompt_source": "prompts/08-morph.md",
+  "prompt_sha256": "5596e8eba5fdab8ebc4a81ea2284716762fcbe14f67e78199703044bb41879bb",
+  "files": {
+    "demos/08-morph/audio.py": "edc2b2c9e087c18f4be78c9d9717cd5aeffc5adbb105352dc752338933b2caf9",
+    "demos/08-morph/cues.json": "ecce5d40b85e8380de6b338950676521aff0dcbafcfccdc798c4f5f0222c1bc9",
+    "demos/08-morph/glyphs.json": "548ad1315f89f747271280655972bc7e783261a799666eeb7c70db87c17d7248",
+    "demos/08-morph/index.html": "8f9f41842849f15acba65897978119c714478917c9fb948a44edeb9f817b4bc6",
+    "demos/08-morph/tools/glyphs.py": "17a2bfcdb8f51ec03b8346dbab0e4176aaa174f624c64d0d4c94ca5ad77d5292"
+  },
+  "reference_sha256": "1bff049b1f15ea4d0d06ab9363a97497648a57f644420264f30b08548e3561d5",
+  "poster_sha256": "9b9256d2379fce9dbf3060bc769c571fc65f5768dacafbab8c320e6e6b7dacb4",
+  "font_adaptation": "Font binaries excluded upstream; bundled open fonts where needed and installed Noto fallback. See mg-upstream/FONT-SOURCES.json. Original video previews are unchanged.",
+  "adaptation": "Original geometry and motion retained; reviewed text substitutions only, timeline mapped to narration duration. No generated replacement graphics. 3D uses the original final video because Blender plates are absent; Liquid uses its original final video because its raymarcher is expensive on the WSL software GPU. Baked text in those two films is not editable."
+}

@@ -1,0 +1,9 @@
+* text=auto
+*.sh text eol=lf
+*.py text eol=lf
+*.ps1 text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+# Preserve byte-for-byte upstream files referenced by source SHA256 manifests.
+backend/avatar-runtime/mg-upstream/** -text
+backend/avatar-runtime/talkcraft/** -text

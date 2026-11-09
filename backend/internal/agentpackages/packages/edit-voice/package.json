@@ -1,0 +1,51 @@
+{
+  "id": "avatar.edit-voice",
+  "version": "1.0.0",
+  "tool": "edit_voice",
+  "title": "修改配音",
+  "node": "",
+  "entrypoint": "edit_voice",
+  "dependencies": [],
+  "outputs": [
+    "配音修改提案"
+  ],
+  "description": "更换音色或以指定语速重新配音所选段落；同步重算口型视频、字幕和下游时间轴，先展示提案再执行。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "changes": {
+        "type": "string",
+        "description": "修改说明",
+        "maxLength": 10000
+      },
+      "voice": {
+        "type": "string",
+        "description": "目录中的音色 ID；更换音色将重配所有段落",
+        "maxLength": 10000
+      },
+      "segmentIds": {
+        "type": "array",
+        "items": {
+          "type": "string",
+          "description": "段落 ID",
+          "maxLength": 10000
+        },
+        "maxItems": 100
+      },
+      "speed": {
+        "type": "number",
+        "minimum": 0.8,
+        "maximum": 1.3,
+        "description": "所选段落的配音速度倍率，1 为原速，1.1 为稍快；不修改已有成片声音"
+      }
+    },
+    "required": [
+      "changes",
+      "segmentIds"
+    ],
+    "additionalProperties": false
+  },
+  "tools": [
+    "proposal.voice"
+  ]
+}

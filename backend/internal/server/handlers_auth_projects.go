@@ -16,6 +16,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/datatypes"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 type registerRequest struct {
@@ -630,12 +631,32 @@ func (a *App) updateProject(c *gin.Context) {
 	if v, exists := req["artifacts"]; exists {
 		project.Artifacts = jsonMap(v)
 	}
-	if err := a.db.Transaction(func(tx *gorm.DB) error {
+	// Share the draft lock with avatar.configure so a rename cannot race a
+	// settings save and restore either an old title or an old draft revision.
+	a.avatarMVP.mu.Lock()
+	defer a.avatarMVP.mu.Unlock()
+	if err := a.db.WithContext(c.Request.Context()).Transaction(func(tx *gorm.DB) error {
+		if err := avatarTransactionLock(tx); err != nil {
+			return err
+		}
 		var latest models.Project
-		if err := tx.Select("project_metadata").Where("id=?", project.ID).First(&latest).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Select("id", "name", "project_metadata").Where("id=?", project.ID).First(&latest).Error; err != nil {
 			return err
 		}
 		project.ProjectMetadata = preserveAvatarWorkflowMetadata(latest.ProjectMetadata, project.ProjectMetadata)
+		if _, renamed := req["name"].(string); !renamed {
+			project.Name = latest.Name
+		}
+		if in, err := workflowInput(latest); err == nil && in.Title != project.Name {
+			in.Title = project.Name
+			in.Revision++
+			var meta map[string]any
+			if err := json.Unmarshal(project.ProjectMetadata, &meta); err != nil {
+				return err
+			}
+			meta["avatar_v2"] = in
+			project.ProjectMetadata = jsonMap(meta)
+		}
 		if err := tx.Save(&project).Error; err != nil {
 			return err
 		}

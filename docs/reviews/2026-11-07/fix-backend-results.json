@@ -1,0 +1,473 @@
+{
+  "exit_code": 0,
+  "tests": [
+    {
+      "Time": "2026-11-07T04:01:38.197975338Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAdversarialHistoryWithoutMemorySession",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.198567238Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAdversarialAbortBeforeLLMReturns",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.199078238Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAdversarialAbortBetweenTools",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.199638838Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAdversarialConcurrentTurnIdentity",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.199788538Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentStopCancelsModelContext",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.199840039Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentActiveSessionSurvivesIdleSweep",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.200029739Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentLoop_ExecutesToolCallsThenStops",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.200216239Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentLoop_BlockedToolIsReportedBack",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.200408439Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentLoop_NoLLMClientFallsBackToStub",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.200529039Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentLoop_AbortStopsLoop",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.200814539Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestToolResultsHaveAssistantInvocationInHistory",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.201082639Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestToolRegistry_OnceToolBlocksDuplicate",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.201197639Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestToolRegistry_CheckFailureDoesNotCountCall",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.201212039Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestToolRegistry_UnknownTool",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.20250714Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Elapsed": 0.011
+    },
+    {
+      "Time": "2026-11-07T04:01:38.209324642Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agentpackages",
+      "Test": "TestPackagesCoverWorkflowAndRejectInvalidArguments",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:38.209892042Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agentpackages",
+      "Elapsed": 0.005
+    },
+    {
+      "Time": "2026-11-07T04:01:44.830648693Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAdversarialUnknownOrderAfterConfigure",
+      "Elapsed": 0.2
+    },
+    {
+      "Time": "2026-11-07T04:01:45.02077909Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAdversarialRenameThenSaveSettings",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:45.246767524Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAdversarialScriptProposalWithoutVideoPrerequisites",
+      "Elapsed": 0.23
+    },
+    {
+      "Time": "2026-11-07T04:01:45.430612714Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageAdmissionBlocksUnresolvedHistoricalOrders/submission_unknown",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:45.614869705Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageAdmissionBlocksUnresolvedHistoricalOrders/interrupted",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:45.799784996Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageAdmissionBlocksUnresolvedHistoricalOrders/stopped",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:45.799797696Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageAdmissionBlocksUnresolvedHistoricalOrders",
+      "Elapsed": 0.55
+    },
+    {
+      "Time": "2026-11-07T04:01:45.989152492Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageAdmissionChecksOlderRunsAndKnownOrders",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:46.175661186Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageCancelledCallDoesNotMutateDraft",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:46.361599779Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageTargetIsPersistedAtAdmission",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:46.552926878Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageProjectScopeAndPersistentProposal",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:46.73829317Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageConfigurationDoesNotAcceptFilesystemPaths",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:46.73832167Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageAdapterPreservesOpenAIToolCallProtocol",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:47.126702174Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageHTTPRejectsUnauthorizedAndCrossOwner",
+      "Elapsed": 0.39
+    },
+    {
+      "Time": "2026-11-07T04:01:47.331122086Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageConfirmedEditCreatesOneRunAndWaitsForReview",
+      "Elapsed": 0.2
+    },
+    {
+      "Time": "2026-11-07T04:01:47.514319477Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageTargetStopsBeforeNextPaidStep",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:47.694183764Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackagePauseSurvivesWorkerSave",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:47.881281859Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageVoiceEditPersistsDraftAndRecoversConfirmation",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:48.065605451Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageEmptyTitlePreservesProjectName",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:48.250471544Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowInterruptedShotsRetryUsesLocalPlanAndPreservesUnknownBill",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:48.432959334Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowInterruptedShotsRecoveryFailsClosed/short",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:48.613184322Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowInterruptedShotsRecoveryFailsClosed/missing",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:48.801656719Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowInterruptedShotsRecoveryFailsClosed/other-unknown",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:48.984367409Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowInterruptedShotsRecoveryFailsClosed/stopped",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:49.172782106Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowInterruptedShotsRecoveryFailsClosed/not-assembled",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:49.172793106Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowInterruptedShotsRecoveryFailsClosed",
+      "Elapsed": 0.92
+    },
+    {
+      "Time": "2026-11-07T04:01:49.360451179Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowInterruptedShotsPrefersSavedResponse",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:49.580679641Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowInterruptedShotsRetryCompletesWithoutProviderCalls",
+      "Elapsed": 0.22
+    },
+    {
+      "Time": "2026-11-07T04:01:49.765221676Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowMalformedSuccessRemainsUnknownWithoutAutomaticResubmit",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:49.765297376Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowCachedMaterialRetainsOnlyMatchingQualityWarnings",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:49.949944912Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowRetryRevalidatesCompletedShotsWithoutPaidCall",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:50.131572545Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowSourceChangeKeepsOtherFilesAnalysis",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:50.32831349Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowSourceBatchFailureContinuesIndependentAnalysis",
+      "Elapsed": 0.2
+    },
+    {
+      "Time": "2026-11-07T04:01:50.515313728Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowConfirmationCannotInjectArtifacts",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:50.701562365Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowArtifactRangeAndOwner",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:50.979296911Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowQualityWarningsDoNotBlockDelivery",
+      "Elapsed": 0.28
+    },
+    {
+      "Time": "2026-11-07T04:01:51.673295672Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowResumeQueriesKnownOrderWithoutSubmit",
+      "Elapsed": 0.69
+    },
+    {
+      "Time": "2026-11-07T04:01:51.856035372Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowUnknownCannotBeRetried",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:52.037509371Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowRevisionReusesUnchangedDependencies",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:52.223858576Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowIdempotencyGlobalBusyAndOwnership",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:52.404889775Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowWarningAndStopPersistAcrossWorkerSave",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:52.585960574Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowStaleConfirmationAndRange",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T04:01:52.778549685Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowRenderOnlyRevisionReusesLockedAudioWithoutNewGate",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:53.063948099Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowNewProjectUsesV2FromMainProjectEntry",
+      "Elapsed": 0.29
+    },
+    {
+      "Time": "2026-11-07T04:01:53.064063499Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowGenericMetadataCannotReplaceManagedAssetPaths",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:01:53.253410308Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAvatarWorkflowConfirmationKeepsServerOwnedAudioForUnchangedParagraph",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T04:01:53.266378922Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestToolStreamHeartbeatStopsAfterCompletionOrCancellation/cancel=false",
+      "Elapsed": 0.01
+    },
+    {
+      "Time": "2026-11-07T04:01:53.278084735Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestToolStreamHeartbeatStopsAfterCompletionOrCancellation/cancel=true",
+      "Elapsed": 0.01
+    },
+    {
+      "Time": "2026-11-07T04:01:53.278094635Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestToolStreamHeartbeatStopsAfterCompletionOrCancellation",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-11-07T04:01:53.289637248Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Elapsed": 8.664
+    }
+  ],
+  "diagnostics": [],
+  "stderr": ""
+}

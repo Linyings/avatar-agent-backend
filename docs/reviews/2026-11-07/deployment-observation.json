@@ -1,0 +1,41 @@
+{
+  "source_comparison": [
+    {
+      "file": "backend/internal/agent/session.go",
+      "matches_deployed_source": true,
+      "sha256": "567b3896035e9171ecc278b83c9a96cec306dc9f5b3f7b6a8835fed105dca4c4"
+    },
+    {
+      "file": "backend/internal/agent/gin_handler.go",
+      "matches_deployed_source": true,
+      "sha256": "f32e863059dc7cdb24f0c31361976dfe19cd27f30c861a740a24d3272f89538a"
+    },
+    {
+      "file": "backend/internal/server/agent_packages.go",
+      "matches_deployed_source": true,
+      "sha256": "936c0f3ae25e9c6dbc50826f746813bdf35c365fa5c793652a44c63367a9ff0e"
+    },
+    {
+      "file": "backend/internal/server/agent_package_edits.go",
+      "matches_deployed_source": true,
+      "sha256": "50f2b20098f90b071c454f0b153ce233a7c0da1c591674d2b11b0c1de6079164"
+    },
+    {
+      "file": "backend/internal/server/handlers_auth_projects.go",
+      "matches_deployed_source": true,
+      "sha256": "dd9632902607217a4d99ba53e0fef50d7aa2886ad248b39c36e262f93fd65c99"
+    },
+    {
+      "file": "frontend/src/features/agent/StudioHome.tsx",
+      "matches_deployed_source": true,
+      "sha256": "7d385b72c97381bda589486ce02565afa1a2cb98e3deec506a8f7c143c97f7a8"
+    },
+    {
+      "file": "frontend/src/features/agent/StudioWorkspace.tsx",
+      "matches_deployed_source": true,
+      "sha256": "b1782940ddb05308b8a2a40567b6753c902a2f4584d0ddfaa5e8c2545352834d"
+    }
+  ],
+  "containers": "aicat-avatar-web-1 | Up 39 minutes (healthy) | 0.0.0.0:8080->80/tcp\naicat-avatar-api-1 | Up 45 minutes (healthy) | 127.0.0.1:18000->8000/tcp\naicat-avatar-postgres-1 | Up 4 hours (healthy) | 5432/tcp\n",
+  "wsl_ips": "172.17.234.187 172.19.0.1 172.18.0.1"
+}

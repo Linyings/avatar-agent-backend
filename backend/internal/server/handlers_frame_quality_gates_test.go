@@ -225,12 +225,12 @@ func TestParseFrameQualityGateProviderOutputToleratesTrailingExplanation(t *test
 func TestParseFrameQualityGateRefineMergesPartialNarrativeResult(t *testing.T) {
 	content := `{"passed":true,"issues":[],"narrative_result":{"summary":"修正后的主线","characters":[{"name":"小明"}]}}`
 	original := map[string]any{
-		"summary":       "原始主线",
-		"plot":          map[string]any{},
-		"characters":    []any{},
-		"relationships": []any{},
-		"emotion_curve": []any{},
-		"events":        []any{},
+		"summary":        "原始主线",
+		"plot":           map[string]any{},
+		"characters":     []any{},
+		"relationships":  []any{},
+		"emotion_curve":  []any{},
+		"events":         []any{},
 		"open_questions": []any{},
 	}
 	output, err := parseFrameQualityGateProviderOutput(content, "refine", "narrative_result", original)
@@ -254,11 +254,11 @@ func TestParseFrameQualityGateRefineMergesPartialNarrativeResult(t *testing.T) {
 func TestParseFrameQualityGateRefineMergesPartialDecisionResult(t *testing.T) {
 	content := `{"passed":true,"issues":[],"decision_result":{"decisions":[{"start":1,"end":2,"priority":"high","trigger_type":"plot","reason":"conflict"}]}}`
 	original := map[string]any{
-		"summary":            "原始决策",
+		"summary":             "原始决策",
 		"needs_timeline_view": true,
-		"skipped":            []any{},
-		"confidence":         "medium",
-		"global_notes":       []any{},
+		"skipped":             []any{},
+		"confidence":          "medium",
+		"global_notes":        []any{},
 	}
 	output, err := parseFrameQualityGateProviderOutput(content, "refine", "decision_result", original)
 	if err != nil {

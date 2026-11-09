@@ -11,28 +11,32 @@ import (
 	"unicode"
 )
 
-const WorkflowVersion = "avatar-workflow/2.2"
+const WorkflowVersion = "avatar-workflow/3.0"
 
 var SafeID = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]{0,63}$`)
-var WorkflowNodes = []string{"F01.4", "F02", "F03", "F04", "F05", "F06", "F07", "F08", "F09", "F10", "F11", "F12"}
+var WorkflowNodes = []string{"F01.2", "F01.4", "F01.6", "F02", "F03", "F04", "F05", "F06", "F07", "F08", "F09", "F10", "F11", "F11.1", "F11.2", "F12"}
 
 type WorkflowInput struct {
-	Revision       int               `json:"revision"`
-	Title          string            `json:"title"`
-	Topic          string            `json:"topic"`
-	Script         string            `json:"script"`
-	Direction      string            `json:"direction"`
-	Style          string            `json:"style"`
-	Voice          string            `json:"voice"`
-	Ratio          string            `json:"ratio"`
-	UseAvatar      bool              `json:"use_avatar"`
-	Angles         []string          `json:"angles"`
-	Photo          string            `json:"photo,omitempty"`
-	Assets         []SourceAsset     `json:"assets"`
-	SubtitleColor  string            `json:"subtitle_color,omitempty"`
-	SubtitleScale  float64           `json:"subtitle_scale,omitempty"`
-	SubtitleEdits  map[string]string `json:"subtitle_edits,omitempty"`
-	AvatarPosition string            `json:"avatar_position,omitempty"`
+	Revision           int                `json:"revision"`
+	Title              string             `json:"title"`
+	Topic              string             `json:"topic"`
+	Script             string             `json:"script"`
+	Direction          string             `json:"direction"`
+	Style              string             `json:"style"`
+	Voice              string             `json:"voice"`
+	VoiceSpeed         float64            `json:"voice_speed,omitempty"`
+	SegmentVoiceSpeeds map[string]float64 `json:"segment_voice_speeds,omitempty"`
+	Ratio              string             `json:"ratio"`
+	UseAvatar          bool               `json:"use_avatar"`
+	UseAnimation       *bool              `json:"use_animation,omitempty"`
+	Angles             []string           `json:"angles"`
+	Photo              string             `json:"photo,omitempty"`
+	Assets             []SourceAsset      `json:"assets"`
+	ReferenceLinks     []string           `json:"reference_links,omitempty"`
+	SubtitleColor      string             `json:"subtitle_color,omitempty"`
+	SubtitleScale      float64            `json:"subtitle_scale,omitempty"`
+	SubtitleEdits      map[string]string  `json:"subtitle_edits,omitempty"`
+	AvatarPosition     string             `json:"avatar_position,omitempty"`
 }
 type SourceAsset struct {
 	ID       string  `json:"id"`
@@ -52,42 +56,51 @@ type SourceDescription struct {
 	Coverage string  `json:"coverage"`
 }
 type Segment struct {
-	ID          string  `json:"id"`
-	Chapter     string  `json:"chapter"`
-	Text        string  `json:"text"`
-	Audio       string  `json:"audio,omitempty"`
-	Fingerprint string  `json:"fingerprint,omitempty"`
-	Start       float64 `json:"start"`
-	Duration    float64 `json:"duration"`
+	DirectorSceneID string  `json:"director_scene_id,omitempty"`
+	ID              string  `json:"id"`
+	Chapter         string  `json:"chapter"`
+	Text            string  `json:"text"`
+	Audio           string  `json:"audio,omitempty"`
+	Fingerprint     string  `json:"fingerprint,omitempty"`
+	Start           float64 `json:"start"`
+	Duration        float64 `json:"duration"`
 }
 type MaterialNeed struct {
-	ID            string   `json:"id"`
-	SegmentID     string   `json:"segment_id"`
-	Kind          string   `json:"kind"`
-	Duration      float64  `json:"duration"`
-	Angle         string   `json:"angle,omitempty"`
-	Content       string   `json:"content"`
-	Template      string   `json:"template,omitempty"`
-	Items         []string `json:"items,omitempty"`
-	Prompt        string   `json:"prompt,omitempty"`
-	SourceID      string   `json:"source_id,omitempty"`
-	SourceStart   float64  `json:"source_start,omitempty"`
-	Query         string   `json:"query,omitempty"`
-	DescriptionID string   `json:"description_id,omitempty"`
+	NarrationStart *float64 `json:"narration_start,omitempty"`
+	NarrationQuote string   `json:"narration_quote,omitempty"`
+	ID             string   `json:"id"`
+	SegmentID      string   `json:"segment_id"`
+	Kind           string   `json:"kind"`
+	Duration       float64  `json:"duration"`
+	Angle          string   `json:"angle,omitempty"`
+	Content        string   `json:"content"`
+	Template       string   `json:"template,omitempty"`
+	Items          []string `json:"items,omitempty"`
+	Prompt         string   `json:"prompt,omitempty"`
+	SourceID       string   `json:"source_id,omitempty"`
+	SourceStart    float64  `json:"source_start,omitempty"`
+	Query          string   `json:"query,omitempty"`
+	DescriptionID  string   `json:"description_id,omitempty"`
 }
 type Material struct {
-	NeedID        string    `json:"need_id"`
-	SegmentID     string    `json:"segment_id"`
-	Kind          string    `json:"kind"`
-	Path          string    `json:"path"`
-	Duration      float64   `json:"duration"`
-	Fingerprint   string    `json:"fingerprint"`
-	FaceZone      []float64 `json:"face_zone,omitempty"`
-	SourceID      string    `json:"source_id,omitempty"`
-	SourceStart   float64   `json:"source_start,omitempty"`
-	DescriptionID string    `json:"description_id,omitempty"`
+	RenderedScenes  []MotionScene `json:"rendered_scenes,omitempty"`
+	NarrationStart  *float64      `json:"narration_start,omitempty"`
+	MotionPlan      *MotionPlan   `json:"motion_plan,omitempty"`
+	BaseFingerprint string        `json:"base_fingerprint,omitempty"`
+	NeedID          string        `json:"need_id"`
+	SegmentID       string        `json:"segment_id"`
+	Kind            string        `json:"kind"`
+	Path            string        `json:"path"`
+	Duration        float64       `json:"duration"`
+	Fingerprint     string        `json:"fingerprint"`
+	FaceZone        []float64     `json:"face_zone,omitempty"`
+	SourceID        string        `json:"source_id,omitempty"`
+	SourceStart     float64       `json:"source_start,omitempty"`
+	DescriptionID   string        `json:"description_id,omitempty"`
 }
 type WorkflowShot struct {
+	AvatarPosition  string   `json:"avatar_position,omitempty"`
+	AvatarShape     string   `json:"avatar_shape,omitempty"`
 	ID              string   `json:"id"`
 	SegmentID       string   `json:"segment_id"`
 	Start           float64  `json:"start"`
@@ -122,23 +135,29 @@ type WorkflowEvent struct {
 	Read      bool      `json:"read"`
 }
 type WorkflowStep struct {
-	ID             string            `json:"id"`
-	Status         string            `json:"status"`
-	Attempt        int               `json:"attempt"`
-	StartedAt      *time.Time        `json:"started_at,omitempty"`
-	CompletedAt    *time.Time        `json:"completed_at,omitempty"`
-	Seconds        float64           `json:"seconds"`
-	InputHash      string            `json:"input_hash"`
-	Submission     string            `json:"submission,omitempty"`
-	ProviderTaskID string            `json:"provider_task_id,omitempty"`
-	Error          string            `json:"error,omitempty"`
-	ErrorType      string            `json:"error_type,omitempty"`
-	Usage          json.RawMessage   `json:"usage,omitempty"`
-	CostStatus     string            `json:"cost_status"`
-	Orders         []WorkflowOrder   `json:"orders,omitempty"`
-	Attempts       []WorkflowAttempt `json:"attempts,omitempty"`
+	Retry            *WorkflowRetry    `json:"retry,omitempty"`
+	ProductionPhase  string            `json:"production_phase,omitempty"`
+	GenerationPrompt string            `json:"generation_prompt,omitempty"`
+	PromptInput      json.RawMessage   `json:"prompt_input,omitempty"`
+	ID               string            `json:"id"`
+	Status           string            `json:"status"`
+	Attempt          int               `json:"attempt"`
+	StartedAt        *time.Time        `json:"started_at,omitempty"`
+	CompletedAt      *time.Time        `json:"completed_at,omitempty"`
+	Seconds          float64           `json:"seconds"`
+	InputHash        string            `json:"input_hash"`
+	Submission       string            `json:"submission,omitempty"`
+	LocalRecovery    string            `json:"local_recovery,omitempty"`
+	ProviderTaskID   string            `json:"provider_task_id,omitempty"`
+	Error            string            `json:"error,omitempty"`
+	ErrorType        string            `json:"error_type,omitempty"`
+	Usage            json.RawMessage   `json:"usage,omitempty"`
+	CostStatus       string            `json:"cost_status"`
+	Orders           []WorkflowOrder   `json:"orders,omitempty"`
+	Attempts         []WorkflowAttempt `json:"attempts,omitempty"`
 }
 type WorkflowAttempt struct {
+	Error       string          `json:"error,omitempty"`
 	Number      int             `json:"number"`
 	StartedAt   time.Time       `json:"started_at"`
 	CompletedAt time.Time       `json:"completed_at"`
@@ -148,6 +167,12 @@ type WorkflowAttempt struct {
 	Usage       json.RawMessage `json:"usage,omitempty"`
 	TaskID      string          `json:"provider_task_id,omitempty"`
 }
+type WorkflowRetry struct {
+	LastError        string `json:"last_error"`
+	Strategy         string `json:"strategy"`
+	AutomaticRetries int    `json:"automatic_retries"`
+	Exhausted        bool   `json:"exhausted,omitempty"`
+}
 type WorkflowArtifact struct {
 	ID        string `json:"id"`
 	Name      string `json:"name"`
@@ -155,43 +180,55 @@ type WorkflowArtifact struct {
 	MediaType string `json:"media_type"`
 }
 type WorkflowState struct {
-	ID                  string              `json:"id"`
-	ProjectID           string              `json:"project_id"`
-	Version             string              `json:"version"`
-	Input               WorkflowInput       `json:"input"`
-	ConfigID            string              `json:"config_id"`
-	Status              string              `json:"status"`
-	Stage               string              `json:"stage"`
-	Confirmation        string              `json:"confirmation,omitempty"`
-	ConfirmationVersion string              `json:"confirmation_version,omitempty"`
-	ScriptConfirmed     bool                `json:"script_confirmed"`
-	AudioConfirmed      bool                `json:"audio_confirmed"`
-	Script              string              `json:"script"`
-	ProductionNotes     []string            `json:"production_notes,omitempty"`
-	ResolvedAngles      []string            `json:"resolved_angles,omitempty"`
-	Segments            []Segment           `json:"segments"`
-	Needs               []MaterialNeed      `json:"needs"`
-	Materials           []Material          `json:"materials"`
-	Descriptions        []SourceDescription `json:"descriptions"`
-	Shots               []WorkflowShot      `json:"shots"`
-	Steps               []WorkflowStep      `json:"steps"`
-	Events              []WorkflowEvent     `json:"events"`
-	Artifacts           []WorkflowArtifact  `json:"artifacts"`
-	Operations          []Operation         `json:"operations,omitempty"`
-	StopRequested       bool                `json:"stop_requested"`
-	StoppedAt           *time.Time          `json:"stopped_at,omitempty"`
-	CreatedAt           time.Time           `json:"created_at"`
-	UpdatedAt           time.Time           `json:"updated_at"`
-	CompletedAt         *time.Time          `json:"completed_at,omitempty"`
-	Duration            float64             `json:"duration"`
-	Error               string              `json:"error,omitempty"`
-	ErrorType           string              `json:"error_type,omitempty"`
-	ReusedFrom          string              `json:"reused_from,omitempty"`
-	ConfigSnapshot      map[string]string   `json:"config_snapshot"`
-	Edits               WorkflowEdits       `json:"edits,omitempty"`
-	AwaitingSince       *time.Time          `json:"awaiting_since,omitempty"`
-	ConfirmationSeconds float64             `json:"confirmation_seconds"`
-	Billing             []WorkflowBill      `json:"billing"`
+	AudioQuality        json.RawMessage       `json:"audio_quality,omitempty"`
+	QualityReview       json.RawMessage       `json:"quality_review,omitempty"`
+	ReferencesAnalyzed  bool                  `json:"references_analyzed,omitempty"`
+	Requirements        *RequirementsAnalysis `json:"requirements,omitempty"`
+	References          []ReferenceAnalysis   `json:"references,omitempty"`
+	Director            *DirectorPlan         `json:"director,omitempty"`
+	ShotsConfirmed      string                `json:"shots_confirmed,omitempty"`
+	FinalConfirmed      string                `json:"final_confirmed,omitempty"`
+	ID                  string                `json:"id"`
+	ProjectID           string                `json:"project_id"`
+	Version             string                `json:"version"`
+	Input               WorkflowInput         `json:"input"`
+	ConfigID            string                `json:"config_id"`
+	Status              string                `json:"status"`
+	Stage               string                `json:"stage"`
+	Confirmation        string                `json:"confirmation,omitempty"`
+	ConfirmationVersion string                `json:"confirmation_version,omitempty"`
+	ScriptConfirmed     bool                  `json:"script_confirmed"`
+	AudioConfirmed      bool                  `json:"audio_confirmed"`
+	Script              string                `json:"script"`
+	ProductionNotes     []string              `json:"production_notes,omitempty"`
+	ResolvedAngles      []string              `json:"resolved_angles,omitempty"`
+	Segments            []Segment             `json:"segments"`
+	Needs               []MaterialNeed        `json:"needs"`
+	Materials           []Material            `json:"materials"`
+	Descriptions        []SourceDescription   `json:"descriptions"`
+	Shots               []WorkflowShot        `json:"shots"`
+	Steps               []WorkflowStep        `json:"steps"`
+	Events              []WorkflowEvent       `json:"events"`
+	Artifacts           []WorkflowArtifact    `json:"artifacts"`
+	Operations          []Operation           `json:"operations,omitempty"`
+	StopRequested       bool                  `json:"stop_requested"`
+	PauseRequested      bool                  `json:"pause_requested"`
+	TargetNode          string                `json:"target_node,omitempty"`
+	RecoveryRequests    []string              `json:"recovery_requests,omitempty"`
+	StoppedAt           *time.Time            `json:"stopped_at,omitempty"`
+	CreatedAt           time.Time             `json:"created_at"`
+	UpdatedAt           time.Time             `json:"updated_at"`
+	CompletedAt         *time.Time            `json:"completed_at,omitempty"`
+	Duration            float64               `json:"duration"`
+	Error               string                `json:"error,omitempty"`
+	ErrorType           string                `json:"error_type,omitempty"`
+	ErrorStepID         string                `json:"error_step_id,omitempty"`
+	ReusedFrom          string                `json:"reused_from,omitempty"`
+	ConfigSnapshot      map[string]string     `json:"config_snapshot"`
+	Edits               WorkflowEdits         `json:"edits,omitempty"`
+	AwaitingSince       *time.Time            `json:"awaiting_since,omitempty"`
+	ConfirmationSeconds float64               `json:"confirmation_seconds"`
+	Billing             []WorkflowBill        `json:"billing"`
 }
 type WorkflowBill struct {
 	Key        string          `json:"key"`
@@ -246,6 +283,15 @@ func (s *WorkflowState) RefreshBilling() {
 
 // Edits create a new immutable run. They cannot redirect the fixed workflow.
 type WorkflowEdits struct {
+	MaterialOnly       string              `json:"material_only,omitempty"`
+	Director           *DirectorPlan       `json:"director,omitempty"`
+	RerunFrom          string              `json:"rerun_from,omitempty"`
+	Script             *string             `json:"script,omitempty"`
+	Presentation       *PresentationEdits  `json:"presentation,omitempty"`
+	Subtitles          map[string]string   `json:"subtitles,omitempty"`
+	Voice              string              `json:"voice,omitempty"`
+	VoiceSpeed         *float64            `json:"voice_speed,omitempty"`
+	SegmentVoiceSpeeds map[string]float64  `json:"segment_voice_speeds,omitempty"`
 	BaseRunID          string              `json:"base_run_id,omitempty"`
 	Segments           []Segment           `json:"segments,omitempty"`
 	Needs              []MaterialNeed      `json:"needs,omitempty"`
@@ -254,8 +300,40 @@ type WorkflowEdits struct {
 	RegenerateSegments []string            `json:"regenerate_segments,omitempty"`
 }
 
+type PresentationEdits struct {
+	SubtitleColor  *string  `json:"subtitle_color,omitempty"`
+	SubtitleScale  *float64 `json:"subtitle_scale,omitempty"`
+	AvatarPosition *string  `json:"avatar_position,omitempty"`
+}
+
+func (e WorkflowEdits) ApplyPresentation(in *WorkflowInput) {
+	if p := e.Presentation; p != nil {
+		if p.SubtitleColor != nil {
+			in.SubtitleColor = *p.SubtitleColor
+		}
+		if p.SubtitleScale != nil {
+			in.SubtitleScale = *p.SubtitleScale
+		}
+		if p.AvatarPosition != nil {
+			in.AvatarPosition = *p.AvatarPosition
+		}
+	}
+	if e.Subtitles != nil {
+		merged := map[string]string{}
+		for id, text := range in.SubtitleEdits {
+			merged[id] = text
+		}
+		for id, text := range e.Subtitles {
+			merged[id] = text
+		}
+		in.SubtitleEdits = merged
+	}
+}
+
 func (step *WorkflowStep) PreserveOrder() {
-	if step.Submission == "" {
+	// Local F10 recovery retains the original uncertain order in Orders; later
+	// local rendering attempts are not new supplier submissions.
+	if step.Submission == "" || step.LocalRecovery != "" {
 		return
 	}
 	for i := range step.Orders {
@@ -269,8 +347,13 @@ func (step *WorkflowStep) PreserveOrder() {
 	step.Orders = append(step.Orders, WorkflowOrder{Attempt: step.Attempt, Submission: step.Submission, TaskID: step.ProviderTaskID, Usage: step.Usage, RecordedAt: time.Now().UTC()})
 }
 
-func Digest(v any) string                                   { b, _ := json.Marshal(v); return fmt.Sprintf("%x", sha256.Sum256(b)) }
-func AudioFingerprint(in WorkflowInput, text string) string { return Digest([]string{in.Voice, text}) }
+func Digest(v any) string { b, _ := json.Marshal(v); return fmt.Sprintf("%x", sha256.Sum256(b)) }
+func AudioFingerprint(in WorkflowInput, text string) string {
+	if in.VoiceSpeed == 0 || in.VoiceSpeed == 1 {
+		return Digest([]string{in.Voice, text})
+	}
+	return Digest([]any{in.Voice, text, in.VoiceSpeed})
+}
 func (s *WorkflowState) AddWarning(node, kind, message string) {
 	id := "evt-" + Digest([]string{node, kind, message})[:24]
 	for _, e := range s.Events {
@@ -317,6 +400,7 @@ func ValidateNeeds(in WorkflowInput, segs []Segment, needs []MaterialNeed) error
 	ids := map[string]bool{}
 	covered := map[string]bool{}
 	avatarShots := map[string]bool{}
+	hasAnimation := false
 	usedAngles := map[string]bool{}
 	for _, n := range needs {
 		s, ok := ss[n.SegmentID]
@@ -359,9 +443,13 @@ func ValidateNeeds(in WorkflowInput, segs []Segment, needs []MaterialNeed) error
 				return fmt.Errorf("人物素材须覆盖本段实际驱动音频")
 			}
 		case "animation":
+			if in.UseAnimation != nil && !*in.UseAnimation {
+				return fmt.Errorf("本项目未启用动效画面，请按用户选择规划素材")
+			}
 			if n.Template != "steps" && n.Template != "compare" && n.Template != "relationship" && n.Template != "highlight" && n.Template != "summary" && n.Template != "data" {
 				return fmt.Errorf("动画模板不在已发布清单")
 			}
+			hasAnimation = true
 		case "real":
 			found := false
 			for _, a := range in.Assets {
@@ -377,6 +465,16 @@ func ValidateNeeds(in WorkflowInput, segs []Segment, needs []MaterialNeed) error
 			}
 		default:
 			return fmt.Errorf("未知素材需求类型")
+		}
+	}
+	// Explicit animation selection is a production requirement. Leave legacy
+	// inputs without this flag unchanged when recovering historical runs.
+	if in.UseAnimation != nil && *in.UseAnimation {
+		if !hasAnimation {
+			return fmt.Errorf("已启用动效，但素材需求遗漏动效画面，请重新规划素材")
+		}
+		if in.UseAvatar && len(avatarShots) == 0 {
+			return fmt.Errorf("已启用人物与动效融合，但素材需求遗漏人物口播，请重新规划素材")
 		}
 	}
 	for _, s := range segs {
@@ -431,6 +529,12 @@ func ValidateWorkflowShots(shots []WorkflowShot, segs []Segment, materials []Mat
 		if s.Layout != "full" && s.Layout != "pip" && s.Layout != "split" {
 			return fmt.Errorf("分镜布局不在允许清单")
 		}
+		if s.AvatarShape != "" && s.AvatarShape != "circle" && s.AvatarShape != "rounded" && s.AvatarShape != "rectangle" {
+			return fmt.Errorf("人物小窗形状无效")
+		}
+		if s.AvatarPosition != "" && !strings.Contains("|left|right|top-left|top-right|bottom-left|bottom-right|", "|"+s.AvatarPosition+"|") {
+			return fmt.Errorf("人物小窗位置无效")
+		}
 		if s.Recipe != "" && !ValidPresentationRecipe(s.Recipe) {
 			return fmt.Errorf("分镜配方不在允许清单")
 		}
@@ -450,6 +554,9 @@ func validateShotSource(m Material, seg Segment, shot WorkflowShot, in float64) 
 	if m.Kind == "avatar" && math.Abs(in-(shot.Start-seg.Start)) > .02 {
 		return fmt.Errorf("人物源区间没有对应本段驱动配音")
 	}
+	if m.Kind == "animation" && m.NarrationStart != nil && math.Abs(in-(shot.Start-seg.Start-*m.NarrationStart)) > .045 {
+		return fmt.Errorf("动效源区间没有对应本段台词时间（镜头 %s，素材 %s）", shot.ID, m.NeedID)
+	}
 	return nil
 }
 
@@ -460,14 +567,18 @@ func MapAvatarShotSources(shots []WorkflowShot, segs []Segment, materials []Mate
 				continue
 			}
 			for _, m := range materials {
-				if m.Kind != "avatar" {
+				if m.Kind != "avatar" && (m.Kind != "animation" || m.NarrationStart == nil) {
 					continue
 				}
+				base := seg.Start
+				if m.Kind == "animation" {
+					base += *m.NarrationStart
+				}
 				if m.NeedID == shots[i].Primary {
-					shots[i].PrimaryIn = avatarSourceOffset(shots[i].Start, seg.Start)
+					shots[i].PrimaryIn = avatarSourceOffset(shots[i].Start, base)
 				}
 				if m.NeedID == shots[i].Overlay {
-					shots[i].OverlayIn = avatarSourceOffset(shots[i].Start, seg.Start)
+					shots[i].OverlayIn = avatarSourceOffset(shots[i].Start, base)
 				}
 			}
 		}

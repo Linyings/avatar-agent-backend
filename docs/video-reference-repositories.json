@@ -1,9 +1,33 @@
 {
-  "recorded_at": "2026-11-04",
+  "recorded_at": "2026-11-09",
   "purpose": "Independent local references for architecture and future video Agent development; no application source imported by this record.",
   "workspace": "D:\\pro\\ai_cat",
   "analysis": "docs/opus-video-reference-analysis.md",
   "repositories": [
+    {
+      "name": "pdoom-video",
+      "repository": "https://github.com/mexicat/pdoom-video.git",
+      "local_directory": "D:\\pro\\ai_cat\\参考\\pdoom-video",
+      "branch": "main",
+      "commit": "fa164b74fd0b26a99375715b619c55b4a0fb3d05",
+      "recorded_at": "2026-11-09",
+      "analysis": "docs/pdoom-video-analysis.md",
+      "role": "Complete code-rendered music video; word-synced lyrics, audio-reactive scene modules, deterministic timeline, local previews and offline video export",
+      "entrypoints": [
+        "README.md",
+        "docs/TREATMENT.md",
+        "docs/ENGINE.md",
+        "app/src/timeline.ts",
+        "app/src/engine/scene.ts",
+        "app/src/engine/engine.ts",
+        "app/scripts/render.ts",
+        "analysis/align.py",
+        "analysis/analyze.py"
+      ],
+      "license_note": "Code MIT; fonts retain their own licenses; song, source lyrics and data/lyrics.json are explicitly excluded from the code license.",
+      "verification": "Full non-shallow clone with clean working tree; 22 timeline entries resolve to 17 scene modules; timeline lyric queries, word time ranges and beat ordering checked. Dependencies, preview, audio analysis and rendering not executed.",
+      "portability_note": "Offline renderer hardcodes Chrome ANGLE Metal; analysis uses MLX Whisper and defaults CTC inference to MPS or CPU. Windows/WSL2 execution requires platform validation and adaptation."
+    },
     {
       "name": "lemo-opuscar",
       "repository": "https://github.com/lemomo-ai/lemo-opuscar.git",

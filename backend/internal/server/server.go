@@ -17,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/narratoai/backend-go/internal/agent"
 	"github.com/narratoai/backend-go/internal/config"
 	"github.com/narratoai/backend-go/internal/models"
 	"github.com/narratoai/backend-go/internal/prompts"
@@ -144,6 +145,27 @@ func (a *App) Router() *gin.Engine {
 	return a.r
 }
 
+// agentLLM 提供给 agent 包的模型客户端
+func (a *App) agentLLM() agent.LLMClient {
+	return newAgentLLMAdapter(a.cfg)
+}
+
+// agentMessages 提供给 agent 包的对话历史存储
+func (a *App) agentMessages() agent.MessageStore {
+	if a.db == nil {
+		return nil
+	}
+	return newAgentMessageStore(a.db)
+}
+
+// agentMemories 提供给 agent 包的记忆持久化后端（M-03 修复）
+func (a *App) agentMemories() agent.MemoryPersistence {
+	if a.db == nil {
+		return nil
+	}
+	return newAgentMemoryStore(a.db)
+}
+
 func (a *App) WorkflowRuns() *WorkflowRunStateService {
 	return a.workflowRuns
 }
@@ -162,6 +184,20 @@ func (a *App) routes() {
 	avatarRoutes := v1.Group("/avatar-mvp", a.authRequired())
 	a.registerAvatarWorkflow(avatarRoutes)
 	avatarRoutes.GET("/config", a.avatarConfig)
+
+	// Agent API — 前期沟通 + 对话 + 确认 + SSE 流
+	agentRoutes := v1.Group("/agent", a.authRequired())
+	agent.RegisterGinRoutes(agentRoutes, agent.Deps{
+		LLM:       a.agentLLM(),
+		Resolve:   agentProjectResolver{app: a}.Resolve,
+		Authorize: agentProjectAuthorizer{app: a}.Authorize,
+		Messages:  a.agentMessages(),
+		Memories:  a.agentMemories(),
+		Runner:    agentProjectRunner{app: a},
+		Packages:  avatarPackageHost{app: a},
+	})
+	a.registerPackageRoutes(agentRoutes)
+
 	avatarRoutes.GET("/projects/:projectId/task", a.avatarLatestForProject)
 	avatarRoutes.POST("/tasks", a.avatarCreate)
 	avatarRoutes.GET("/tasks/:id", a.avatarGet)
@@ -501,6 +537,9 @@ func (a *App) authRequired() gin.HandlerFunc {
 			return
 		}
 		c.Set("user", user)
+		// 同时暴露字符串形式的用户 ID：跨包（如 agent）不便断言 models.User，
+		// 类型断言失败会静默拿到零值，导致越权读取。
+		c.Set("userID", user.ID.String())
 		c.Next()
 	}
 }

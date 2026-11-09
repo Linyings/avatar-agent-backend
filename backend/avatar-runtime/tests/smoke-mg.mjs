@@ -6,7 +6,7 @@ const output=process.argv[2]||'/tmp/mg-source-smoke';
 fs.mkdirSync(output,{recursive:true});const prior=process.env.MG_RESUME&&fs.existsSync(path.join(output,'report.json'))?JSON.parse(fs.readFileSync(path.join(output,'report.json'))):[];
 const results=Object.values(Object.fromEntries(prior.map(r=>[r.id,r])));
 for(const s of nativeStyles){
- if(results.some(r=>r.id===s.id&&r.status==='passed'&&r.mode===s.production_mode))continue;
+ if(results.some(r=>r.id===s.id&&r.status==='passed'&&r.mode===(s.reference_mode||s.production_mode)))continue;
  const began=Date.now();
  try{
   const folder=path.join(output,s.id);

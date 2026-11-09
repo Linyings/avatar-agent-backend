@@ -1,6 +1,6 @@
 # Avatar Agent Backend
 
-独立的 AI 数字人口播 Agent 项目。已确认的下一版目标是：七项创建输入、可选视频理解、写稿与内容拆解、分段 TTS 锁时、人物/动画/真实素材准备，再通过 talkcraft 拆镜组合并输出 MP4。数字人默认单角度上半身；风格、音色和成片比例可选择。当前版本定位为固定 Workflow，模型仅执行预设节点内的内容任务，无通用 Agent 自主推理或自我修复能力。
+独立的 AI 数字人口播 Agent 项目。当前工作区包含新版首页与 Agent 对话工作台：从 `/` 进入首页，再进入 `/workspace/:projectId`。旧版测试表单 UI 已删除，旧地址 `/avatar-mvp` 自动返回首页；后端工作流与已有数据继续保留。新版完整制片能力以实际验收记录为准。
 
 2026-11-05：已实现并部署 V2.2 固定工作流，旧固定三镜任务继续兼容查询。已有真实16.76秒竖屏样片及41.16秒横屏人物＋动画＋上传素材混合片，均采用分段真实配音；质检提醒不阻塞。41秒片的需求/分镜采用人工接续，原F05未知请求保留，不能代替完整自动规划验收。浏览器播放下载、Range与工程独立重渲染通过。完整P0、三人物、第二音色及效果审片尚未完成。详见 [实施验收矩阵](docs/workflow-v22-acceptance.md)。
 
@@ -38,7 +38,7 @@ cd D:\pro\ai_cat\avatar-agent
 
 该入口将本项目 backend/frontend 同步到 WSL `/opt/aicat/avatar-mvp/src/backend` 和 `src/frontend`，构建并更新 Docker 容器。保留现有服务运行目录、Compose 项目名和持久卷，以继续使用原账号、数据库与素材；不会从上级参考仓库同步源码。
 
-- 页面：<http://localhost:8080/avatar-mvp>；迁移时实测 IP 为 `172.17.234.187:8080`，WSL 重启后 IP 可能改变。
+- 新版首页：<http://localhost:8080/>；Agent 工作台：`/workspace/:projectId`。旧表单页面已删除。迁移时实测 IP 为 `172.17.234.187:8080`，WSL 重启后 IP 可能改变。
 - 后端健康接口：<http://localhost:18000/health>；数据库不发布端口。
 - 服务端配置：WSL `/opt/aicat/avatar-mvp/.env`。
 - 登录信息：Windows `%LOCALAPPDATA%\AiCat\AvatarMVP\LOCAL_ACCESS.txt` 或 WSL `/opt/aicat/avatar-mvp/LOCAL_ACCESS.txt`。

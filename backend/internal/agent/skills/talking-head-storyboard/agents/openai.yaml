@@ -1,0 +1,7 @@
+interface:
+  display_name: "口播与图解视频分镜设计"
+  short_description: "按讲解目标切分场景，设计人物窗口、图解动效与转场，适配横竖屏口播视频"
+  default_prompt: "使用 $talking-head-storyboard，根据我的文案或参考视频，设计场景切分、人物布局、图层事件和转场，并输出可交给制作环节的分镜表。"
+
+policy:
+  allow_implicit_invocation: true

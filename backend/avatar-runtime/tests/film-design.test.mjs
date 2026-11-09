@@ -2,6 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {filmTheme,shotLayout,overlaps,mediaPlacement,semanticItems,resolveRecipe,captionPage} from '../src/film-design.ts';
 
+test('captions keep decimal amounts, units and Chinese words on the same page',()=>{
+ const text='这轮融资目前还没有完全关闭，投后估值来到1.25万亿美元。';
+ const chars=[...text].map((ch,i)=>({ch,t:i*.2,e:i*.2+.18}));
+ for(const budget of [12,13,14,15,16,17,18]){
+  const pages=[...new Set(chars.map(c=>captionPage(chars,c.t,budget).map(x=>x.ch).join('')))];
+  assert.equal(pages.join(''),text);
+  assert.ok(pages.some(p=>p.includes('关闭')));
+  assert.ok(pages.some(p=>p.includes('1.25万亿美元')));
+ }
+});
+
 test('all eight recipes have usable non-overlapping content and caption regions in three ratios',()=>{
  for(const [w,h] of [[1280,720],[720,1280],[720,720]])for(const recipe of ['host-hero','host-explain','visual-hero','visual-pip','compare','steps','evidence','summary']){
   const l=shotLayout(w,h,recipe,'right');
@@ -39,7 +50,7 @@ test('face-safe fitting never crops the measured head and backgrounds preserve m
 test('styles skin the entire composition and semantic items retain exact source phrases',()=>{
  const collage=filmTheme('mg-collage'),line=filmTheme('mg-line-art');
  assert.notEqual(collage.canvas,line.canvas);assert.notEqual(collage.accent,line.accent);
- assert.equal(filmTheme('line-art').canvas,line.canvas);
+ assert.ok(filmTheme('line-art').canvas);assert.notEqual(filmTheme('mg-hud').canvas,filmTheme('mg-3d-render').canvas);
  const items=semanticItems('首先确认声音。然后准备素材。最后完成合成。');
  assert.deepEqual(items,['首先确认声音','然后准备素材','最后完成合成']);
  assert.equal(resolveRecipe({card:'highlighter-sweep',layout:'pip'},{kind:'animation'}),'visual-pip');

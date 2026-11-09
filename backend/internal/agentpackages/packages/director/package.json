@@ -1,0 +1,32 @@
+{
+  "id": "avatar.director",
+  "version": "3.0.0",
+  "tool": "avatar_director",
+  "title": "导演稿设计",
+  "node": "F01.6",
+  "entrypoint": "run",
+  "dependencies": [
+    "F01.4"
+  ],
+  "outputs": [
+    "导演稿"
+  ],
+  "description": "在写文案之前设计全片分镜、画面、动效、融合方式、转场和声音；配音后自动校准真实时间。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "talkcraft.plan",
+    "llm.design_shots",
+    "shotbook.validate"
+  ]
+}

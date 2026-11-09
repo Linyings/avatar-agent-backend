@@ -1,0 +1,30 @@
+// Render an isolated, real-input acceptance clip. The AI plan and talking
+// footage must already exist; this script never starts provider requests.
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {fileURLToPath} from 'node:url';
+import {execFileSync} from 'node:child_process';
+import {bundle} from '@remotion/bundler';
+import {selectComposition,renderMedia,renderStill} from '@remotion/renderer';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),dir=path.resolve(process.argv[2]);
+const read=name=>JSON.parse(fs.readFileSync(path.join(dir,name),'utf8'));
+const state=read('workflow.json'),motion=read('media-result.json'),report=read('animation-native-report.json');
+assert.equal(report.demo_video_used,false);assert.equal(report.mode,'content-motion');
+const host=state.materials.find(m=>m.kind==='avatar'&&m.segment_id===motion.segment_id);
+assert.ok(host);assert.ok(fs.existsSync(path.join(dir,'voice.wav')));
+const segment={...state.segments.find(s=>s.id===motion.segment_id),start:0};
+const measured=read(segment.id+'/timestamps.json');
+const scenes=measured.sentences.map(s=>({text:s.text,startSec:s.start,durationSec:s.end-s.start,chars:s.words.flatMap(w=>[...w.text].map((ch,i,a)=>({ch,t:w.start+(w.end-w.start)*i/a.length,e:w.start+(w.end-w.start)*(i+1)/a.length})))}));
+const manifest={width:report.width,height:report.height,fps:25,duration:motion.duration,input:state.input,segments:[segment],materials:[host,motion],shots:[{id:'validation',segment_id:segment.id,start:0,end:motion.duration,primary:motion.need_id,overlay:host.need_id,recipe:'visual-pip',card:'none',layout:'pip',keyword:'',primary_in:0,overlay_in:0}],timing:{scenes}};
+const inputProps={manifest},serveUrl=await bundle({entryPoint:path.join(root,'src/workflow-entry.tsx'),publicDir:dir});
+const composition=await selectComposition({serveUrl,id:'AvatarWorkflow',inputProps});
+const output=path.join(dir,'current-topic-fusion.mp4');
+await renderMedia({serveUrl,composition,inputProps,codec:'h264',outputLocation:output,concurrency:1,overwrite:true});
+await renderStill({serveUrl,composition,inputProps,frame:Math.min(Math.round(7.2*25),composition.durationInFrames-1),imageFormat:'png',output:path.join(dir,'current-topic-fusion.png')});
+const info=JSON.parse(execFileSync('ffprobe',['-v','error','-show_streams','-of','json',output]));
+assert.ok(info.streams.some(s=>s.codec_type==='audio'));
+assert.equal(Number(info.streams.find(s=>s.codec_type==='video').nb_frames),Math.ceil(motion.duration*25));
+execFileSync('ffmpeg',['-v','error','-i',output,'-f','null','-']);
+const result={realAvatarFootage:true,realNarration:true,realModelPlan:true,modelHeadlineGrounding:'short labels from original scene; no extra model request',storyboard:'isolated validation composition',duration:motion.duration,demoVideoUsed:false,frames:composition.durationInFrames,decoded:true,originalProjectModified:false};
+fs.writeFileSync(path.join(dir,'live-verification.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));

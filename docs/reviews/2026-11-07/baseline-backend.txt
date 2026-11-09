@@ -1,0 +1,3 @@
+ok  	github.com/narratoai/backend-go/internal/agent	0.011s
+ok  	github.com/narratoai/backend-go/internal/agentpackages	0.006s
+ok  	github.com/narratoai/backend-go/internal/server	2.279s

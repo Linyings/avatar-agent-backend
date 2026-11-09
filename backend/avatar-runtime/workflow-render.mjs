@@ -5,20 +5,24 @@ import {execFileSync,spawnSync} from 'node:child_process';
 import {fileURLToPath} from 'node:url';
 import {bundle} from '@remotion/bundler';
 import {selectComposition,renderMedia} from '@remotion/renderer';
-import {nativeStyles,renderNative} from './mg-native.mjs';
+import {compileMotion} from './content-motion.mjs';
+import {buildCardCatalog} from './catalog-previews.mjs';
+import {renderDirectorMotion} from './director-motion.mjs';
+import {printMotionError} from './motion-checks.mjs';
+import {avatarFramingPlan,avatarWindowBox} from './src/avatar-framing.ts';
+import {resolveRecipe,shotLayout} from './src/film-design.ts';
 const root=path.dirname(fileURLToPath(import.meta.url));
+const nativeStyles=JSON.parse(fs.readFileSync(path.join(root,'native-styles.json'),'utf8'));
 const [mode,taskArg,outArg]=process.argv.slice(2);const task=path.resolve(taskArg||root);
 if(mode==='animation'){
  const inputProps=JSON.parse(fs.readFileSync(path.join(task,'animation-props.json'),'utf8'));
- if(nativeStyles.some(s=>s.id===inputProps.animation.style)){
-  const report=await renderNative(inputProps.animation,outArg);
-  fs.writeFileSync(path.join(task,'animation-native-report.json'),JSON.stringify(report,null,2));process.exit(0);
- }
- if(String(inputProps.animation.style).startsWith('mg-'))throw new Error('Unknown MG template; refusing replacement graphics');
+ if(inputProps.animation.motion_plan?.code){try{const report=await renderDirectorMotion(inputProps.animation,outArg);fs.writeFileSync(path.join(task,'animation-native-report.json'),JSON.stringify(report));process.exit(0);}catch(error){printMotionError(error);process.exit(1);}}
+ const content=String(inputProps.animation.style).startsWith('mg-')?compileMotion(inputProps.animation):undefined;
+ if(content)inputProps.animation.content_motion=content;
  const serveUrl=await bundle({entryPoint:path.join(root,'src/workflow-entry.tsx'),publicDir:task});
  const composition=await selectComposition({serveUrl,id:'AnimationTemplate',inputProps});
  await renderMedia({serveUrl,composition,inputProps,codec:'h264',muted:true,outputLocation:outArg,concurrency:1,overwrite:true});
- fs.writeFileSync(path.join(task,'animation-native-report.json'),JSON.stringify({mode:'semantic',version:'film-design/1',style:inputProps.animation.style,template:inputProps.animation.template,source:'trusted content components; original source/demo retained separately',duration:inputProps.animation.duration}));
+ fs.writeFileSync(path.join(task,'animation-native-report.json'),JSON.stringify(content?{...content,source:'current narration and avatar context; style reference only',demo_video_used:false}:{mode:'semantic',version:'film-design/1',style:inputProps.animation.style,template:inputProps.animation.template,duration:inputProps.animation.duration}));
  process.exit(0);
 }
 if(mode==='catalog'){
@@ -34,6 +38,8 @@ if(mode==='catalog'){
   for(const ext of ['mp4','jpg'])fs.copyFileSync(path.join(root,'catalog',style.id+'-reference.'+ext),path.join(root,'catalog',style.id+'.'+ext));
  }
  execFileSync('python3',[path.join(root,'package_mg_styles.py')],{stdio:'inherit'});
+ const cards=buildCardCatalog(root,nativeStyles);
+ console.log(JSON.stringify({card_previews:cards.length,bytes:cards.reduce((sum,item)=>sum+item.bytes,0)}));
  process.exit(0);
 }
 const props=JSON.parse(fs.readFileSync(path.join(task,'workflow-props.json'),'utf8'));const manifest=props.manifest;
@@ -56,11 +62,25 @@ for(const shot of shots){
 }
 const script=path.join(root,'talkcraft/flow/scripts/render_shots.mjs');
 const args=[script,'--shots',path.join(task,'shots.json'),'--entry','src/workflow-entry.tsx','--comp','AvatarWorkflow','--props','@'+path.join(task,'workflow-props.json'),'--public-dir',task,'--seg-dir',segDir,'--parallel','1'];
-if(mode==='preview')args.push('--only',shots[0].id,'--preview-dir',path.join(task,'preview'),'--seg-audio');
-else args.push('--concat',path.join(task,'assembled.mp4'),'--audio',path.join(task,'full-mix.wav'),'--audio-concurrency','1','--preview-dir',path.join(task,'preview'),'--mux',path.join(task,'output.mp4'));
+if(mode!=='preview')args.push('--concat',path.join(task,'assembled.mp4'),'--audio',path.join(task,'full-mix.wav'),'--audio-concurrency','1','--preview-dir',path.join(task,'preview'),'--mux',path.join(task,'output.mp4'));
 const proc=spawnSync(process.execPath,args,{cwd:root,encoding:'utf8',maxBuffer:16*1024*1024});
 const output=(proc.stdout||'')+'\n'+(proc.stderr||'');
 fs.writeFileSync(path.join(task,'render.log'),output);
 if(proc.status!==0)throw new Error('talkcraft rendering failed; inspect task render.log');
-fs.writeFileSync(path.join(task,'render-quality.json'),JSON.stringify({warnings:output.split('\n').filter(s=>s.includes('QUALITY:'))}));
+if(mode==='preview'){
+ fs.mkdirSync(path.join(task,'preview'),{recursive:true});
+ for(const shot of shots){execFileSync('ffmpeg',['-v','error','-y','-i',path.join(segDir,shot.id+'.mp4'),'-ss',String(shot.start),'-i',path.join(task,'voice.wav'),'-t',String(shot.end-shot.start),'-map','0:v:0','-map','1:a:0','-c:v','copy','-c:a','aac','-b:a','192k','-movflags','+faststart',path.join(task,'preview',shot.id+'.mp4')]);}
+}
+const framing=shots.flatMap(shot=>{
+ const overlay=manifest.materials.find(m=>m.need_id===shot.overlay);if(overlay?.kind!=='avatar')return [];
+ const segment=manifest.segments.find(s=>s.id===shot.segment_id),primary=manifest.materials.find(m=>m.need_id===shot.primary);
+ const shape=shot.avatar_shape||'rounded',side=shot.avatar_position||manifest.input.avatar_position||'right';
+ const recipe=primary.kind==='animation'?'visual-pip':resolveRecipe(shot,primary),layout=shotLayout(manifest.width,manifest.height,recipe,side);
+ const box=recipe==='visual-pip'?avatarWindowBox(manifest.width,manifest.height,shape,side):layout.overlay||layout.panel;
+ if(!box)return [];
+ const start=shot.overlay_in??shot.start-segment.start;
+ const height=avatarFramingPlan(box,overlay.avatar_framing,start,start+shot.end-shot.start,shape);
+ return [{shot_id:shot.id,requested_shape:shape,actual_shape:height?shape:'rectangle',mode:height?'tracked':'full-source',face_height:height}];
+});
+fs.writeFileSync(path.join(task,'render-quality.json'),JSON.stringify({warnings:[...output.split('\n').filter(s=>s.includes('QUALITY:')),...framing.filter(r=>r.mode==='full-source').map(r=>`${r.shot_id}：定位不足或源片取景过近，无法同时填满人物窗口并保留头部，整镜保留完整矩形画面，请复核源素材`)],avatar_framing:framing}));
 for(const shot of shots){const local=path.join(segDir,shot.id+'.mp4');if(fs.existsSync(local)){const fp=fingerprints.get(shot.id);fs.copyFileSync(local,path.join(shared,fp+'.mp4'));fs.writeFileSync(path.join(segDir,shot.id+'.hash'),fp);}}

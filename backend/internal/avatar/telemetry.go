@@ -16,29 +16,39 @@ import (
 // Operation contains measured durations and provider-reported values, never
 // credentials, prompts, result URLs, or arbitrary upstream error messages.
 type Operation struct {
-	Scope          string         `json:"scope"`
-	Step           string         `json:"step"`
-	ShotID         string         `json:"shot_id,omitempty"`
-	Action         string         `json:"action,omitempty"`
-	StartedAt      time.Time      `json:"started_at"`
-	FinishedAt     time.Time      `json:"finished_at"`
-	Seconds        float64        `json:"seconds"`
-	Status         string         `json:"status"`
-	HTTPStatus     int            `json:"http_status,omitempty"`
-	ErrorCode      string         `json:"error_code,omitempty"`
-	TransportPhase string         `json:"transport_phase,omitempty"`
-	TaskID         string         `json:"provider_task_id,omitempty"`
-	RequestID      string         `json:"provider_request_id,omitempty"`
-	ProviderCode   string         `json:"provider_code,omitempty"`
-	ProviderStatus string         `json:"provider_status,omitempty"`
-	ResponseSHA256 string         `json:"response_sha256,omitempty"`
-	ResponseBytes  int            `json:"response_bytes,omitempty"`
-	Usage          map[string]any `json:"usage,omitempty"`
-	CostStatus     string         `json:"cost_status"`
+	Scope           string         `json:"scope"`
+	Step            string         `json:"step"`
+	ShotID          string         `json:"shot_id,omitempty"`
+	Action          string         `json:"action,omitempty"`
+	StartedAt       time.Time      `json:"started_at"`
+	FinishedAt      time.Time      `json:"finished_at"`
+	Seconds         float64        `json:"seconds"`
+	Status          string         `json:"status"`
+	HTTPStatus      int            `json:"http_status,omitempty"`
+	ErrorCode       string         `json:"error_code,omitempty"`
+	TransportPhase  string         `json:"transport_phase,omitempty"`
+	FinishReason    string         `json:"finish_reason,omitempty"`
+	TaskID          string         `json:"provider_task_id,omitempty"`
+	RequestID       string         `json:"provider_request_id,omitempty"`
+	ProviderCode    string         `json:"provider_code,omitempty"`
+	ProviderStatus  string         `json:"provider_status,omitempty"`
+	ResponseSHA256  string         `json:"response_sha256,omitempty"`
+	ResponseBytes   int            `json:"response_bytes,omitempty"`
+	MaxOutputTokens int            `json:"max_output_tokens,omitempty"`
+	OutputBytes     int            `json:"output_bytes,omitempty"`
+	Usage           map[string]any `json:"usage,omitempty"`
+	CostStatus      string         `json:"cost_status"`
 }
 
 type telemetryKey struct{}
 type operationKey struct{}
+type contentMetricsKey struct{}
+type contentMetrics struct{ MaxTokens, OutputBytes int }
+
+func WithContentMetrics(ctx context.Context, maxTokens, outputBytes int) context.Context {
+	return context.WithValue(ctx, contentMetricsKey{}, contentMetrics{maxTokens, outputBytes})
+}
+
 type telemetryWriter struct {
 	path string
 	mu   sync.Mutex
@@ -97,9 +107,22 @@ func RecordModelUsage(ctx context.Context, usage any) {
 	appendOperation(ctx, Operation{Scope: "api", Step: tag.step, ShotID: tag.shot, Action: "chat/completions",
 		StartedAt: now, FinishedAt: now, Status: "received", Usage: numericUsage(values), CostStatus: "unknown"})
 }
-func RecordContentResult(ctx context.Context, started time.Time, requestID string, usage any, err error) {
+func RecordContentResult(ctx context.Context, started time.Time, requestID string, usage any, err error, finishReason ...string) {
 	tag, _ := ctx.Value(operationKey{}).(operationTag)
 	e := Operation{Scope: "api", Step: tag.step, ShotID: tag.shot, Action: "chat/completions", StartedAt: started, FinishedAt: time.Now().UTC(), Seconds: time.Since(started).Seconds(), Status: "received", CostStatus: "unknown", RequestID: telemetryID(requestID)}
+	if metrics, ok := ctx.Value(contentMetricsKey{}).(contentMetrics); ok {
+		e.MaxOutputTokens, e.OutputBytes = metrics.MaxTokens, metrics.OutputBytes
+	}
+	if len(finishReason) > 0 {
+		switch finishReason[0] {
+		case "stop", "length", "content_filter", "tool_calls":
+			e.FinishReason = finishReason[0]
+		}
+	}
+	raw, _ := json.Marshal(usage)
+	var values map[string]any
+	_ = json.Unmarshal(raw, &values)
+	e.Usage = numericUsage(values)
 	if err != nil {
 		e.Status = "failed"
 		if httpError, ok := err.(interface{ ProviderHTTPStatus() int }); ok {
@@ -113,11 +136,6 @@ func RecordContentResult(ctx context.Context, started time.Time, requestID strin
 				e.RequestID = telemetryID(fields["request_id"])
 			}
 		}
-	} else {
-		raw, _ := json.Marshal(usage)
-		var values map[string]any
-		json.Unmarshal(raw, &values)
-		e.Usage = numericUsage(values)
 	}
 	appendOperation(ctx, e)
 }
@@ -170,7 +188,7 @@ func telemetryID(value any) string {
 
 func numericUsage(source map[string]any) map[string]any {
 	out := map[string]any{}
-	for _, key := range []string{"consumeMoney", "consumeCoins", "thirdPartyConsumeMoney", "billingSeconds", "taskCostTime", "prompt_tokens", "completion_tokens", "total_tokens", "input_tokens", "output_tokens"} {
+	for _, key := range []string{"consumeMoney", "consumeCoins", "thirdPartyConsumeMoney", "billingSeconds", "taskCostTime", "prompt_tokens", "completion_tokens", "total_tokens", "input_tokens", "output_tokens", "reasoning_tokens"} {
 		value, exists := source[key]
 		if !exists {
 			continue
@@ -184,7 +202,7 @@ func numericUsage(source map[string]any) map[string]any {
 			out[key] = s
 		}
 	}
-	for _, key := range []string{"tokenUsage", "usage"} {
+	for _, key := range []string{"tokenUsage", "usage", "completion_tokens_details"} {
 		if child, ok := source[key].(map[string]any); ok {
 			if clean := numericUsage(child); len(clean) != 0 {
 				out[key] = clean

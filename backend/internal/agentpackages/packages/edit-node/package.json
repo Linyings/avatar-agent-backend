@@ -1,0 +1,410 @@
+{
+  "outputs": [
+    "节点修改方案"
+  ],
+  "tools": [
+    "proposal.node"
+  ],
+  "input_schema": {
+    "required": [
+      "node",
+      "changes"
+    ],
+    "properties": {
+      "skip_need_ids": {
+        "type": "array",
+        "description": "用户选择跳过时提供已有素材 ID，适用于 F05-F08。需有覆盖该段完整配音的已就绪替代画面，不能与 needs 同时提交；生成待确认方案并重新组装镜头。",
+        "minItems": 1,
+        "maxItems": 120,
+        "items": {"type": "string", "maxLength": 128}
+      },
+      "changes": {
+        "maxLength": 2000,
+        "type": "string"
+      },
+      "shots": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "分镜 ID",
+              "maxLength": 10000
+            },
+            "primary": {
+              "type": "string",
+              "description": "主素材 ID",
+              "maxLength": 10000
+            },
+            "overlay": {
+              "type": "string",
+              "description": "叠加素材 ID",
+              "maxLength": 10000
+            },
+            "layout": {
+              "type": "string",
+              "enum": [
+                "full",
+                "pip",
+                "split"
+              ]
+            },
+            "recipe": {
+              "type": "string",
+              "description": "配方",
+              "maxLength": 10000
+            },
+            "keyword": {
+              "type": "string",
+              "description": "标题",
+              "maxLength": 10000
+            },
+            "card": {
+              "type": "string",
+              "description": "信息卡",
+              "maxLength": 10000
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": "要点",
+                "maxLength": 10000
+              },
+              "maxItems": 100
+            },
+            "primary_in": {
+              "type": "number",
+              "minimum": 0
+            },
+            "overlay_in": {
+              "type": "number",
+              "minimum": 0
+            },
+            "intent": {
+              "type": "string",
+              "description": "画面意图",
+              "maxLength": 10000
+            },
+            "avatar_position": {
+              "type": "string",
+              "enum": [
+                "left",
+                "right",
+                "top-left",
+                "top-right",
+                "bottom-left",
+                "bottom-right"
+              ]
+            },
+            "avatar_shape": {
+              "type": "string",
+              "enum": [
+                "circle",
+                "rounded"
+              ]
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "maxItems": 100
+      },
+      "needs": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "需求 ID",
+              "maxLength": 10000
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "avatar",
+                "animation",
+                "real"
+              ]
+            },
+            "content": {
+              "type": "string",
+              "description": "内容",
+              "maxLength": 10000
+            },
+            "prompt": {
+              "type": "string",
+              "description": "提示词",
+              "maxLength": 10000
+            },
+            "template": {
+              "type": "string",
+              "description": "模板语义",
+              "maxLength": 10000
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": "要点",
+                "maxLength": 10000
+              },
+              "maxItems": 100
+            },
+            "angle": {
+              "type": "string",
+              "description": "机位",
+              "maxLength": 10000
+            },
+            "duration": {
+              "type": "number",
+              "minimum": 0
+            },
+            "source_id": {
+              "type": "string",
+              "description": "上传素材 ID",
+              "maxLength": 10000
+            },
+            "source_start": {
+              "type": "number",
+              "minimum": 0
+            },
+            "description_id": {
+              "type": "string",
+              "description": "源片段 ID",
+              "maxLength": 10000
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "maxItems": 100
+      },
+      "script": {
+        "maxLength": 10000,
+        "type": "string"
+      },
+      "presentation": {
+        "properties": {
+          "subtitle_scale": {
+            "minimum": 0.75,
+            "type": "number",
+            "description": "字幕大小 0.75 至 1.5"
+          },
+          "avatar_position": {
+            "enum": [
+              "left",
+              "right"
+            ],
+            "type": "string"
+          },
+          "subtitle_color": {
+            "maxLength": 7,
+            "type": "string",
+            "description": "十六进制颜色，如 #ffffff"
+          }
+        },
+        "type": "object",
+        "additionalProperties": false
+      },
+      "subtitles": {
+        "maxItems": 100,
+        "items": {
+          "required": [
+            "id",
+            "text"
+          ],
+          "properties": {
+            "text": {
+              "maxLength": 10000,
+              "type": "string"
+            },
+            "id": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "type": "array"
+      },
+      "descriptions": {
+        "maxItems": 100,
+        "items": {
+          "required": [
+            "id",
+            "text"
+          ],
+          "properties": {
+            "text": {
+              "maxLength": 10000,
+              "type": "string"
+            },
+            "id": {
+              "maxLength": 64,
+              "type": "string"
+            }
+          },
+          "type": "object",
+          "additionalProperties": false
+        },
+        "type": "array"
+      },
+      "segments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "段落 ID",
+              "maxLength": 10000
+            },
+            "text": {
+              "type": "string",
+              "description": "完整新文本",
+              "maxLength": 10000
+            },
+            "chapter": {
+              "type": "string",
+              "description": "章节",
+              "maxLength": 10000
+            }
+          },
+          "required": [
+            "id",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "maxItems": 100
+      },
+      "node": {
+        "enum": [
+          "F01.4",
+          "F02",
+          "F03",
+          "F05",
+          "F06",
+          "F07",
+          "F08",
+          "F09",
+          "F10",
+          "F11",
+          "F12",
+          "F11.1",
+          "F11.2",
+          "F01.6"
+        ],
+        "type": "string"
+      },
+      "director": {
+        "type": "object",
+        "properties": {
+          "summary": {
+            "type": "string",
+            "maxLength": 3000
+          },
+          "scenes": {
+            "type": "array",
+            "maxItems": 40,
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "maxLength": 3000
+                },
+                "purpose": {
+                  "type": "string",
+                  "maxLength": 3000
+                },
+                "composition": {
+                  "type": "string",
+                  "enum": [
+                    "host-hero",
+                    "host-explain",
+                    "visual-hero",
+                    "visual-pip",
+                    "compare",
+                    "steps",
+                    "evidence",
+                    "summary"
+                  ]
+                },
+                "visual": {
+                  "type": "string",
+                  "maxLength": 3000
+                },
+                "motion": {
+                  "type": "string",
+                  "maxLength": 3000
+                },
+                "transition": {
+                  "type": "string",
+                  "maxLength": 3000
+                },
+                "sound": {
+                  "type": "string",
+                  "maxLength": 3000
+                },
+                "estimated_duration": {
+                  "type": "number",
+                  "minimum": 0.1
+                },
+                "avatar_position": {
+                  "type": "string",
+                  "enum": [
+                    "left",
+                    "right",
+                    "top-left",
+                    "top-right",
+                    "bottom-left",
+                    "bottom-right"
+                  ]
+                },
+                "avatar_shape": {
+                  "type": "string",
+                  "enum": [
+                    "circle",
+                    "rounded"
+                  ]
+                }
+              },
+              "required": [
+                "id",
+                "purpose",
+                "composition",
+                "visual",
+                "motion",
+                "estimated_duration"
+              ],
+              "additionalProperties": false
+            }
+          }
+        },
+        "required": [
+          "summary",
+          "scenes"
+        ],
+        "additionalProperties": false
+      }
+    },
+    "type": "object",
+    "additionalProperties": false
+  },
+  "dependencies": [],
+  "version": "1.0.0",
+  "title": "编辑节点内容",
+  "id": "avatar.edit-node",
+  "entrypoint": "edit_node",
+  "tool": "avatar_edit_node",
+  "description": "编辑已有节点，先 avatar_inspect 读取完整内容和 ID。F01.4 用 descriptions 修改已有素材解读；F02 用 script 替换全文；F03 用 segments 提供完整新分段（须完整覆盖原稿，允许新增/合并/删除段落）；F05-F08 用 needs 修改已有素材要求，F06/07/08 分别限人物/动效/实拍；F09 用 subtitles 修改字幕；F10 用 shots 修改分镜；F11/F12 用 presentation 或 shots/subtitles 修改画面输出。F01 需求用 avatar_configure，F04 音色和重配音用 edit_voice。仅生成确认方案；禁止伪造文件路径。 F01.6 使用 director 修改完整导演稿，包含summary和scenes（id,purpose,composition,visual,motion,estimated_duration,transition,sound,avatar_position,avatar_shape）。"
+}

@@ -1,0 +1,31 @@
+{
+  "id": "avatar.analyze",
+  "version": "1.0.0",
+  "tool": "avatar_analyze",
+  "title": "参考素材分析",
+  "node": "F01.4",
+  "entrypoint": "run",
+  "dependencies": [
+    "F01.2"
+  ],
+  "outputs": [
+    "素材片段描述"
+  ],
+  "description": "分析视频、图片、文案和可访问网页；记录无法读取的范围，形成参考素材分析文档。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "video.extract_frames",
+    "vision.describe"
+  ]
+}

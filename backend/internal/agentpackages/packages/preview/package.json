@@ -1,0 +1,31 @@
+{
+  "id": "avatar.preview",
+  "version": "1.0.0",
+  "tool": "avatar_preview",
+  "title": "镜头审阅与修改",
+  "node": "F11",
+  "entrypoint": "run",
+  "dependencies": [
+    "F10"
+  ],
+  "outputs": [
+    "预览视频"
+  ],
+  "description": "逐镜提供有声融合预览，支持单独查看人物和动效，用户确认后进入正式渲染。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "talkcraft.shotbook",
+    "remotion.preview"
+  ]
+}

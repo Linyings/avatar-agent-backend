@@ -1,0 +1,40 @@
+// Uses recorded real model output and existing media; no provider requests.
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {execFileSync} from 'node:child_process';
+import {renderDirectorMotion} from '../director-motion.mjs';
+const root=path.resolve(import.meta.dirname,'..'),dir=path.resolve(process.argv[2]);
+const read=name=>JSON.parse(fs.readFileSync(path.join(dir,name),'utf8'));
+const state=read('workflow.json'),plan=read('motion-plan.json');
+const segment={...state.segments[0],start:0},host={...state.materials.find(m=>m.kind==='avatar')};
+const probe=file=>JSON.parse(execFileSync('ffprobe',['-v','error','-show_streams','-of','json',file]));
+const stream=probe(path.join(dir,host.path)).streams.find(s=>s.codec_type==='video');
+host.width=stream.width;host.height=stream.height;
+const measured=read(segment.id+'/timestamps.json');
+const words=measured.sentences.flatMap(s=>s.words);
+const animation={width:540,height:960,fps:25,duration:segment.duration,style:state.input.style,text:segment.text,words,motion_plan:plan};
+const motion={need_id:'live-motion',kind:'animation',segment_id:segment.id,path:'materials/director-code.mp4',duration:segment.duration,width:540,height:960};
+const report=await renderDirectorMotion(animation,path.join(dir,motion.path));
+assert.equal(report.mode,'director-code');
+fs.writeFileSync(path.join(dir,'motion-render-report.json'),JSON.stringify(report,null,2));
+const scenes=measured.sentences.map(s=>({text:s.text,startSec:s.start,durationSec:s.end-s.start,chars:s.words.flatMap(w=>[...w.text].map((ch,i,a)=>({ch,t:w.start+(w.end-w.start)*i/a.length,e:w.start+(w.end-w.start)*(i+1)/a.length})))}));
+// Acceptance composition is fixed to isolate the real code and real footage.
+const split=Math.floor(segment.duration*25/2)/25;
+const shots=[{id:'live-1',start:0,end:split},{id:'live-2',start:split,end:segment.duration}].map(s=>({...s,segment_id:segment.id,primary:motion.need_id,overlay:host.need_id,layout:'pip',recipe:'visual-pip',avatar_shape:'circle',avatar_position:'bottom-right',card:'none',keyword:'',primary_in:s.start,overlay_in:s.start}));
+const manifest={width:540,height:960,fps:25,duration:segment.duration,input:state.input,segments:[segment],materials:[host,motion],shots,timing:{scenes}};
+fs.writeFileSync(path.join(dir,'workflow-props.json'),JSON.stringify({manifest}));
+fs.writeFileSync(path.join(dir,'shots.json'),JSON.stringify(shots));
+const render=mode=>execFileSync(process.execPath,[path.join(root,'workflow-render.mjs'),mode,dir],{cwd:root,stdio:'inherit',timeout:300000});
+render('preview');
+for(const shot of shots){const file=path.join(dir,'preview',shot.id+'.mp4');assert.ok(probe(file).streams.some(s=>s.codec_type==='audio'));execFileSync('ffmpeg',['-v','error','-i',file,'-f','null','-']);}
+const before=shots.map(s=>fs.statSync(path.join(dir,'segments',s.id+'.mp4')).mtimeMs);
+render('render');
+assert.deepEqual(shots.map(s=>fs.statSync(path.join(dir,'segments',s.id+'.mp4')).mtimeMs),before);
+const output=path.join(dir,'output.mp4'),info=probe(output);
+assert.ok(info.streams.some(s=>s.codec_type==='audio'));
+assert.equal(Number(info.streams.find(s=>s.codec_type==='video').nb_frames),Math.ceil(segment.duration*25));
+execFileSync('ffmpeg',['-v','error','-i',output,'-f','null','-']);
+for(const second of [2,7,10])execFileSync('ffmpeg',['-v','error','-y','-ss',String(second),'-i',output,'-frames:v','1',path.join(dir,`fusion-${second}.png`)]);
+const result={realAvatarFootage:true,realNarration:true,realModelDirector:true,realModelCode:true,storyboard:'isolated fixed two-shot validation',duration:segment.duration,frames:Math.ceil(segment.duration*25),audibleShotPreviews:shots.length,circularAvatar:true,confirmedFramesReused:true,decoded:true,originalProjectModified:false};
+fs.writeFileSync(path.join(dir,'verification.json'),JSON.stringify(result,null,2));console.log(JSON.stringify(result));

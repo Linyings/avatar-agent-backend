@@ -72,6 +72,12 @@ type contentDiagnosticError struct {
 func (e *contentDiagnosticError) Error() string           { return "模型调用诊断：" + e.code }
 func (e *contentDiagnosticError) Unwrap() error           { return e.cause }
 func (e *contentDiagnosticError) ProviderHTTPStatus() int { return e.status }
+
+// Only a complete model response proves the text request finished. Transport
+// errors and malformed provider envelopes remain uncertain submissions.
+func (e *contentDiagnosticError) ProviderOutputReceived() bool {
+	return e.code == "model_invalid_json" || e.code == "model_output_truncated"
+}
 func (e *contentDiagnosticError) ProviderDiagnosticFields() map[string]string {
 	return map[string]string{"error_code": e.code, "transport_phase": e.phase, "request_id": e.requestID}
 }
@@ -106,6 +112,8 @@ func (d *contentRequestDiagnostic) wrap(err error) error {
 		code = "response_empty_content"
 	case err.Error() == "模型未返回有效JSON":
 		code = "model_invalid_json"
+	case err.Error() == "模型输出达到上限被截断":
+		code = "model_output_truncated"
 	case d.phase == "tls":
 		code = "network_tls"
 	case d.phase == "connect":

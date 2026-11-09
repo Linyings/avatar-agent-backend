@@ -11,25 +11,28 @@ import (
 )
 
 type workflowStyle struct {
-	ID             string   `json:"id"`
-	Name           string   `json:"name"`
-	Version        string   `json:"version"`
-	Source         string   `json:"source"`
-	Entry          string   `json:"entry,omitempty"`
-	Signature      string   `json:"signature,omitempty"`
-	Description    string   `json:"description,omitempty"`
-	Ratios         []string `json:"ratios"`
-	Templates      []string `json:"templates"`
-	Published      bool     `json:"published"`
-	Legacy         bool     `json:"legacy"`
-	Preview        string   `json:"preview"`
-	PreviewKind    string   `json:"preview_kind,omitempty"`
-	PreviewWidth   int      `json:"preview_width,omitempty"`
-	PreviewHeight  int      `json:"preview_height,omitempty"`
-	ProductionMode string   `json:"production_mode,omitempty"`
-	Reference      string   `json:"reference,omitempty"`
-	Prompt         string   `json:"prompt,omitempty"`
-	SourceDownload string   `json:"source_download,omitempty"`
+	ID             string         `json:"id"`
+	Name           string         `json:"name"`
+	Version        string         `json:"version"`
+	Source         string         `json:"source"`
+	Entry          string         `json:"entry,omitempty"`
+	Signature      string         `json:"signature,omitempty"`
+	Design         map[string]any `json:"design,omitempty"`
+	Description    string         `json:"description,omitempty"`
+	Ratios         []string       `json:"ratios"`
+	Templates      []string       `json:"templates"`
+	Published      bool           `json:"published"`
+	Legacy         bool           `json:"legacy"`
+	Preview        string         `json:"preview"`
+	CardPreview    string         `json:"card_preview,omitempty"`
+	CardPoster     string         `json:"card_poster,omitempty"`
+	PreviewKind    string         `json:"preview_kind,omitempty"`
+	PreviewWidth   int            `json:"preview_width,omitempty"`
+	PreviewHeight  int            `json:"preview_height,omitempty"`
+	ProductionMode string         `json:"production_mode,omitempty"`
+	Reference      string         `json:"reference,omitempty"`
+	Prompt         string         `json:"prompt,omitempty"`
+	SourceDownload string         `json:"source_download,omitempty"`
 }
 
 func workflowStyleFilesExist(root string, names ...string) bool {
@@ -61,6 +64,10 @@ func loadWorkflowStyles(root string) ([]workflowStyle, error) {
 		seen[s.ID] = true
 		s.Published = workflowStyleFilesExist(root, "catalog/"+s.ID+".mp4", "catalog/"+s.ID+".jpg", "catalog/"+s.ID+"-reference.mp4", "catalog/"+s.ID+"-source.zip", "templates/"+s.ID+"/original-prompt.md", "templates/"+s.ID+"/SOURCE.json", "mg-upstream/"+s.Entry)
 		s.Preview = "/api/v1/avatar-mvp/catalog/" + s.ID + "/preview"
+		if workflowStyleFilesExist(root, "catalog/"+s.ID+"-card.mp4", "catalog/"+s.ID+"-card.jpg") {
+			s.CardPreview = "/api/v1/avatar-mvp/catalog/" + s.ID + "/card-preview"
+			s.CardPoster = "/api/v1/avatar-mvp/catalog/" + s.ID + "/card-poster"
+		}
 		s.Reference = "/api/v1/avatar-mvp/catalog/" + s.ID + "/reference"
 		s.Prompt = "/api/v1/avatar-mvp/catalog/" + s.ID + "/prompt"
 		s.SourceDownload = "/api/v1/avatar-mvp/catalog/" + s.ID + "/source"

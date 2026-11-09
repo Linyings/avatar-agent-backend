@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/narratoai/backend-go/internal/avatar"
@@ -28,21 +29,43 @@ type receipt struct {
 func main() {
 	paid := flag.Bool("paid", false, "explicitly allow paid catalog generation")
 	voice := flag.String("voice", "", "configured provider voice ID")
+	system := flag.Bool("system", false, "generate every built-in voice of the configured model")
 	flag.Parse()
-	if !*paid || *voice == "" {
-		fmt.Fprintln(os.Stderr, "需要 --paid 和 --voice；此操作只生成目录试听，不启动制作任务")
+	if !*paid || (*voice == "") == !*system {
+		fmt.Fprintln(os.Stderr, "需要 --paid，以及 --voice 或 --system 其一；此操作只生成目录试听，不启动制作任务")
 		os.Exit(2)
 	}
-	if err := execute(*voice); err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	voices := []string{*voice}
+	if *system {
+		voices = nil
+		for _, v := range avatar.SystemSpeechVoices(config.Load().TTSModel) {
+			voices = append(voices, v.ID)
+		}
+		if len(voices) == 0 {
+			fmt.Fprintln(os.Stderr, "当前配音模型没有登记系统音色")
+			os.Exit(2)
+		}
+	}
+	failed := 0
+	for _, id := range voices {
+		fmt.Printf("[%s] ", id)
+		if err := execute(id); err != nil {
+			fmt.Fprintln(os.Stderr, id+": "+err.Error())
+			failed++
+		}
+	}
+	if failed > 0 {
 		os.Exit(1)
 	}
 }
 
 func execute(voice string) (err error) {
 	cfg := config.Load()
-	if cfg.TTSModel != "doubao-seed-tts-2.0" {
-		return fmt.Errorf("此目录预生成命令仅适用于当前异步豆包 TTS；不自动切换模型")
+	if cfg.TTSModel != "doubao-seed-tts-2.0" && !strings.HasPrefix(cfg.TTSModel, "minimax/") {
+		return fmt.Errorf("此目录预生成命令仅适用于 RunningHub 异步 TTS（豆包 / MiniMax）；不自动切换模型")
+	}
+	if avatar.SpeechVoiceIncompatible(cfg.TTSModel, voice) {
+		return fmt.Errorf("音色与当前配音模型不匹配")
 	}
 	key := os.Getenv("RUNNINGHUB_API_KEY")
 	if key == "" {

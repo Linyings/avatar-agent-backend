@@ -1,0 +1,104 @@
+{
+  "id": "avatar.edit-material",
+  "version": "1.0.0",
+  "tool": "edit_material",
+  "title": "修改素材",
+  "node": "",
+  "entrypoint": "edit_material",
+  "dependencies": [],
+  "outputs": [
+    "素材修改提案"
+  ],
+  "description": "提供目标素材需求的新字段，保留未指定字段，用户确认后按依赖重新制作。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "changes": {
+        "type": "string",
+        "description": "修改说明",
+        "maxLength": 10000
+      },
+      "needs": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "需求 ID",
+              "maxLength": 10000
+            },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "avatar",
+                "animation",
+                "real"
+              ]
+            },
+            "content": {
+              "type": "string",
+              "description": "内容",
+              "maxLength": 10000
+            },
+            "prompt": {
+              "type": "string",
+              "description": "提示词",
+              "maxLength": 10000
+            },
+            "template": {
+              "type": "string",
+              "description": "模板语义",
+              "maxLength": 10000
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": "要点",
+                "maxLength": 10000
+              },
+              "maxItems": 100
+            },
+            "angle": {
+              "type": "string",
+              "description": "机位",
+              "maxLength": 10000
+            },
+            "duration": {
+              "type": "number",
+              "minimum": 0
+            },
+            "source_id": {
+              "type": "string",
+              "description": "上传素材 ID",
+              "maxLength": 10000
+            },
+            "source_start": {
+              "type": "number",
+              "minimum": 0
+            },
+            "description_id": {
+              "type": "string",
+              "description": "源片段 ID",
+              "maxLength": 10000
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "maxItems": 100
+      }
+    },
+    "required": [
+      "changes",
+      "needs"
+    ],
+    "additionalProperties": false
+  },
+  "tools": [
+    "proposal.material"
+  ]
+}

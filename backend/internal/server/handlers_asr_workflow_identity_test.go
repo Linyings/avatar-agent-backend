@@ -87,10 +87,10 @@ func TestVendorASRWorkflowSubmissionUsesPreRegisteredStepLease(t *testing.T) {
 	stepPath := "/api/v1/workflow-runs/" + run.ID.String() + "/steps/" + asrWorkflowStepID
 
 	preRegistered := request(fixture.app, http.MethodPut, stepPath, map[string]any{
-		"input_hash":        run.InputHash,
-		"status":            "running",
+		"input_hash":         run.InputHash,
+		"status":             "running",
 		"client_instance_id": run.ClientInstanceID,
-		"pre_registered":    true,
+		"pre_registered":     true,
 	}, fixture.token)
 	if preRegistered.Code != http.StatusOK {
 		t.Fatalf("pre-register step = %d %s", preRegistered.Code, preRegistered.Body.String())

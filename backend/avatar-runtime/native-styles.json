@@ -2,12 +2,12 @@
   {
     "id": "mg-cel-boil",
     "name": "逐帧手绘",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "05-cel-boil",
     "entry": "demos/05-cel-boil/index.html",
     "signature": "Canvas 2D 自制笔刷引擎（js/engine.js），每两帧重画一次线条，纸张底纹由 tools/ 生成。",
     "background": "#F5B730",
-    "description": "直接复用原始动画源码、图形和运镜；适配配音时长，保留原案例视觉结构。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -24,17 +24,30 @@
     "preview_kind": "upstream-original",
     "preview_width": 1920,
     "preview_height": 1080,
-    "production_mode": "native-source"
+    "production_mode": "content-motion",
+    "reference_mode": "native-source",
+    "design": {
+      "treatment": "sketch",
+      "motion": "stepped",
+      "palette": [
+        "#F7EAD0",
+        "#FFF8E9",
+        "#24271E",
+        "#D84B2C",
+        "#E7AF32"
+      ],
+      "features": "手绘轮廓每两帧轻微变化；暖纸底纹、克制的笔刷拖影与错峰入场。"
+    }
   },
   {
     "id": "mg-isometric",
     "name": "等轴 2.5D",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "03-isometric",
     "entry": "demos/03-isometric/index.html",
     "signature": "Three.js 正交相机搭的等轴场景，所有模型和材质都在 js/ 里用代码生成。",
     "background": "#A08CFF",
-    "description": "直接复用原始动画源码、图形和运镜；适配配音时长，保留原案例视觉结构。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -51,17 +64,30 @@
     "preview_kind": "upstream-original",
     "preview_width": 1920,
     "preview_height": 1080,
-    "production_mode": "native-source"
+    "production_mode": "content-motion",
+    "reference_mode": "native-source",
+    "design": {
+      "treatment": "isometric",
+      "motion": "glide",
+      "palette": [
+        "#141C3D",
+        "#263658",
+        "#F1F5FF",
+        "#B4A1FF",
+        "#5DE0C4"
+      ],
+      "features": "30度等轴体块，顶面与侧面明暗分层；图形沿平行方向生长，连线表达实际关系。"
+    }
   },
   {
     "id": "mg-flat-vector",
     "name": "扁平矢量",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "01-flat-vector",
     "entry": "demos/01-flat-vector/index.html",
     "signature": "一个 HTML 页面，SVG 图形 + 手写缓动，按时间逐帧画出。",
     "background": "#FF5A4E",
-    "description": "直接复用原始动画源码、图形和运镜；适配配音时长，保留原案例视觉结构。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -78,17 +104,30 @@
     "preview_kind": "upstream-original",
     "preview_width": 1920,
     "preview_height": 1080,
-    "production_mode": "native-source"
+    "production_mode": "content-motion",
+    "reference_mode": "native-source",
+    "design": {
+      "treatment": "solid",
+      "motion": "spring",
+      "palette": [
+        "#F7F5ED",
+        "#FFFFFF",
+        "#202541",
+        "#F6654F",
+        "#3758DB"
+      ],
+      "features": "纯色大色块和清晰矢量轮廓；几何图标弹性入场，内容焦点逐项出现。"
+    }
   },
   {
     "id": "mg-line-art",
     "name": "线条动画",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "02-line-art",
     "entry": "demos/02-line-art/index.html",
     "signature": "一条 SVG 路径贯穿全片，描边进度由 film.js 按时间计算。tools/ 里的脚本从路径算出转角和速度，给配乐卡点。",
     "background": "#E6CB8E",
-    "description": "直接复用原始动画源码、图形和运镜；适配配音时长，保留原案例视觉结构。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -105,17 +144,30 @@
     "preview_kind": "upstream-original",
     "preview_width": 1920,
     "preview_height": 1080,
-    "production_mode": "native-source"
+    "production_mode": "content-motion",
+    "reference_mode": "native-source",
+    "design": {
+      "treatment": "stroke",
+      "motion": "draw",
+      "palette": [
+        "#101A25",
+        "#152633",
+        "#F3E7C9",
+        "#E8CD8E",
+        "#A7BAAD"
+      ],
+      "features": "等宽细线连续描绘，端点圆头、留白充分；用原文概念之间的连线组织画面。"
+    }
   },
   {
     "id": "mg-3d-render",
     "name": "3D 渲染",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "04-3d-render",
     "entry": "demos/04-3d-render/index.html",
     "signature": "Blender Cycles 渲染：blender/sim.py 算出全部运动，scene.py 搭场景，render.py 出序列帧；index.html 再叠上文字和颗粒合成。序列帧体积大，没有收录。",
     "background": "#FF8FC0",
-    "description": "直接复用原版3D成片素材（仓库未包含Blender序列帧）；适配时长，原片内嵌文字不可修改。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -132,17 +184,30 @@
     "preview_kind": "upstream-original",
     "preview_width": 1920,
     "preview_height": 1080,
-    "production_mode": "original-video"
+    "production_mode": "content-motion",
+    "reference_mode": "original-video",
+    "design": {
+      "treatment": "sculpted",
+      "motion": "glide",
+      "palette": [
+        "#ECE9F7",
+        "#FAF6FF",
+        "#27213F",
+        "#A28BDF",
+        "#E7A79C"
+      ],
+      "features": "柔和棚拍光、圆润体积、渐变高光与软阴影；主题物件和数据构成层次，长尾缓动。"
+    }
   },
   {
     "id": "mg-morph",
     "name": "形变动画",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "08-morph",
     "entry": "demos/08-morph/index.html",
     "signature": "SVG 形状逐点插值，字标轮廓由 tools/glyphs.py 从字体里提取成 glyphs.json。",
     "background": "#3D5BFF",
-    "description": "直接复用原始动画源码、图形和运镜；适配配音时长，保留原案例视觉结构。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -159,17 +224,30 @@
     "preview_kind": "upstream-original",
     "preview_width": 1920,
     "preview_height": 1080,
-    "production_mode": "native-source"
+    "production_mode": "content-motion",
+    "reference_mode": "native-source",
+    "design": {
+      "treatment": "morph",
+      "motion": "spring",
+      "palette": [
+        "#F5F0E8",
+        "#FFFAF4",
+        "#27234E",
+        "#6557E8",
+        "#F18363"
+      ],
+      "features": "圆形与圆角矩形连续形变，主体轻微挤压拉伸；轮廓变化连接口播里的新概念。"
+    }
   },
   {
     "id": "mg-paperclip",
     "name": "贴纸风 · 科普",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "19-paperclip",
     "entry": "demos/19-paperclip/index.html",
     "signature": "一张超大画布配相机运镜，图表用 D3 + TopoJSON 画，贴纸由 tools/stickers.py 抠图描边。",
     "background": "#FF8A1F",
-    "description": "直接复用原始动画源码、图形和运镜；适配配音时长，保留原案例视觉结构。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -186,17 +264,30 @@
     "preview_kind": "upstream-original",
     "preview_width": 1920,
     "preview_height": 1080,
-    "production_mode": "native-source"
+    "production_mode": "content-motion",
+    "reference_mode": "native-source",
+    "design": {
+      "treatment": "paper",
+      "motion": "glide",
+      "palette": [
+        "#E6ECED",
+        "#FFFFFF",
+        "#233943",
+        "#E88239",
+        "#497E92"
+      ],
+      "features": "冷静底色、粗白边贴纸与板书连线；按口播信息点平移，数字保持原值。"
+    }
   },
   {
     "id": "mg-hud",
     "name": "赛博朋克 · HUD",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "22-hud",
     "entry": "demos/22-hud/index.html",
     "signature": "Three.js 线框地球 + Canvas 界面层 + 辉光后期，地图数据是 assets/land-50m.json。",
     "background": "#45E0FF",
-    "description": "直接复用原始动画源码、图形和运镜；适配配音时长，保留原案例视觉结构。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -213,17 +304,30 @@
     "preview_kind": "upstream-original",
     "preview_width": 1920,
     "preview_height": 1080,
-    "production_mode": "native-source"
+    "production_mode": "content-motion",
+    "reference_mode": "native-source",
+    "design": {
+      "treatment": "hud",
+      "motion": "draw",
+      "palette": [
+        "#091522",
+        "#102B39",
+        "#DBF8FF",
+        "#45DCEF",
+        "#F5A352"
+      ],
+      "features": "青橙霓虹细线、扫描网格、目标四角与环形描边；只显示有原文依据的标签和数字。"
+    }
   },
   {
     "id": "mg-collage",
     "name": "拼贴剪贴",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "06-collage",
     "entry": "demos/06-collage/index.html",
     "signature": "公有领域的老照片和版画剪成素材（work/ 里的脚本），在 HTML 里按 12 fps 逐格拼贴。",
     "background": "#E0A355",
-    "description": "直接复用原始动画源码、图形和运镜；适配配音时长，保留原案例视觉结构。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -240,17 +344,30 @@
     "preview_kind": "upstream-original",
     "preview_width": 1920,
     "preview_height": 1080,
-    "production_mode": "native-source"
+    "production_mode": "content-motion",
+    "reference_mode": "native-source",
+    "design": {
+      "treatment": "collage",
+      "motion": "stepped",
+      "palette": [
+        "#E8DDC8",
+        "#FFF8E6",
+        "#292620",
+        "#BF5434",
+        "#415E61"
+      ],
+      "features": "错位纸片、撕边、胶带与半调网点；低帧率手摆感，剪贴内容取自当前口播。"
+    }
   },
   {
     "id": "mg-aurora-glass",
     "name": "弥散渐变 · 玻璃拟态",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "12-aurora-glass",
     "entry": "demos/12-aurora-glass/index.html",
     "signature": "WebGL2 着色器画极光和玻璃折射（shaders.js），界面用 Canvas 画。音频脚本会顺带写出 out/env.json，让画面上的声波跟着音乐动。",
     "background": "#86A6FF",
-    "description": "直接复用原始动画源码、图形和运镜；适配配音时长，保留原案例视觉结构。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -267,17 +384,30 @@
     "preview_kind": "upstream-original",
     "preview_width": 1920,
     "preview_height": 1080,
-    "production_mode": "native-source"
+    "production_mode": "content-motion",
+    "reference_mode": "native-source",
+    "design": {
+      "treatment": "glass",
+      "motion": "glide",
+      "palette": [
+        "#131F40",
+        "#243659",
+        "#EDF3FF",
+        "#9CBAFF",
+        "#85E4CC"
+      ],
+      "features": "邻近色弥散光斑缓慢漂移，半透明玻璃层和细高光；文字柔和浮现。"
+    }
   },
   {
     "id": "mg-bauhaus",
     "name": "几何构成 · 包豪斯",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "09-bauhaus",
     "entry": "demos/09-bauhaus/index.html",
     "signature": "120 px 网格上的几何图形，film.js 按 120 BPM 的节拍逐拍搭建。",
     "background": "#E63B2E",
-    "description": "直接复用原始动画源码、图形和运镜；适配配音时长，保留原案例视觉结构。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -294,17 +424,30 @@
     "preview_kind": "upstream-original",
     "preview_width": 1920,
     "preview_height": 1080,
-    "production_mode": "native-source"
+    "production_mode": "content-motion",
+    "reference_mode": "native-source",
+    "design": {
+      "treatment": "geometric",
+      "motion": "snap",
+      "palette": [
+        "#F0E8D8",
+        "#FFF9ED",
+        "#20242B",
+        "#DA4735",
+        "#3561AC"
+      ],
+      "features": "红黄蓝黑限定色与严格网格，圆和方块机械旋转、精确落位，避免弹簧抖动。"
+    }
   },
   {
     "id": "mg-synthwave",
     "name": "复古 · Synthwave",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "10-synthwave",
     "entry": "demos/10-synthwave/index.html",
     "signature": "Three.js 场景 + 自写的 VHS 后期着色器，全部在 index.html 里。",
     "background": "#FF3DA8",
-    "description": "直接复用原始动画源码、图形和运镜；适配配音时长，保留原案例视觉结构。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -321,17 +464,30 @@
     "preview_kind": "upstream-original",
     "preview_width": 1920,
     "preview_height": 1080,
-    "production_mode": "native-source"
+    "production_mode": "content-motion",
+    "reference_mode": "native-source",
+    "design": {
+      "treatment": "neon",
+      "motion": "glide",
+      "palette": [
+        "#190F36",
+        "#29204B",
+        "#FFF0FC",
+        "#F66AC4",
+        "#64DEEE"
+      ],
+      "features": "霓虹网格、镀铬渐变与轻扫描线，透视层次服务于当前主题，禁止复用原片故事。"
+    }
   },
   {
     "id": "mg-pixel",
     "name": "像素风",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "20-pixel",
     "entry": "demos/20-pixel/index.html",
     "signature": "320×180 的画布逐点绘制再放大，调色板轮换做出昼夜光线。",
     "background": "#4FB0FF",
-    "description": "直接复用原始动画源码、图形和运镜；适配配音时长，保留原案例视觉结构。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -348,17 +504,30 @@
     "preview_kind": "upstream-original",
     "preview_width": 1920,
     "preview_height": 1080,
-    "production_mode": "native-source"
+    "production_mode": "content-motion",
+    "reference_mode": "native-source",
+    "design": {
+      "treatment": "pixel",
+      "motion": "stepped",
+      "palette": [
+        "#152547",
+        "#243960",
+        "#ECF6FF",
+        "#65B5FF",
+        "#EAC65A"
+      ],
+      "features": "有限色板、整像素台阶轮廓与逐格运动；图标像素化但中文标签保持可读。"
+    }
   },
   {
     "id": "mg-liquid",
     "name": "液态流动",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "07-liquid",
     "entry": "demos/07-liquid/index.html",
     "signature": "WebGL2 片元着色器里的 SDF 融球，字标也转成了距离场参与融合。",
     "background": "#B45CFF",
-    "description": "直接复用原版液态成片素材（保留源码；当前软件渲染开销高）；适配时长，原片内嵌文字不可修改。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -375,17 +544,30 @@
     "preview_kind": "upstream-original",
     "preview_width": 1920,
     "preview_height": 1080,
-    "production_mode": "original-video"
+    "production_mode": "content-motion",
+    "reference_mode": "original-video",
+    "design": {
+      "treatment": "liquid",
+      "motion": "spring",
+      "palette": [
+        "#17132E",
+        "#2E2350",
+        "#F9F2FF",
+        "#B696F4",
+        "#F49FCA"
+      ],
+      "features": "有机轮廓与液滴跟随，圆形在转折处融合拉伸；液态背景围绕内容焦点运动。"
+    }
   },
   {
     "id": "mg-hanazi",
     "name": "综艺花字",
-    "version": "mg-native/3",
+    "version": "content-motion/1",
     "source": "18-hanazi",
     "entry": "demos/18-hanazi/index.html",
     "signature": "9:16 竖屏。照片素材 + DOM/SVG 花字和弹簧动画，assets/ 里的脚本负责抠图和做炸毛贴图。",
     "background": "#FF6FB5",
-    "description": "直接复用原始动画源码、图形和运镜；适配配音时长，保留原案例视觉结构。",
+    "description": "参考配色、材质与运动风格，结合当前文案和人物画面重新设计动效；演示视频仅供风格参考。",
     "ratios": [
       "9:16",
       "16:9",
@@ -402,6 +584,19 @@
     "preview_kind": "upstream-original",
     "preview_width": 1080,
     "preview_height": 1920,
-    "production_mode": "native-source"
+    "production_mode": "content-motion",
+    "reference_mode": "native-source",
+    "design": {
+      "treatment": "comic",
+      "motion": "spring",
+      "palette": [
+        "#FCEBDC",
+        "#FFF9F3",
+        "#37233D",
+        "#EA6DB4",
+        "#63BDBF"
+      ],
+      "features": "高饱和花字、白描边和彩色投影，弹性放大与装饰放射线；围绕原文重点短语组织。"
+    }
   }
 ]

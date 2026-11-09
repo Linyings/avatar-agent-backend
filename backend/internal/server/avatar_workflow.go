@@ -17,6 +17,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
+	"github.com/narratoai/backend-go/internal/agent"
 	"github.com/narratoai/backend-go/internal/avatar"
 	"github.com/narratoai/backend-go/internal/models"
 	"gorm.io/gorm"
@@ -77,9 +78,18 @@ func (w *avatarWorkflowService) load(ctx context.Context, owner uuid.UUID, id st
 
 // All read/modify/write transitions share the same lock as legacy task admission.
 func (w *avatarWorkflowService) update(id string, fn func(*avatar.WorkflowState) error) error {
+	return w.updateContext(context.Background(), id, fn)
+}
+
+func (w *avatarWorkflowService) updateContext(ctx context.Context, id string, fn func(*avatar.WorkflowState) error) error {
+	return w.updateTransaction(ctx, id, func(_ *gorm.DB, state *avatar.WorkflowState) error { return fn(state) })
+}
+
+func (w *avatarWorkflowService) updateTransaction(ctx context.Context, id string, fn func(*gorm.DB, *avatar.WorkflowState) error) error {
 	w.app.avatarMVP.mu.Lock()
 	defer w.app.avatarMVP.mu.Unlock()
-	return w.app.db.Transaction(func(tx *gorm.DB) error {
+	var committed avatar.WorkflowState
+	err := w.app.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := avatarTransactionLock(tx); err != nil {
 			return err
 		}
@@ -91,7 +101,7 @@ func (w *avatarWorkflowService) update(id string, fn func(*avatar.WorkflowState)
 		if err := json.Unmarshal(row.Result, &s); err != nil {
 			return err
 		}
-		if err := fn(&s); err != nil {
+		if err := fn(tx, &s); err != nil {
 			return err
 		}
 		s.UpdatedAt = time.Now().UTC()
@@ -108,8 +118,13 @@ func (w *avatarWorkflowService) update(id string, fn func(*avatar.WorkflowState)
 		if err := tx.Save(&row).Error; err != nil {
 			return err
 		}
+		committed = s
 		return tx.Model(&models.WorkflowRun{}).Where("id=?", id).Updates(map[string]any{"status": s.Status, "last_active_at": s.UpdatedAt, "completed_at": s.CompletedAt}).Error
 	})
+	if err == nil {
+		agent.PublishWorkflowState(committed.ProjectID, committed.ID, committed.Stage, committed.Status)
+	}
+	return err
 }
 func (w *avatarWorkflowService) save(s *avatar.WorkflowState) error {
 	for i := range s.Steps {
@@ -118,6 +133,12 @@ func (w *avatarWorkflowService) save(s *avatar.WorkflowState) error {
 	s.UpdatedAt = time.Now().UTC()
 	s.RefreshBilling()
 	err := w.update(s.ID, func(current *avatar.WorkflowState) error {
+		if current.PauseRequested {
+			s.PauseRequested = true
+		}
+		if current.TargetNode != "" {
+			s.TargetNode = current.TargetNode
+		}
 		if current.StopRequested {
 			s.StopRequested = true
 			s.StoppedAt = current.StoppedAt
@@ -146,7 +167,22 @@ func (w *avatarWorkflowService) save(s *avatar.WorkflowState) error {
 	return nil
 }
 func (w *avatarWorkflowService) create(ctx context.Context, owner, projectID uuid.UUID, request string, revision int, editOptions ...avatar.WorkflowEdits) (avatar.WorkflowState, error) {
+	return w.createTo(ctx, owner, projectID, request, revision, "", editOptions...)
+}
+
+// TargetNode is admitted in the same transaction as the run, including edits.
+// A failed write or process restart must not expand a requested partial run.
+func (w *avatarWorkflowService) createTo(ctx context.Context, owner, projectID uuid.UUID, request string, revision int, target string, editOptions ...avatar.WorkflowEdits) (avatar.WorkflowState, error) {
+	return w.createToChecked(ctx, owner, projectID, request, revision, target, nil, editOptions...)
+}
+
+// Proposal checks must observe the same transaction as run admission. The HTTP
+// preflight alone cannot protect against edits through other workflow endpoints.
+func (w *avatarWorkflowService) createToChecked(ctx context.Context, owner, projectID uuid.UUID, request string, revision int, target string, proposal *packageProposal, editOptions ...avatar.WorkflowEdits) (avatar.WorkflowState, error) {
 	var s avatar.WorkflowState
+	if target != "" && !isKnownWorkflowNode(target) {
+		return s, fmt.Errorf("制作节点不存在")
+	}
 	if len(request) < 4 || len(request) > 100 {
 		return s, fmt.Errorf("需要有效的幂等请求ID")
 	}
@@ -157,7 +193,7 @@ func (w *avatarWorkflowService) create(ctx context.Context, owner, projectID uui
 			return err
 		}
 		var p models.Project
-		if err := tx.Where("id=? AND owner_id=?", projectID, owner).First(&p).Error; err != nil {
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("id=? AND owner_id=?", projectID, owner).First(&p).Error; err != nil {
 			return err
 		}
 		in, err := workflowInput(p)
@@ -178,17 +214,45 @@ func (w *avatarWorkflowService) create(ctx context.Context, owner, projectID uui
 		if revision != in.Revision {
 			return fmt.Errorf("输入版本已更新，请刷新后再运行")
 		}
+		if proposal != nil {
+			stored := proposalOf(p)
+			if stored == nil || stored.ID != proposal.ID || stored.Applied || stored.Revision != in.Revision {
+				return fmt.Errorf("提案或项目版本已变化，请重新生成提案")
+			}
+			current, err := latestAgentRunFrom(tx, owner, projectID)
+			if err != nil {
+				return err
+			}
+			if current.ID != proposal.Edits.BaseRunID || packageFingerprint(current) != proposal.BaseFingerprint {
+				return fmt.Errorf("产物已变化，请重新生成提案")
+			}
+			if current.Status == "running" || current.Status == "stopping" || (current.Status == "submission_unknown" && !workflowTestingMode()) {
+				return fmt.Errorf("当前运行尚未结束或订单待核对，不能应用修改")
+			}
+		}
+		if err := w.ensureProjectOrdersSettled(tx, owner, projectID); err != nil {
+			return err
+		}
 		if err := w.app.avatarMVP.ensureIdle(tx); err != nil {
+			return err
+		}
+		// Resolve legacy voice defaults before deciding which previous audio can
+		// be inherited into this new run.
+		if err := w.validateInput(&in, false); err != nil {
 			return err
 		}
 		now := time.Now().UTC()
 		id := uuid.New()
 		s = avatar.WorkflowState{ID: id.String(), ProjectID: projectID.String(), Version: avatar.WorkflowVersion, Input: in, ConfigID: w.app.avatarMVP.options.VideoConfigID(), Script: in.Script, Status: "running", Stage: "F01", CreatedAt: now, UpdatedAt: now, Steps: []avatar.WorkflowStep{}, Events: []avatar.WorkflowEvent{}, Artifacts: []avatar.WorkflowArtifact{}, Segments: []avatar.Segment{}, Materials: []avatar.Material{}, Needs: []avatar.MaterialNeed{}, Shots: []avatar.WorkflowShot{}}
+		s.TargetNode = target
 		s.ConfigSnapshot = w.configSnapshot()
 		s.ConfigID = avatar.Digest(s.ConfigSnapshot)
 		edits := avatar.WorkflowEdits{}
 		if len(editOptions) > 0 {
 			edits = editOptions[0]
+		}
+		if edits.RerunFrom != "" && edits.BaseRunID == "" {
+			return fmt.Errorf("重做必须指定已有基础运行")
 		}
 		var last models.WorkflowStepExecution
 		priorQuery := tx.Table("workflow_step_executions AS s").Select("s.*").Joins("JOIN workflow_runs AS r ON r.id=s.workflow_run_id").Where("r.project_id=? AND r.user_id=? AND s.step_id=?", projectID, owner, workflowMarker)
@@ -198,6 +262,11 @@ func (w *avatarWorkflowService) create(ctx context.Context, owner, projectID uui
 		if err := priorQuery.Order("s.created_at DESC").First(&last).Error; err == nil {
 			var previous avatar.WorkflowState
 			if json.Unmarshal(last.Result, &previous) == nil {
+				// Keep an existing production contract on a local edit. Upgrading
+				// an old project is an explicit restart from the new design stage.
+				if previous.Version != "" && previous.Version != avatar.WorkflowVersion && edits.RerunFrom != "F01.2" && edits.RerunFrom != "F01.6" && edits.Director == nil {
+					s.Version = previous.Version
+				}
 				if err := w.inherit(&s, previous, edits); err != nil {
 					return err
 				}
@@ -207,6 +276,28 @@ func (w *avatarWorkflowService) create(ctx context.Context, owner, projectID uui
 		}
 		if err := avatar.ValidateSubtitleEdits(s.Input, s.Segments); err != nil {
 			return err
+		}
+		if err := w.validateInput(&s.Input, false); err != nil {
+			return err
+		}
+		// Keep an accepted voice change in the draft as well as this run. The
+		// revision and run admission commit together, so retries cannot lose it.
+		if (edits.Voice != "" && in.Voice != s.Input.Voice) || edits.VoiceSpeed != nil || edits.SegmentVoiceSpeeds != nil || edits.Presentation != nil || edits.Subtitles != nil || avatar.Digest(in.SubtitleEdits) != avatar.Digest(s.Input.SubtitleEdits) {
+			in.Voice = s.Input.Voice
+			in.VoiceSpeed = s.Input.VoiceSpeed
+			in.SegmentVoiceSpeeds = s.Input.SegmentVoiceSpeeds
+			edits.ApplyPresentation(&in)
+			in.SubtitleEdits = s.Input.SubtitleEdits
+			in.Revision++
+			s.Input.Revision = in.Revision
+			meta := map[string]any{}
+			if err := json.Unmarshal(p.ProjectMetadata, &meta); err != nil {
+				return err
+			}
+			meta["avatar_v2"] = in
+			if err := tx.Model(&p).Update("project_metadata", jsonMap(meta)).Error; err != nil {
+				return err
+			}
 		}
 		run := models.WorkflowRun{ID: id, UserID: owner, ProjectID: &projectID, ClientType: "web", InputHash: hash, Status: "running", BillingStatus: "released", ClientInstanceID: avatarOwner, LastActiveAt: now, ExpiresAt: now.Add(24 * time.Hour)}
 		if err := tx.Create(&run).Error; err != nil {
@@ -218,12 +309,40 @@ func (w *avatarWorkflowService) create(ctx context.Context, owner, projectID uui
 	})
 	return s, err
 }
+
+// Check every run, not just the latest revision: changing a draft or stopping a
+// run does not settle an order. Idempotent replays are handled before this gate.
+func (w *avatarWorkflowService) ensureProjectOrdersSettled(tx *gorm.DB, owner, project uuid.UUID) error {
+	var rows []models.WorkflowStepExecution
+	if err := tx.Table("workflow_step_executions AS s").Select("s.result").Joins("JOIN workflow_runs AS r ON r.id=s.workflow_run_id").Where("r.project_id=? AND r.user_id=? AND s.step_id=?", project, owner, workflowMarker).Find(&rows).Error; err != nil {
+		return err
+	}
+	for _, row := range rows {
+		var state avatar.WorkflowState
+		if err := json.Unmarshal(row.Result, &state); err != nil {
+			return fmt.Errorf("历史运行状态无法读取，请先核对订单")
+		}
+		for _, step := range state.Steps {
+			if step.Status == "succeeded" || step.LocalRecovery != "" {
+				continue
+			}
+			if workflowTestingMode() && unknownWithoutTask(step) {
+				continue
+			}
+			switch step.Submission {
+			case "submitting", "unknown", "submitted":
+				return fmt.Errorf("本项目存在待核对的供应商订单，请恢复原运行并核对订单，不能新建制作")
+			}
+		}
+	}
+	return nil
+}
 func strPtr(s string) *string { return &s }
 func (w *avatarWorkflowService) stop(ctx context.Context, owner uuid.UUID, id string) error {
 	if _, err := w.load(ctx, owner, id); err != nil {
 		return err
 	}
-	return w.update(id, func(s *avatar.WorkflowState) error {
+	return w.updateContext(ctx, id, func(s *avatar.WorkflowState) error {
 		if s.Status == "succeeded" || s.Status == "stopped" {
 			return nil
 		}
@@ -242,6 +361,9 @@ func (w *avatarWorkflowService) beforeSubmit(s *avatar.WorkflowState, step strin
 	return w.update(s.ID, func(current *avatar.WorkflowState) error {
 		if current.StopRequested {
 			return errWorkflowStopped
+		}
+		if current.PauseRequested {
+			return errWorkflowPaused
 		}
 		// The persisted submitting claim is the linearization point shared with stop.
 		for i := range s.Steps {
@@ -267,19 +389,36 @@ func (w *avatarWorkflowService) confirm(ctx context.Context, owner uuid.UUID, id
 	if _, err := w.load(ctx, owner, id); err != nil {
 		return err
 	}
-	return w.update(id, func(s *avatar.WorkflowState) error {
+	return w.updateTransaction(ctx, id, func(tx *gorm.DB, s *avatar.WorkflowState) error {
 		if s.Status != "awaiting_confirmation" || s.Confirmation != kind || s.ConfirmationVersion != version || s.StopRequested {
 			return fmt.Errorf("确认版本已过期或任务已停止")
 		}
-		if err := w.app.avatarMVP.ensureIdle(w.app.db); err != nil {
+		if err := w.app.avatarMVP.ensureIdle(tx); err != nil {
 			return err
 		}
 		switch kind {
+		case "shots", "final":
+			if !avatar.DirectorWorkflow(s) || version != avatar.ReviewFingerprint(*s, kind) {
+				return fmt.Errorf("审阅版本已变化，请重新查看预览")
+			}
+			if err := w.validateReview(s, kind); err != nil {
+				return err
+			}
+			if kind == "shots" {
+				s.ShotsConfirmed = version
+			} else {
+				s.FinalConfirmed = version
+			}
 		case "script":
 			if len(segments) > 0 {
 				for i := range segments {
 					// Confirmation accepts text only, never browser-supplied media paths or timing.
 					segments[i] = avatar.Segment{ID: segments[i].ID, Chapter: segments[i].Chapter, Text: segments[i].Text}
+					for _, old := range s.Segments {
+						if old.ID == segments[i].ID {
+							segments[i].DirectorSceneID = old.DirectorSceneID
+						}
+					}
 					for _, old := range s.Segments {
 						if old.ID == segments[i].ID && old.Text == segments[i].Text && old.Audio != "" && old.Fingerprint != "" {
 							chapter := segments[i].Chapter
@@ -301,6 +440,14 @@ func (w *avatarWorkflowService) confirm(ctx context.Context, owner uuid.UUID, id
 			}
 			s.ScriptConfirmed = true
 		case "audio":
+			if len(s.Segments) == 0 {
+				return fmt.Errorf("配音尚未全部完成，请等待全部段落生成后继续")
+			}
+			for _, segment := range s.Segments {
+				if segment.Audio == "" || segment.Duration <= 0 {
+					return fmt.Errorf("配音尚未全部完成，请等待全部段落生成后继续")
+				}
+			}
 			s.AudioConfirmed = true
 		default:
 			return fmt.Errorf("未知确认类型")
@@ -314,26 +461,51 @@ func (w *avatarWorkflowService) confirm(ctx context.Context, owner uuid.UUID, id
 		return nil
 	})
 }
-func (w *avatarWorkflowService) retry(ctx context.Context, owner uuid.UUID, id string) error {
+func (w *avatarWorkflowService) retry(ctx context.Context, owner uuid.UUID, id string, targets ...string) error {
+	target := ""
+	if len(targets) > 0 {
+		target = targets[0]
+	}
+	return w.retryWithRequest(ctx, owner, id, target, "")
+}
+
+func (w *avatarWorkflowService) retryWithRequest(ctx context.Context, owner uuid.UUID, id, target, request string) error {
 	if _, err := w.load(ctx, owner, id); err != nil {
 		return err
 	}
-	return w.update(id, func(s *avatar.WorkflowState) error {
+	return w.updateTransaction(ctx, id, func(tx *gorm.DB, s *avatar.WorkflowState) error {
+		for _, accepted := range s.RecoveryRequests {
+			if request != "" && accepted == request {
+				return nil
+			}
+		}
 		if s.Status != "failed" && s.Status != "interrupted" && s.Status != "submission_unknown" {
 			return fmt.Errorf("当前任务不能重试；停止的任务请另建运行")
 		}
 		if s.ConfigID != avatar.Digest(w.configSnapshot()) && !workflowProviderConfigCompatible(s.ConfigSnapshot, w.configSnapshot()) {
 			return fmt.Errorf("供应商配置已变更，请恢复原配置后查单")
 		}
-		if err := w.app.avatarMVP.ensureIdle(w.app.db); err != nil {
+		if err := w.app.avatarMVP.ensureIdle(tx); err != nil {
 			return err
 		}
-		for _, step := range s.Steps {
+		for i := range s.Steps {
+			step := &s.Steps[i]
 			if (step.Submission == "submitting" || step.Submission == "unknown") && step.ProviderTaskID == "" {
-				return fmt.Errorf("提交状态待确认，禁止重复付费；请先核对供应商订单")
+				if workflowTestingMode() {
+					step.PreserveOrder()
+					step.Submission = ""
+					step.Usage = nil
+					s.AddWarning(step.ID, "test_retry", "用户已请求重新执行未取得任务号的步骤，原尝试记录保留。")
+				} else if step.ID != "F10" {
+					return fmt.Errorf("提交状态待确认，禁止重复付费；请先核对供应商订单")
+				} else {
+					if err := w.restoreInterruptedShots(s, step); err != nil {
+						return err
+					}
+				}
 			}
 			if step.ID == "F10" && step.Submission == "completed" && strings.HasPrefix(step.Error, "分镜使用区间超出真实素材") && len(s.Shots) == 0 {
-				if err := w.restoreCompletedShots(s, step); err != nil {
+				if err := w.restoreCompletedShots(s, *step); err != nil {
 					return err
 				}
 			}
@@ -346,8 +518,16 @@ func (w *avatarWorkflowService) retry(ctx context.Context, owner uuid.UUID, id s
 			}
 		}
 		s.Status = "running"
+		if target != "" {
+			s.TargetNode = target
+		}
+		if request != "" {
+			s.RecoveryRequests = append(s.RecoveryRequests, request)
+		}
+		s.PauseRequested = false
 		s.Error = ""
 		s.ErrorType = ""
+		s.ErrorStepID = ""
 		return nil
 	})
 }
@@ -360,7 +540,10 @@ func (w *avatarWorkflowService) runMedia(ctx context.Context, stage, dir string)
 	cmd.Stderr = &tail
 	if err := cmd.Run(); err != nil {
 		_ = os.WriteFile(filepath.Join(dir, stage+".log"), tail.Bytes(), 0600)
-		return nil, fmt.Errorf("本地媒体步骤 %s 执行失败，请查看任务日志", stage)
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		return nil, mediaFailure(stage, tail.Bytes())
 	}
 	result, err := os.ReadFile(filepath.Join(dir, "media-result.json"))
 	if err != nil {
@@ -579,12 +762,14 @@ func (a *App) workflowConfirm(c *gin.Context) {
 	c.JSON(202, s)
 }
 func (a *App) workflowRetry(c *gin.Context) {
-	if err := a.avatarWorkflow.retry(c.Request.Context(), getUser(c).ID, c.Param("id")); err != nil {
+	s, err := a.avatarWorkflow.retryRun(c.Request.Context(), getUser(c).ID, c.Param("id"), "", c.GetHeader("Idempotency-Key"))
+	if err != nil {
 		workflowError(c, err)
 		return
 	}
-	s, _ := a.avatarWorkflow.load(c.Request.Context(), getUser(c).ID, c.Param("id"))
-	a.avatarWorkflow.launch(s, getUser(c).ID)
+	if s.Status == "running" {
+		a.avatarWorkflow.launch(s, getUser(c).ID)
+	}
 	c.JSON(202, s)
 }
 func (a *App) workflowRead(c *gin.Context) {
@@ -678,7 +863,7 @@ func (a *App) workflowUpload(c *gin.Context) {
 	}
 	defer file.Close()
 	kind := c.Request.FormValue("kind")
-	if kind != "photo" && kind != "video" && kind != "image" {
+	if kind != "photo" && kind != "video" && kind != "image" && kind != "text" {
 		fail(c, 400, "素材类型无效")
 		return
 	}
@@ -801,6 +986,8 @@ func (a *App) workflowAsset(c *gin.Context) {
 func (a *App) registerAvatarWorkflow(r *gin.RouterGroup) {
 	r.GET("/catalog", a.workflowCatalog)
 	r.GET("/catalog/:style/preview", a.workflowStylePreview)
+	r.GET("/catalog/:style/card-preview", a.workflowStylePreview)
+	r.GET("/catalog/:style/card-poster", a.workflowStylePreview)
 	r.GET("/catalog/:style/poster", a.workflowStylePreview)
 	r.GET("/catalog/:style/reference", a.workflowStylePreview)
 	r.GET("/catalog/:style/prompt", a.workflowStylePreview)
@@ -815,6 +1002,7 @@ func (a *App) registerAvatarWorkflow(r *gin.RouterGroup) {
 	r.GET("/runs/:id", a.workflowRunGet)
 	r.POST("/runs/:id/stop", a.workflowStop)
 	r.POST("/runs/:id/confirm", a.workflowConfirm)
+	r.POST("/runs/:id/script-review", a.workflowSaveScriptReview)
 	r.POST("/runs/:id/retry", a.workflowRetry)
 	r.POST("/runs/:id/events/:eventId/read", a.workflowRead)
 	r.GET("/runs/:id/artifacts/:artifactId", a.workflowArtifact)

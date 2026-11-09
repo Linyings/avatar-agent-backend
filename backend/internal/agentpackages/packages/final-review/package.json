@@ -1,0 +1,32 @@
+{
+  "id": "avatar.final-review",
+  "version": "3.0.0",
+  "tool": "avatar_final_review",
+  "title": "成片预览与修订",
+  "node": "F11.2",
+  "entrypoint": "run",
+  "dependencies": [
+    "F11.1"
+  ],
+  "outputs": [
+    "成片预览"
+  ],
+  "description": "完整观看成片，检查内容、节奏、字幕和声音，用户确认后交付。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "talkcraft.plan",
+    "llm.design_shots",
+    "shotbook.validate"
+  ]
+}

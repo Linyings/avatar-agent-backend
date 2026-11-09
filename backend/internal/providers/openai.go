@@ -446,7 +446,7 @@ func (o OpenAIClient) completeNonStream(
 	choice, _ := choices[0].(map[string]any)
 	message, _ := choice["message"].(map[string]any)
 	content, _ := message["content"].(string)
-	if strings.TrimSpace(content) == "" {
+	if strings.TrimSpace(content) == "" && choice["finish_reason"] != "length" {
 		return openAINonStreamCompletion{}, fmt.Errorf("response has no valid narration content")
 	}
 
@@ -455,6 +455,11 @@ func (o OpenAIClient) completeNonStream(
 		PromptTokens:     numberToInt64(rawUsage["prompt_tokens"]),
 		CompletionTokens: numberToInt64(rawUsage["completion_tokens"]),
 		TotalTokens:      numberToInt64(rawUsage["total_tokens"]),
+	}
+	if details, ok := rawUsage["completion_tokens_details"].(map[string]any); ok {
+		if _, reported := details["reasoning_tokens"]; reported {
+			usage.CompletionTokensDetails = &ChatCompletionTokenDetails{ReasoningTokens: numberToInt64(details["reasoning_tokens"])}
+		}
 	}
 	model := strings.TrimSpace(fmt.Sprint(decoded["model"]))
 	if model == "" || model == "<nil>" {

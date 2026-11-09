@@ -1,0 +1,42 @@
+{
+  "id": "avatar.control",
+  "version": "1.0.0",
+  "tool": "run_control",
+  "title": "运行控制",
+  "node": "",
+  "entrypoint": "control",
+  "dependencies": [],
+  "outputs": [
+    "运行状态"
+  ],
+  "description": "暂停、继续、停止或重试当前制作。暂停在当前供应商订单或本地步骤结束后生效，不丢弃订单。不能替用户批准文案和配音。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "action": {
+        "type": "string",
+        "enum": [
+          "pause",
+          "resume",
+          "stop",
+          "retry"
+        ]
+      },
+      "reason": {
+        "type": "string",
+        "description": "原因",
+        "maxLength": 10000
+      }
+    },
+    "required": [
+      "action"
+    ],
+    "additionalProperties": false
+  },
+  "tools": [
+    "workflow.pause",
+    "workflow.resume",
+    "workflow.stop",
+    "workflow.retry"
+  ]
+}

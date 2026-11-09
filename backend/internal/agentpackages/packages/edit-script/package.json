@@ -1,0 +1,60 @@
+{
+  "id": "avatar.edit-script",
+  "version": "1.0.0",
+  "tool": "edit_script",
+  "title": "修改文案",
+  "node": "",
+  "entrypoint": "edit_script",
+  "dependencies": [],
+  "outputs": [
+    "文案修改提案"
+  ],
+  "description": "提供目标段落的完整新文本，生成持久化提案，用户确认前不修改。先用 avatar_inspect 获取当前段落 ID。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "changes": {
+        "type": "string",
+        "description": "用中文说明修改内容",
+        "maxLength": 10000
+      },
+      "segments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "段落 ID",
+              "maxLength": 10000
+            },
+            "text": {
+              "type": "string",
+              "description": "完整新文本",
+              "maxLength": 10000
+            },
+            "chapter": {
+              "type": "string",
+              "description": "章节",
+              "maxLength": 10000
+            }
+          },
+          "required": [
+            "id",
+            "text"
+          ],
+          "additionalProperties": false
+        },
+        "maxItems": 100
+      }
+    },
+    "required": [
+      "changes",
+      "segments"
+    ],
+    "additionalProperties": false
+  },
+  "tools": [
+    "proposal.script"
+  ]
+}

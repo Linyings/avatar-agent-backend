@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import assert from 'node:assert/strict';
+import {renderDirectorMotion} from '../director-motion.mjs';
+import {compileMotion} from '../content-motion.mjs';
+const folder=process.argv[2];
+const input=JSON.parse(fs.readFileSync(path.join(folder,'motion-input.json'),'utf8'));
+const plan=compileMotion(input);
+assert.equal(plan.scenes.length,2);
+assert.ok(plan.scenes[1].start>=2.4&&plan.scenes[1].start<=2.6);
+const result=await renderDirectorMotion(input,path.join(folder,'motion-window-fixed.mp4'));
+assert.ok(result.text_checks.some(c=>c.drawn.some(label=>label.includes('1.25'))));
+fs.writeFileSync(path.join(folder,'motion-report.json'),JSON.stringify(result,null,2));
+console.log(JSON.stringify({frames:result.frames,scenes:result.scenes.map(s=>({start:s.start,end:s.end,title:s.title})),text_checks:result.text_checks}));

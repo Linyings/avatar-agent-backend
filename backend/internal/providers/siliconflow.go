@@ -26,9 +26,14 @@ type SiliconFlowClient struct {
 const defaultSiliconFlowTTSModel = "FunAudioLLM/CosyVoice2-0.5B"
 
 type ChatUsage struct {
-	PromptTokens     int64 `json:"prompt_tokens"`
-	CompletionTokens int64 `json:"completion_tokens"`
-	TotalTokens      int64 `json:"total_tokens"`
+	PromptTokens            int64                       `json:"prompt_tokens"`
+	CompletionTokens        int64                       `json:"completion_tokens"`
+	TotalTokens             int64                       `json:"total_tokens"`
+	CompletionTokensDetails *ChatCompletionTokenDetails `json:"completion_tokens_details,omitempty"`
+}
+
+type ChatCompletionTokenDetails struct {
+	ReasoningTokens int64 `json:"reasoning_tokens"`
 }
 
 type ChatResult struct {

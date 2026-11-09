@@ -113,9 +113,9 @@ func newAvatarMVP(a *App) *avatarMVPService {
 	provider, providerErr := avatar.NewVideoProvider(options)
 	s := &avatarMVPService{app: a, options: options, provider: provider, providerErr: providerErr, tools: avatar.Tools{Options: options}}
 	s.speech = func(ctx context.Context, text string) ([]byte, int64, error) {
-		if a.cfg.TTSModel == "doubao-seed-tts-2.0" {
+		if a.cfg.TTSModel == "doubao-seed-tts-2.0" || strings.HasPrefix(a.cfg.TTSModel, "minimax/") {
 			client := avatar.NewRunningHub(s.options.BaseURL, s.options.APIKey)
-			return client.Synthesize(ctx, avatar.SpeechRequest{Model: a.cfg.TTSModel, Speaker: a.cfg.TTSSpeaker, Language: a.cfg.TTSLanguage, Format: a.cfg.TTSFormat, Text: text})
+			return client.Synthesize(ctx, avatar.SpeechRequest{Model: a.cfg.TTSModel, Speaker: sVoice(a), Language: a.cfg.TTSLanguage, Format: a.cfg.TTSFormat, Text: text})
 		}
 		return a.dashscope.DubbingTextToSpeech(ctx, text, "qwen3-tts-instruct-flash:Cherry", "", 1)
 	}
@@ -145,10 +145,11 @@ func (s *avatarMVPService) taskDir(id uuid.UUID) string {
 	return filepath.Join(root, id.String())
 }
 func sVoice(a *App) string {
-	if a.cfg.TTSModel == "doubao-seed-tts-2.0" && strings.TrimSpace(a.cfg.TTSSpeaker) != "" {
-		return a.cfg.TTSSpeaker
+	voice := strings.TrimSpace(a.cfg.TTSSpeaker)
+	if a.cfg.TTSModel != "" && voice != "" && !avatar.SpeechVoiceIncompatible(a.cfg.TTSModel, voice) {
+		return voice
 	}
-	return "Cherry"
+	return avatar.DefaultSpeechVoice(a.cfg.TTSModel)
 }
 func sTTSModel(a *App) string {
 	if strings.TrimSpace(a.cfg.TTSModel) != "" {
@@ -166,8 +167,8 @@ func (s *avatarMVPService) configured() error {
 	if s.providerErr != nil {
 		return s.providerErr
 	}
-	if s.app.cfg.TTSModel == "doubao-seed-tts-2.0" {
-		if s.options.APIKey == "" || strings.TrimSpace(s.app.cfg.TTSSpeaker) == "" {
+	if s.app.cfg.TTSModel == "doubao-seed-tts-2.0" || strings.HasPrefix(s.app.cfg.TTSModel, "minimax/") {
+		if s.options.APIKey == "" || strings.TrimSpace(sVoice(s.app)) == "" {
 			return fmt.Errorf("固定音色配音未配置（TTS_MODEL / TTS_SPEAKER）")
 		}
 	} else if s.app.cfg.DashScopeAPIKey == "" || s.app.cfg.QwenTTSModel == "" {

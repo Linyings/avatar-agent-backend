@@ -1,0 +1,54 @@
+{
+  "exit_code": 1,
+  "passed": 130,
+  "failures": [
+    {
+      "Time": "2026-11-07T08:46:27.92923241Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentExecutionContinuesPastUnfulfilledPromises",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T08:46:27.930418912Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentExecutionDoesNotPretendToRunWhenModelNeverCallsTools",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T08:46:27.931226814Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentWorkflowStateIncludesSucceededSubstepsAndGate",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T08:46:27.932308315Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Elapsed": 0.02
+    },
+    {
+      "Time": "2026-11-07T08:46:27.940181129Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/avatar",
+      "Elapsed": 0,
+      "FailedBuild": "github.com/narratoai/backend-go/internal/avatar [github.com/narratoai/backend-go/internal/avatar.test]"
+    }
+  ],
+  "diagnostics": [
+    "internal/avatar/workflow_plan_test.go:10:5: undefined: PlanWorkflow",
+    "internal/avatar/workflow_plan_test.go:14:22: undefined: PlanWorkflow",
+    "internal/avatar/workflow_plan_test.go:16:21: undefined: PlanWorkflow",
+    "internal/avatar/workflow_plan_test.go:18:12: undefined: PlanWorkflow",
+    "internal/avatar/workflow_plan_test.go:20:9: undefined: PlanWorkflow",
+    "internal/avatar/workflow_plan_test.go:26:9: undefined: PlanWorkflow",
+    "workflow_progress_test.go:32: silently stopped: calls=[] reply=我先把需求参数保存下来。",
+    "workflow_progress_test.go:41: false completion: &agent.ChatOutput{Reply:\"我先保存参数。\", Proposal:(*agent.Proposal)(nil), Status:\"ok\", TurnID:\"\"}",
+    "workflow_progress_test.go:55: missing gate: 当前节点: F04/p1",
+    "2026/11/07 08:46:45 \u001b[34;1m/src/internal/server/node_adversarial_test.go:200",
+    "\u001b[0m\u001b[35m[warn] \u001b[0mremoving callback `node-adversarial-admission` from /src/internal/server/node_adversarial_test.go:200"
+  ],
+  "stderr": ""
+}

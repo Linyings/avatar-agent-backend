@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"math"
 	"regexp"
+	"sort"
 	"strings"
 )
 
-const PresentationVersion = "film-design/1"
+const PresentationVersion = "film-design/3"
 
 var PresentationRecipes = []string{"host-hero", "host-explain", "visual-hero", "visual-pip", "compare", "steps", "evidence", "summary"}
 
@@ -187,7 +188,8 @@ func PresentationWarnings(shots []WorkflowShot) []string {
 func PresentationFallback(segments []Segment, materials []Material) []WorkflowShot {
 	shots := []WorkflowShot{}
 	for _, seg := range segments {
-		var host, other Material
+		var host Material
+		visuals := []Material{}
 		for _, m := range materials {
 			if m.SegmentID != seg.ID {
 				continue
@@ -195,14 +197,32 @@ func PresentationFallback(segments []Segment, materials []Material) []WorkflowSh
 			if m.Kind == "avatar" && host.NeedID == "" {
 				host = m
 			}
-			if m.Kind != "avatar" && other.NeedID == "" {
-				other = m
+			if m.Kind != "avatar" && (len(visuals) == 0 || m.NarrationStart != nil) {
+				visuals = append(visuals, m)
 			}
 		}
 		offset := 0.0
-		if other.NeedID != "" {
-			duration := math.Min(other.Duration, seg.Duration)
-			shot := WorkflowShot{ID: fmt.Sprintf("S%d", len(shots)+1), SegmentID: seg.ID, Start: seg.Start, End: seg.Start + duration, Primary: other.NeedID, Layout: "full", Card: "highlighter-sweep", Intent: "呈现对应知识点的已就绪素材", SelectionReason: seg.Text, Semantic: []string{"论点"}}
+		windowStart := func(m Material) float64 {
+			if m.NarrationStart != nil {
+				return *m.NarrationStart
+			}
+			return 0
+		}
+		sort.SliceStable(visuals, func(i, j int) bool { return windowStart(visuals[i]) < windowStart(visuals[j]) })
+		appendHost := func(end float64) {
+			if end > offset+.001 && host.NeedID != "" {
+				shots = append(shots, WorkflowShot{ID: fmt.Sprintf("S%d", len(shots)+1), SegmentID: seg.ID, Start: seg.Start + offset, End: seg.Start + end, Primary: host.NeedID, PrimaryIn: offset, Layout: "full", Card: "highlighter-sweep", Intent: "人物继续本段解说", SelectionReason: seg.Text, Semantic: []string{"论点"}})
+				offset = end
+			}
+		}
+		for _, other := range visuals {
+			start := math.Max(offset, windowStart(other))
+			end := math.Min(seg.Duration, windowStart(other)+other.Duration)
+			if end <= start+.001 {
+				continue
+			}
+			appendHost(start)
+			shot := WorkflowShot{ID: fmt.Sprintf("S%d", len(shots)+1), SegmentID: seg.ID, Start: seg.Start + start, End: seg.Start + end, Primary: other.NeedID, PrimaryIn: start - windowStart(other), Layout: "full", Card: "highlighter-sweep", Intent: "呈现对应知识点的已就绪素材", SelectionReason: seg.Text, Semantic: []string{"论点"}}
 			if host.NeedID != "" {
 				shot.Overlay = host.NeedID
 				if strings.Contains(seg.Text, "画面中") || strings.Contains(seg.Text, "看这段") {
@@ -212,11 +232,9 @@ func PresentationFallback(segments []Segment, materials []Material) []WorkflowSh
 				}
 			}
 			shots = append(shots, shot)
-			offset = duration
+			offset = end
 		}
-		if offset < seg.Duration-.001 && host.NeedID != "" {
-			shots = append(shots, WorkflowShot{ID: fmt.Sprintf("S%d", len(shots)+1), SegmentID: seg.ID, Start: seg.Start + offset, End: seg.Start + seg.Duration, Primary: host.NeedID, PrimaryIn: offset, Layout: "full", Card: "highlighter-sweep", Intent: "人物继续本段解说", SelectionReason: seg.Text, Semantic: []string{"论点"}})
-		}
+		appendHost(seg.Duration)
 	}
 	if len(shots) > 0 {
 		shots[0].Card = "impact-open-title"

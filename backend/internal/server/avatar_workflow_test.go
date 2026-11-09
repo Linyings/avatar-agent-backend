@@ -30,6 +30,9 @@ func workflowFixture(t *testing.T) (*App, uuid.UUID, models.Project, avatar.Work
 	if err != nil {
 		t.Fatal(err)
 	}
+	// This fixture exercises the persisted v2 contract; v3 tests opt in explicitly.
+	s.Version = "avatar-workflow/2.2"
+	a.avatarWorkflow.save(&s)
 	return a, owner, p, s
 }
 func TestAvatarWorkflowSourceChangeKeepsOtherFilesAnalysis(t *testing.T) {
@@ -132,8 +135,8 @@ func TestAvatarWorkflowQualityWarningsDoNotBlockDelivery(t *testing.T) {
 		if strings.Contains(prompt, "列出素材需求") {
 			return json.RawMessage(`{"needs":[{"id":"n1","segment_id":"p1","kind":"animation","duration":2,"content":"第一句","template":"steps"},{"id":"n2","segment_id":"p2","kind":"animation","duration":2,"content":"第二句","template":"steps"}]}`), nil
 		}
-		materials := input.(map[string]any)["materials"].([]avatar.Material)
-		return json.RawMessage(fmt.Sprintf(`{"shots":[{"id":"S1","segment_id":"p1","start":0,"end":2,"primary":%q,"card":"impact-open-title","layout":"full"},{"id":"S2","segment_id":"p2","start":2,"end":4,"primary":%q,"card":"chapter-title-card","layout":"full"}]}`, materials[0].NeedID, materials[1].NeedID)), nil
+		batch := input.(avatar.ShotPlanningBatch)
+		return json.RawMessage(fmt.Sprintf(`{"shots":[{"start":%g,"end":%g,"primary":%q,"card":"chapter-title-card","layout":"full"}]}`, batch.Window.Start, batch.Window.End, batch.Materials[0].NeedID)), nil
 	}
 	var stages []string
 	w.media = func(_ context.Context, stage, dir string) (json.RawMessage, error) {

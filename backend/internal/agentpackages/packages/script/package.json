@@ -1,0 +1,30 @@
+{
+  "id": "avatar.script",
+  "version": "1.0.0",
+  "tool": "avatar_script",
+  "title": "口播文案",
+  "node": "F02",
+  "entrypoint": "run",
+  "dependencies": [
+    "F01.6"
+  ],
+  "outputs": [
+    "口播稿"
+  ],
+  "description": "依据导演稿写自然口语的解说文案，减少空话、重复，保留事实准确性。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "llm.write_script"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "url": "http://172.17.234.187:8080/",
+  "checks": {
+    "localOnlyInitialRun": true,
+    "packagesDeployed": true,
+    "all13NodeEditContexts": true,
+    "rerunButtonDraftOnly": true,
+    "proposalPersistsOnRefresh": true,
+    "editDraftPreservesCurrentOutput": true,
+    "invalidNodeRequestsDoNotReplaceProposal": true,
+    "replacedProposalCannotRun": true,
+    "confirmHonorsStartAndEnd": true,
+    "duplicateConfirmIsIdempotent": true,
+    "completedProjectEditableWithoutMutation": true
+  },
+  "pageErrors": [],
+  "chatRequests": 0,
+  "paidProviderRequests": 0,
+  "fixture": "56bf67a2-aaba-4d5a-a4f3-792d203e965f"
+}

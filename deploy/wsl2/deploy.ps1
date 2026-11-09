@@ -5,6 +5,9 @@ param(
     [string]$FrontendPath = ''
 )
 $ErrorActionPreference = 'Stop'
+# A previous WSL shutdown also kills its Windows keepalive process. Restore it
+# before long builds/checks, rather than only after a successful deployment.
+& (Join-Path $PSScriptRoot 'start.ps1') -Distribution $Distribution
 $sourceRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
 $resolvedLinuxRoot = & wsl.exe -d $Distribution -u root -- wslpath -a ($sourceRoot.Replace('\','/'))
 if ($LASTEXITCODE -ne 0 -or -not $resolvedLinuxRoot) { throw '无法解析 WSL2 工作区路径' }

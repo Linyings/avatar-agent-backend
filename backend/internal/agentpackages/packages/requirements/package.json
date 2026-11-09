@@ -1,0 +1,32 @@
+{
+  "id": "avatar.requirements",
+  "version": "3.0.0",
+  "tool": "avatar_requirements",
+  "title": "需求分析",
+  "node": "F01.2",
+  "entrypoint": "run",
+  "dependencies": [
+    "F01"
+  ],
+  "outputs": [
+    "制作需求说明"
+  ],
+  "description": "分析主题、受众、目标与制作约束，输出制作需求说明。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "talkcraft.plan",
+    "llm.design_shots",
+    "shotbook.validate"
+  ]
+}

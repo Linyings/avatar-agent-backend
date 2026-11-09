@@ -1,0 +1,242 @@
+{
+  "exit_code": 1,
+  "passed": 2,
+  "failures": [
+    {
+      "Time": "2026-11-07T06:28:29.040319821Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestPackagePlanNodeAliasesAndRerun/F04",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T06:28:29.040832822Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestPackagePlanNodeAliasesAndRerun/f4",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T06:28:29.041259922Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestPackagePlanNodeAliasesAndRerun/avatar_voice",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T06:28:29.041637423Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestPackagePlanNodeAliasesAndRerun/avatar.voice",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T06:28:29.042038023Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestPackagePlanNodeAliasesAndRerun/分段配音",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T06:28:29.042044323Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestPackagePlanNodeAliasesAndRerun",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T06:28:29.042501524Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestPackageInvalidPlanCanBeRepairedInSameTurn",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T06:28:29.043641226Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Elapsed": 0.009
+    },
+    {
+      "Time": "2026-11-07T06:28:37.183096399Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageCompletedRerunIsPersistentProposal",
+      "Elapsed": 0.65
+    },
+    {
+      "Time": "2026-11-07T06:28:37.374416255Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageRerunInvalidatesRequestedRange/F01.4",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:37.560138303Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageRerunInvalidatesRequestedRange/F02",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:37.744827451Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageRerunInvalidatesRequestedRange/F03",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T06:28:37.936625307Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageRerunInvalidatesRequestedRange/F04",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:38.121767155Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageRerunInvalidatesRequestedRange/F05",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:38.310528208Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageRerunInvalidatesRequestedRange/F06",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:38.49841756Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageRerunInvalidatesRequestedRange/F07",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:38.686734812Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageRerunInvalidatesRequestedRange/F08",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:38.872075561Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageRerunInvalidatesRequestedRange/F09",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:39.064925619Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageRerunInvalidatesRequestedRange/F10",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:39.44630353Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageRerunInvalidatesRequestedRange",
+      "Elapsed": 2.26
+    },
+    {
+      "Time": "2026-11-07T06:28:39.637361687Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageNodeEditsOnCompletedRun/F02",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:39.825356339Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageNodeEditsOnCompletedRun/F03",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:40.022897803Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageNodeEditsOnCompletedRun/F05",
+      "Elapsed": 0.2
+    },
+    {
+      "Time": "2026-11-07T06:28:40.212910158Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageNodeEditsOnCompletedRun/F07",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:40.396178104Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageNodeEditsOnCompletedRun/F09",
+      "Elapsed": 0.18
+    },
+    {
+      "Time": "2026-11-07T06:28:40.581695353Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageNodeEditsOnCompletedRun/F10",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:40.769637705Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageNodeEditsOnCompletedRun/F11",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:40.95919076Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageNodeEditsOnCompletedRun/F12",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T06:28:40.95921616Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageNodeEditsOnCompletedRun",
+      "Elapsed": 1.51
+    },
+    {
+      "Time": "2026-11-07T06:28:40.969686874Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Elapsed": 4.443
+    }
+  ],
+  "diagnostics": [
+    "package_nodes_test.go:19: rerun lost: {\"status\":\"pending\"} blocked=false issue=<nil> host=&agent.nodePackageHost{id:\"avatar.render\", args:map[string]interface {}{}, calls:1}",
+    "package_nodes_test.go:19: rerun lost: {\"status\":\"pending\"} blocked=false issue=<nil> host=&agent.nodePackageHost{id:\"avatar.render\", args:map[string]interface {}{}, calls:1}",
+    "package_nodes_test.go:19: rerun lost: {\"status\":\"pending\"} blocked=false issue=<nil> host=&agent.nodePackageHost{id:\"avatar.render\", args:map[string]interface {}{}, calls:1}",
+    "package_nodes_test.go:19: rerun lost: {\"status\":\"pending\"} blocked=false issue=<nil> host=&agent.nodePackageHost{id:\"avatar.render\", args:map[string]interface {}{}, calls:1}",
+    "package_nodes_test.go:19: rerun lost: {\"status\":\"pending\"} blocked=false issue=<nil> host=&agent.nodePackageHost{id:\"avatar.render\", args:map[string]interface {}{}, calls:1}",
+    "package_nodes_test.go:28: invalid target consumed execution: missing",
+    "agent_node_operations_test.go:37: package 不存在",
+    "agent_node_operations_test.go:55: rerun must clear script approval",
+    "agent_node_operations_test.go:55: rerun must clear script approval",
+    "agent_node_operations_test.go:55: rerun must clear script approval",
+    "agent_node_operations_test.go:58: F04 reused paid result: avatar.WorkflowState{ID:\"next-F04\", ProjectID:\"\", Version:\"\", Input:avatar.WorkflowInput{Revision:1, Title:\"\", Topic:\"\", Script:\"第一句。第二句。\", Direction:\"\", Style:\"flat-vector\", Voice:\"Cherry\", Ratio:\"9:16\", UseAvatar:false, Angles:[]string(nil), Photo:\"\", Assets:[]avatar.SourceAsset(nil), SubtitleColor:\"\", SubtitleScale:0, SubtitleEdits:map[string]string(nil), AvatarPosition:\"\"}, ConfigID:\"\", Status:\"\", Stage:\"\", Confirmation:\"\", ConfirmationVersion:\"\", ScriptConfirmed:true, AudioConfirmed:true, Script:\"第一句。第二句。\", ProductionNotes:[]string(nil), ResolvedAngles:[]string(nil), Segments:[]avatar.Segment{avatar.Segment{ID:\"p1\", Chapter:\"\", Text:\"第一句。第二句。\", Audio:\"p1/audio.wav\", Fingerprint:\"old-audio\", Start:0, Duration:5}}, Needs:[]avatar.MaterialNeed{avatar.MaterialNeed{ID:\"n1\", SegmentID:\"p1\", Kind:\"animation\", Duration:5, Angle:\"\", Content:\"第一句。第二句。\", Template:\"highlight\", Items:[]string(",
+    "agent_node_operations_test.go:60: old needs were reused",
+    "agent_node_operations_test.go:61: old shots were reused",
+    "agent_node_operations_test.go:61: old shots were reused",
+    "agent_node_operations_test.go:61: old shots were reused",
+    "agent_node_operations_test.go:61: old shots were reused",
+    "agent_node_operations_test.go:61: old shots were reused",
+    "agent_node_operations_test.go:83: package 不存在",
+    "agent_node_operations_test.go:83: package 不存在",
+    "agent_node_operations_test.go:83: package 不存在",
+    "agent_node_operations_test.go:83: package 不存在",
+    "agent_node_operations_test.go:83: package 不存在",
+    "agent_node_operations_test.go:83: package 不存在",
+    "agent_node_operations_test.go:83: package 不存在",
+    "agent_node_operations_test.go:83: package 不存在"
+  ],
+  "stderr": ""
+}

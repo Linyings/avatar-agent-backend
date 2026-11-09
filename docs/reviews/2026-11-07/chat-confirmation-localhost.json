@@ -1,0 +1,14 @@
+{
+  "url": "http://localhost:8080/",
+  "login": "passed",
+  "home": "passed",
+  "refresh": "passed",
+  "removedForm": "absent",
+  "legacyRedirect": "passed",
+  "projectList": "passed",
+  "workspace": "passed",
+  "agentHistory": "passed",
+  "pageErrors": [],
+  "modelTasksStarted": 0,
+  "screenshots": "D:\\pro\\ai_cat\\avatar-agent\\backend\\data\\wsl-deployment\\current\\localhost"
+}

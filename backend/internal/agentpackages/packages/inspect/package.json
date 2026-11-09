@@ -1,0 +1,24 @@
+{
+  "id": "avatar.inspect",
+  "version": "1.0.0",
+  "tool": "avatar_inspect",
+  "title": "项目检查",
+  "node": "",
+  "entrypoint": "inspect",
+  "dependencies": [],
+  "outputs": [
+    "项目状态",
+    "风格与音色目录"
+  ],
+  "description": "读取最新项目输入、运行状态、产物、待确认提案和可用风格音色；在制作或修改前调用。",
+  "input_schema": {
+    "type": "object",
+    "properties": {},
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "project.read",
+    "catalog.read"
+  ]
+}

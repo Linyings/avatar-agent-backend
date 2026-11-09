@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"strings"
@@ -11,23 +12,33 @@ import (
 	"unicode/utf8"
 )
 
+// SpeechRequest is one RunningHub text-to-speech job. The video pipeline stores the result as WAV.
 const doubaoTTSModel = "doubao-seed-tts-2.0"
 
-// SpeechRequest is one RunningHub text-to-speech job. The video pipeline stores the result as WAV.
-type SpeechRequest struct {
-	Model, Speaker, Language, Format, Text string
+var errSpeechValidation = errors.New("配音请求参数校验失败（供应商错误码 1007）")
+
+// Only expose diagnostics owned by this adapter; upstream messages can contain
+// credentials, prompt text or signed URLs.
+func SpeechFailureMessage(err error) string {
+	if errors.Is(err, errSpeechValidation) {
+		return errSpeechValidation.Error()
+	}
+	return "配音模型调用失败；提交状态已记录"
 }
 
-// Synthesize submits doubao-seed-tts-2.0, waits for the task, and returns the audio bytes.
+type SpeechRequest struct {
+	Model, Speaker, Language, Format, Text string
+	Speed                                  float64
+}
+
+// Synthesize submits a TTS request, waits for the task, and returns the audio bytes.
+// Supports any TTS model configured in TTS_MODEL environment variable.
 func (c *RunningHub) Synthesize(ctx context.Context, in SpeechRequest) ([]byte, int64, error) {
 	if strings.TrimSpace(in.Text) == "" {
 		return nil, 0, fmt.Errorf("配音稿件为空")
 	}
 	if in.Model == "" {
-		in.Model = doubaoTTSModel
-	}
-	if in.Model != doubaoTTSModel || strings.TrimSpace(in.Speaker) == "" {
-		return nil, 0, fmt.Errorf("配音模型或音色未配置（TTS_MODEL / TTS_SPEAKER）")
+		return nil, 0, fmt.Errorf("配音模型未配置（TTS_MODEL）")
 	}
 	if in.Language == "" {
 		in.Language = "zh-cn"
@@ -113,28 +124,69 @@ func (c *RunningHub) fetchAudio(ctx context.Context, raw string) ([]byte, error)
 
 // SubmitSpeech lets the workflow persist the paid order before polling.
 func (c *RunningHub) SubmitSpeech(ctx context.Context, in SpeechRequest) (ProviderResult, error) {
-	if strings.TrimSpace(in.Text) == "" || strings.TrimSpace(in.Speaker) == "" {
+	if strings.TrimSpace(in.Text) == "" {
 		return ProviderResult{}, fmt.Errorf("配音参数未配置")
 	}
 	if in.Model == "" {
-		in.Model = doubaoTTSModel
+		return ProviderResult{}, fmt.Errorf("配音模型未配置（TTS_MODEL）")
 	}
-	if in.Model != doubaoTTSModel {
-		return ProviderResult{}, fmt.Errorf("不支持的异步配音模型")
+	in.Speaker = strings.TrimSpace(in.Speaker)
+	if in.Speaker == "" {
+		in.Speaker = DefaultSpeechVoice(in.Model)
+	}
+	// Do not silently change the voice of a frozen run at the paid boundary.
+	// Draft validation handles migration before fingerprints and orders exist.
+	if SpeechVoiceIncompatible(in.Model, in.Speaker) {
+		return ProviderResult{}, fmt.Errorf("音色与当前配音模型不匹配，请在项目中改用当前模型音色")
 	}
 	if in.Language == "" {
 		in.Language = "zh-cn"
 	}
-	body, err := json.Marshal(map[string]any{
+
+	// 构建 API 路径：使用模型名称作为路径的一部分
+	// 例如：/openapi/v2/bytedance/doubao-seed-tts-2.0 或 /openapi/v2/minimax/speech-2.8-hd
+	apiPath := "/openapi/v2/"
+
+	// 根据模型名称判断提供商
+	if strings.HasPrefix(in.Model, "minimax/") {
+		apiPath += "rhart-audio/text-to-audio/" + strings.TrimPrefix(in.Model, "minimax/")
+	} else if strings.HasPrefix(in.Model, "doubao-") || strings.HasPrefix(in.Model, "bytedance/") {
+		// doubao 和 bytedance 模型使用 bytedance 路径
+		modelName := strings.TrimPrefix(in.Model, "bytedance/")
+		apiPath += "bytedance/" + modelName
+	} else {
+		// 默认使用模型名称作为路径
+		apiPath += in.Model
+	}
+
+	params := map[string]any{
 		"text": in.Text, "speaker": in.Speaker, "format": in.Format,
 		"sample_rate": "24000", "explicit_language": in.Language, "enable_subtitle": false,
-	})
+	}
+	if strings.HasPrefix(in.Model, "minimax/") {
+		speed := in.Speed
+		if speed == 0 {
+			speed = 1
+		}
+		if err := ValidateVoiceSpeed(speed); err != nil {
+			return ProviderResult{}, err
+		}
+		params = map[string]any{"text": in.Text, "voice_id": in.Speaker, "speed": speed, "volume": 1, "pitch": 0, "english_normalization": false, "enable_base64_output": false}
+	}
+	body, err := json.Marshal(params)
 	if err != nil {
 		return ProviderResult{}, err
 	}
-	raw, err := c.request(ctx, "/openapi/v2/bytedance/"+in.Model, "application/json", bytes.NewReader(body), true)
+	raw, err := c.request(ctx, apiPath, "application/json", bytes.NewReader(body), true)
 	if err != nil {
 		return ProviderResult{}, err
+	}
+	var rejection struct {
+		TaskID string          `json:"taskId"`
+		Code   json.RawMessage `json:"errorCode"`
+	}
+	if json.Unmarshal(raw, &rejection) == nil && rejection.TaskID == "" && (string(rejection.Code) == "1007" || string(rejection.Code) == `"1007"`) {
+		return ProviderResult{}, errSpeechValidation
 	}
 	result, err := decodeProviderResult(raw)
 	if err != nil || result.TaskID == "" {

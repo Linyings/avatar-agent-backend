@@ -1,0 +1,35 @@
+{
+  "id": "avatar.assemble",
+  "version": "1.0.0",
+  "tool": "avatar_assemble",
+  "title": "素材接入",
+  "node": "F09",
+  "entrypoint": "run",
+  "dependencies": [
+    "F06",
+    "F07",
+    "F08"
+  ],
+  "outputs": [
+    "对齐素材",
+    "字幕"
+  ],
+  "description": "汇总素材、配音和字幕，准备合成。自动复用前置步骤，只运行到本节点；确认节点需由用户在界面确认。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "audio.concat",
+    "subtitle.align",
+    "materials.assemble"
+  ]
+}

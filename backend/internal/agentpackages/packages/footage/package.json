@@ -1,0 +1,31 @@
+{
+  "id": "avatar.footage",
+  "version": "1.0.0",
+  "tool": "avatar_footage",
+  "title": "实拍素材",
+  "node": "F08",
+  "entrypoint": "run",
+  "dependencies": [
+    "F05"
+  ],
+  "outputs": [
+    "实拍片段"
+  ],
+  "description": "从用户上传的真实素材中选取片段，不虚构搜索结果。自动复用前置步骤，只运行到本节点；确认节点需由用户在界面确认。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "source.select_range",
+    "ffmpeg.trim"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "url": "http://172.17.234.187:8080/",
+  "checks": {
+    "existingProjectShowsNotStartedAndAdaptivePlan": true,
+    "mobileStatusVisible": true,
+    "actualPauseAndTargetVisible": true,
+    "actualApprovalGateVisible": true,
+    "approvalSurvivesRefresh": true,
+    "confirmationUpdatesWithoutTTS": true,
+    "actualStopVisible": true,
+    "legacyAnimationPreferencePreserved": true,
+    "videoAddsVisualUnderstanding": true,
+    "animationOnlyPlan": true,
+    "userProjectUnchanged": true
+  },
+  "simulatedChecks": {
+    "runningWithProgress": true,
+    "errorWithRecoveryAction": true,
+    "agentActivitySurvivesRefresh": true
+  },
+  "pageErrors": [],
+  "chatRequests": 0,
+  "paidProviderRequests": 0,
+  "fixtures": [
+    "42057d0a-8978-442b-aa57-b742c2abbb95",
+    "96ec331b-1ee7-4a7d-a8f6-1f4ed9df0fb8"
+  ]
+}

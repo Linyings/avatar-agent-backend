@@ -1,0 +1,20 @@
+{
+  "url": "http://172.17.234.187:8080/",
+  "checks": {
+    "onlyChatStateNoTopRecovery": true,
+    "scriptPreviewAndSingleConfirmInChat": true,
+    "cancelDoesNotApproveOrStart": true,
+    "typedConfirmationIsGuidanceOnly": true,
+    "realVersionedConfirmationContinues": true,
+    "userProjectUnchanged": true
+  },
+  "simulatedChecks": {
+    "audioPreviewLoadsEverySegment": true,
+    "errorFloatsWithoutDisplacingWorkspace": true,
+    "mobileReviewReachable": true
+  },
+  "pageErrors": [],
+  "chatRequests": 0,
+  "realApprovalRequests": 1,
+  "paidProviderRequests": 0
+}

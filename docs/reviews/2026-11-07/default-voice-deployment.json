@@ -1,0 +1,23 @@
+{
+  "defaultVoice": "Wise_Woman",
+  "model": "minimax/speech-2.8-hd",
+  "modelTasksStarted": 0,
+  "catalog": [
+    {
+      "id": "Wise_Woman",
+      "name": "默认音色 · Wise Woman",
+      "model": "minimax/speech-2.8-hd"
+    }
+  ],
+  "draftRepair": {
+    "projectId": "5daa1faa-a31d-428d-8eaa-521d0eca73d5",
+    "previousVoice": "zh_male_shaonianzixin_uranus_bigtts",
+    "voice": "Wise_Woman",
+    "revision": 4,
+    "existingRunUnchanged": true,
+    "runHash": "d157ad1c9c63f83207396135977881b19c591ed212d39aa789704565777b87bf",
+    "status": "submission_unknown"
+  },
+  "newProjectDefault": "passed",
+  "temporaryProjectDeleted": true
+}

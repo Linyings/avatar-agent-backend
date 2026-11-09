@@ -26,6 +26,9 @@ if [[ "$service" != all ]] && { [[ ! -f "$target_root/compose.yaml" ]] || [[ ! -
   exit 2
 fi
 mkdir -p "$target_root/src"
+# Serialize deployment writers as well as guarding task admission at restart.
+exec 9>"$target_root/.deploy.lock"
+flock -n 9 || { printf 'Another deployment is already running.\n' >&2; exit 2; }
 for project in "${projects[@]}"; do
   project_source="$source_root/backend"
   if [[ "$project" == frontend ]]; then project_source="$frontend_source"; fi
@@ -58,7 +61,7 @@ env=root/'.env'
 env.write_text(''.join(f'{k}={v}\n' for k,v in values.items()))
 env.chmod(0o600)
 access=root/'LOCAL_ACCESS.txt'
-access.write_text(f'URL: http://localhost:8080/avatar-mvp\nEmail: localadmin@localhost.test\nPassword: {password}\n')
+access.write_text(f'URL: http://localhost:8080/\nEmail: localadmin@localhost.test\nPassword: {password}\n')
 access.chmod(0o600)
 PY
 fi
@@ -68,9 +71,10 @@ env = pathlib.Path(sys.argv[1])
 existing = env.read_text()
 keys = {line.split('=', 1)[0].strip() for line in existing.splitlines() if '=' in line and not line.lstrip().startswith('#')}
 defaults = {'VIDEO_PROVIDER': 'runninghub', 'VIDEO_API_PROTOCOL': '', 'VIDEO_API_BASE_URL': '',
+            'AVATAR_WORKFLOW_TEST_MODE': 'false',
             'RUNNINGHUB_LLM_BASE_URL': '', 'RUNNINGHUB_LLM_MODEL': 'google/gemini-3.1-flash-lite-preview',
             'VIDEO_API_KEY': '', 'VIDEO_MODEL': '', 'VIDEO_RESOLUTION': '', 'MINIMAX_API_KEY': '',
-            'TTS_MODEL': 'doubao-seed-tts-2.0', 'TTS_SPEAKER': 'zh_male_shaonianzixin_uranus_bigtts',
+            'TTS_MODEL': 'doubao-seed-tts-2.0', 'TTS_SPEAKER': '',
             'TTS_LANGUAGE': 'zh-cn', 'TTS_FORMAT': 'wav',
             'VIDEO_REFERENCE_AUDIO_SUPPORTED': 'false', 'VIDEO_UPLOAD_PATH': '',
             'VIDEO_GENERATION_PATH': '', 'VIDEO_QUERY_PATH': ''}
@@ -89,7 +93,17 @@ for runtime_file in package.json package-lock.json requirements.txt; do
   if [[ "$local_sum" != "$live_sum" ]]; then runtime_same=false; fi
 done
 if [[ "$runtime_same" == true ]] && docker compose exec -T api test -d /app/.remotion 2>/dev/null; then
-  docker tag aicat-avatar-api:latest aicat-avatar-runtime-cache:local
+  # Keep one verified dependency base. Rebasing on the previous application
+  # image on every deployment retains every historical source/catalog layer.
+  cache_same=true
+  for runtime_file in package.json package-lock.json requirements.txt; do
+    local_sum="$(sha256sum "src/backend/avatar-runtime/$runtime_file" | cut -d' ' -f1)"
+    cache_sum="$(docker run --rm --entrypoint sha256sum aicat-avatar-runtime-cache:local "/app/avatar-runtime/$runtime_file" 2>/dev/null | cut -d' ' -f1 || true)"
+    if [[ "$local_sum" != "$cache_sum" ]]; then cache_same=false; fi
+  done
+  if [[ "$cache_same" != true ]] || ! docker run --rm --entrypoint test aicat-avatar-runtime-cache:local -d /app/.remotion 2>/dev/null; then
+    docker tag aicat-avatar-api:latest aicat-avatar-runtime-cache:local
+  fi
   export AVATAR_API_DOCKERFILE=deploy/Dockerfile.avatar-wsl.incremental
   printf 'Reusing verified installed media dependencies and browser.\n'
 fi
@@ -110,11 +124,23 @@ case "$service" in
   all)
     docker compose build api
     docker compose build web
-    docker compose up -d --no-build --wait --wait-timeout 300
+    # The guard session lives in postgres: never recreate it under that lock.
+    # Existing database configuration upgrades require separate maintenance.
+    if ! docker compose ps --status running --services | grep -qx postgres; then
+      docker compose up -d --no-build --wait --wait-timeout 300 postgres
+    fi
+    python3 "$source_root/deploy/wsl2/deployment-guard.py" "$target_root" -- \
+      docker compose up -d --no-build --no-deps api
+    # Startup recovery takes the same admission lock, so health readiness must
+    # be awaited AFTER release. --no-recreate makes this a readiness-only check.
+    docker compose up -d --no-build --no-deps --no-recreate --wait --wait-timeout 300 api
+    docker compose up -d --no-build --no-deps --wait --wait-timeout 300 web
     ;;
   backend)
     docker compose build api
-    docker compose up -d --no-build --no-deps --wait --wait-timeout 300 api
+    python3 "$source_root/deploy/wsl2/deployment-guard.py" "$target_root" -- \
+      docker compose up -d --no-build --no-deps api
+    docker compose up -d --no-build --no-deps --no-recreate --wait --wait-timeout 300 api
     ;;
   frontend)
     api_before="$(docker compose ps -q api)"
@@ -132,5 +158,5 @@ docker compose exec -T api /opt/avatar-venv/bin/python /app/avatar-runtime/pipel
 curl --fail --silent http://127.0.0.1:8080/api-health
 python3 "$source_root/deploy/wsl2/verify.py"
 python3 "$source_root/deploy/wsl2/record-revisions.py" "$target_root" "$service" "$source_root" "$frontend_source"
-printf '\nFrontend: http://%s:8080/avatar-mvp\n' "$(hostname -I | awk '{print $1}')"
+printf '\nFrontend: http://%s:8080/\n' "$(hostname -I | awk '{print $1}')"
 docker compose ps

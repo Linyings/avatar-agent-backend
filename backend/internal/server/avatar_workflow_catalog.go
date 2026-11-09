@@ -1,10 +1,13 @@
 package server
 
 import (
+	"encoding/hex"
 	"fmt"
 	"github.com/gin-gonic/gin"
 	"github.com/narratoai/backend-go/internal/avatar"
+	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"strings"
@@ -19,12 +22,19 @@ type workflowVoice struct {
 
 func (w *avatarWorkflowService) voices() []workflowVoice {
 	model := sTTSModel(w.app)
-	ids := strings.Split(os.Getenv("AVATAR_TTS_VOICES"), ",")
-	if len(ids) == 1 && ids[0] == "" {
-		ids = []string{sVoice(w.app)}
+	system := avatar.SystemSpeechVoices(model)
+	names := map[string]string{}
+	ids := []string{sVoice(w.app)}
+	for _, v := range system {
+		names[v.ID] = v.Name
+		ids = append(ids, v.ID)
+	}
+	if configured := strings.TrimSpace(os.Getenv("AVATAR_TTS_VOICES")); configured != "" {
+		ids = append(ids, strings.Split(configured, ",")...)
+	} else {
 		if w.app.cfg.TTSModel == "doubao-seed-tts-2.0" {
 			ids = append(ids, "zh_female_vv_uranus_bigtts")
-		} else {
+		} else if len(system) == 0 {
 			ids = append(ids, "Serena")
 		}
 	}
@@ -32,8 +42,14 @@ func (w *avatarWorkflowService) voices() []workflowVoice {
 	seen := map[string]bool{}
 	for _, id := range ids {
 		id = strings.TrimSpace(id)
+		if avatar.SpeechVoiceIncompatible(model, id) {
+			continue
+		}
 		if id != "" && !seen[id] {
 			v := workflowVoice{ID: id, Name: id, Model: model}
+			if name := names[id]; name != "" {
+				v.Name = name
+			}
 			if id == "zh_male_shaonianzixin_uranus_bigtts" {
 				v.Name = "少年自信 · 男声"
 			}
@@ -75,11 +91,72 @@ func (a *App) workflowVoiceSample(c *gin.Context) {
 		fail(c, 404, "试听不可用")
 		return
 	}
-	c.Header("Content-Type", "audio/wav")
+	// Samples keep the provider's original encoding (Doubao WAV, MiniMax MP3).
+	head := make([]byte, 12)
+	n, _ := f.Read(head)
+	if _, err = f.Seek(0, io.SeekStart); err != nil {
+		fail(c, 404, "试听不可用")
+		return
+	}
+	mediaType := "audio/wav"
+	if n >= 3 && (string(head[:3]) == "ID3" || (head[0] == 0xff && head[1]&0xe0 == 0xe0)) {
+		mediaType = "audio/mpeg"
+	}
+	c.Header("Content-Type", mediaType)
+	c.Header("X-Content-Type-Options", "nosniff")
 	c.Header("Cache-Control", "private, max-age=3600")
 	http.ServeContent(c.Writer, c.Request, "voice.wav", info.ModTime(), f)
 }
 func (w *avatarWorkflowService) validateInput(in *avatar.WorkflowInput, run bool) error {
+	if err := avatar.ValidateVoiceSpeed(in.VoiceSpeed); err != nil {
+		return err
+	}
+	if len(in.SegmentVoiceSpeeds) > 40 {
+		return fmt.Errorf("单段语速设置过多")
+	}
+	for id, speed := range in.SegmentVoiceSpeeds {
+		if !avatar.SafeID.MatchString(id) {
+			return fmt.Errorf("配音段落 ID 无效")
+		}
+		if err := avatar.ValidateVoiceSpeed(speed); err != nil {
+			return err
+		}
+	}
+	if w.runningHubSpeech() && !strings.HasPrefix(w.app.cfg.TTSModel, "minimax/") {
+		if avatar.EffectiveVoiceSpeed(*in, "") != 1 {
+			return fmt.Errorf("当前配音模型尚未接入语速参数，请使用原速或选择支持语速的模型")
+		}
+		for id := range in.SegmentVoiceSpeeds {
+			if avatar.EffectiveVoiceSpeed(*in, id) != 1 {
+				return fmt.Errorf("当前配音模型尚未接入单段语速参数")
+			}
+		}
+	}
+	if len(in.ReferenceLinks) > 20 {
+		return fmt.Errorf("最多添加20个网页链接")
+	}
+	links := make([]string, 0, len(in.ReferenceLinks))
+	seen := map[string]bool{}
+	for _, raw := range in.ReferenceLinks {
+		value := strings.TrimSpace(raw)
+		u, err := url.Parse(value)
+		if err != nil || len(value) > 2048 || u == nil || u.Hostname() == "" || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || strings.ContainsAny(u.Host, " \t\r\n\\") {
+			return fmt.Errorf("请提供有效的http://或https://网页链接，不支持带账号密码的地址")
+		}
+		if !seen[value] {
+			links = append(links, value)
+			seen[value] = true
+		}
+	}
+	in.ReferenceLinks = links
+	if in.SubtitleColor != "" {
+		if len(in.SubtitleColor) != 7 || in.SubtitleColor[0] != '#' {
+			return fmt.Errorf("字幕颜色必须是 #RRGGBB 格式")
+		}
+		if _, err := hex.DecodeString(in.SubtitleColor[1:]); err != nil {
+			return fmt.Errorf("字幕颜色必须是 #RRGGBB 格式")
+		}
+	}
 	if in.SubtitleScale != 0 && (in.SubtitleScale < .75 || in.SubtitleScale > 1.5) {
 		return fmt.Errorf("字幕缩放范围为0.75–1.5")
 	}
@@ -100,7 +177,8 @@ func (w *avatarWorkflowService) validateInput(in *avatar.WorkflowInput, run bool
 	if in.Ratio == "" {
 		in.Ratio = "9:16"
 	}
-	if in.Voice == "" {
+	in.Voice = strings.TrimSpace(in.Voice)
+	if in.Voice == "" || avatar.SpeechVoiceIncompatible(sTTSModel(w.app), in.Voice) {
 		in.Voice = sVoice(w.app)
 	}
 	if len([]rune(in.Script)) > 10000 || len([]rune(in.Topic)) > 2000 || len([]rune(in.Title)) > 100 || len([]rune(in.Direction)) > 2000 {
@@ -136,33 +214,7 @@ func (w *avatarWorkflowService) validateInput(in *avatar.WorkflowInput, run bool
 	if !run {
 		return nil
 	}
-	if strings.TrimSpace(in.Topic) == "" && strings.TrimSpace(in.Script) == "" {
-		return fmt.Errorf("主题或文案至少填写一项")
-	}
-	if in.UseAvatar && in.Photo == "" {
-		return fmt.Errorf("数字人需要上传人物照片")
-	}
-	if w.app.cfg.OpenAIFlashAPIKey == "" || w.app.cfg.OpenAIFlashModel == "" {
-		return fmt.Errorf("文本推理模型未配置")
-	}
-	if in.UseAvatar {
-		if err := w.app.avatarMVP.options.ValidateVideo(); err != nil {
-			return err
-		}
-	}
-	if w.app.cfg.TTSModel == "doubao-seed-tts-2.0" {
-		if os.Getenv("RUNNINGHUB_API_KEY") == "" && w.app.avatarMVP.options.APIKey == "" {
-			return fmt.Errorf("配音服务未配置")
-		}
-	} else if w.app.cfg.DashScopeAPIKey == "" {
-		return fmt.Errorf("TTS服务未配置")
-	}
-	for _, s := range in.Assets {
-		if s.Kind == "video" && !s.Excluded && !w.visionConfigured() {
-			return fmt.Errorf("上传视频路线需要配置视频理解模型（QWEN_VISION_MODEL / DASHSCOPE_API_KEY），无视频路线不受影响")
-		}
-	}
-	return nil
+	return w.validatePackageInput(in, "F12")
 }
 func (w *avatarWorkflowService) visionConfigured() bool {
 	return w.app.cfg.MovieVisionConfigured() || (os.Getenv("AVATAR_VISION_USE_FLASH") == "true" && w.app.cfg.OpenAIFlashConfigured())
@@ -174,7 +226,7 @@ func (a *App) workflowCatalog(c *gin.Context) {
 		fail(c, 503, "动效风格目录不可用")
 		return
 	}
-	ok(c, gin.H{"version": avatar.WorkflowVersion, "styles": styles, "voices": a.avatarWorkflow.voices(), "ratios": []string{"9:16", "16:9", "1:1"}, "max_duration": 90, "video_understanding": a.avatarWorkflow.visionConfigured(), "video_provider": a.avatarMVP.options.Provider, "video_model": a.avatarMVP.options.Model, "default_voice": sVoice(a)})
+	ok(c, gin.H{"version": avatar.WorkflowVersion, "styles": styles, "voices": a.avatarWorkflow.voices(), "ratios": []string{"9:16", "16:9", "1:1"}, "video_understanding": a.avatarWorkflow.visionConfigured(), "video_provider": a.avatarMVP.options.Provider, "video_model": a.avatarMVP.options.Model, "default_voice": sVoice(a)})
 }
 func (a *App) workflowStylePreview(c *gin.Context) {
 	style := c.Param("style")
@@ -185,6 +237,13 @@ func (a *App) workflowStylePreview(c *gin.Context) {
 	}
 	path := filepath.Join(a.avatarMVP.options.RuntimeRoot, "catalog", style+".mp4")
 	mediaType := "video/mp4"
+	if strings.HasSuffix(c.FullPath(), "/card-preview") {
+		path = filepath.Join(a.avatarMVP.options.RuntimeRoot, "catalog", style+"-card.mp4")
+	}
+	if strings.HasSuffix(c.FullPath(), "/card-poster") {
+		path = filepath.Join(a.avatarMVP.options.RuntimeRoot, "catalog", style+"-card.jpg")
+		mediaType = "image/jpeg"
+	}
 	if strings.HasSuffix(c.FullPath(), "/poster") {
 		path = filepath.Join(a.avatarMVP.options.RuntimeRoot, "catalog", style+".jpg")
 		mediaType = "image/jpeg"

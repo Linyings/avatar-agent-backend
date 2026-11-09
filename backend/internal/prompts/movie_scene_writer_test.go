@@ -13,7 +13,7 @@ func movieRequest(purpose string) map[string]any {
 func TestMovieWritingCallsGetSceneWriterSkills(t *testing.T) {
 	cases := []struct {
 		purpose, stage string
-		continuity    bool
+		continuity     bool
 	}{
 		{"movie_screenplay_full_draft", "plan-draft-polish", true},
 		{"movie_screenplay_write", "plan-draft-polish", true},

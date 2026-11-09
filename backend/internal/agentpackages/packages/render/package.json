@@ -1,0 +1,33 @@
+{
+  "id": "avatar.render",
+  "version": "1.0.0",
+  "tool": "avatar_render",
+  "title": "成片交付",
+  "node": "F12",
+  "entrypoint": "run",
+  "dependencies": [
+    "F11.2"
+  ],
+  "outputs": [
+    "口播成片",
+    "封面图"
+  ],
+  "description": "成片审阅通过后交付最终视频和封面。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "remotion.render",
+    "ffmpeg.encode",
+    "delivery.report"
+  ]
+}

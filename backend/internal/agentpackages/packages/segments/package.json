@@ -1,0 +1,32 @@
+{
+  "id": "avatar.segments",
+  "version": "1.0.0",
+  "tool": "avatar_segments",
+  "title": "内容拆解",
+  "node": "F03",
+  "entrypoint": "run",
+  "dependencies": [
+    "F02"
+  ],
+  "outputs": [
+    "文案段落",
+    "稿件确认"
+  ],
+  "description": "按语义拆分文案；在稿件确认处等待用户。自动复用前置步骤，只运行到本节点；确认节点需由用户在界面确认。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "llm.segment_script",
+    "script.validate_coverage"
+  ]
+}

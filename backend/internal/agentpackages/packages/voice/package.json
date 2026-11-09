@@ -1,0 +1,35 @@
+{
+  "id": "avatar.voice",
+  "version": "1.0.0",
+  "tool": "avatar_voice",
+  "title": "分段配音",
+  "node": "F04",
+  "entrypoint": "run",
+  "dependencies": [
+    "F03"
+  ],
+  "outputs": [
+    "分段音频",
+    "字级时间戳",
+    "配音确认"
+  ],
+  "description": "生成配音并对齐字幕；需要用户已确认文案。自动复用前置步骤，只运行到本节点；确认节点需由用户在界面确认。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "tts.submit",
+    "tts.query",
+    "ffmpeg.audio",
+    "asr.align"
+  ]
+}

@@ -3,6 +3,8 @@ FROM go-base AS builder
 WORKDIR /src
 ARG GOPROXY=https://goproxy.cn,direct
 ENV GOPROXY=${GOPROXY}
+# WSL shares the Windows commit limit; unrestricted parallel builds can stop it.
+ENV GOMAXPROCS=2 GOFLAGS=-p=2
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .

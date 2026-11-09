@@ -1,0 +1,293 @@
+{
+  "exit_code": 0,
+  "tests": [
+    {
+      "Time": "2026-11-07T04:03:32.52223267Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAdversarialHistoryWithoutMemorySession",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.525364672Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAdversarialAbortBeforeLLMReturns",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.528390173Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAdversarialAbortBetweenTools",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.531688674Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAdversarialConcurrentTurnIdentity",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.532262474Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentStopCancelsModelContext",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.532828175Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentActiveSessionSurvivesIdleSweep",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.533593775Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentLoop_ExecutesToolCallsThenStops",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.534060375Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentLoop_BlockedToolIsReportedBack",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.534344075Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentLoop_NoLLMClientFallsBackToStub",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.534629575Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAgentLoop_AbortStopsLoop",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.534855976Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestLLMResponse_ToolCallParsing",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.534926576Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestWorkflowProjectState_IndexAndWorkflow",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.535082076Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestWorkflowProjectState_JSONShape",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.535484576Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestToolResultsHaveAssistantInvocationInHistory",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.535585376Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestNormalizeHistory_DoesNotMutateSource",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.535839176Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestNormalizeHistory_TruncatesLongToolResults",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.535982376Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestNormalizeHistory_EmptySlice",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.536179676Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestClassifyIntent",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.536334476Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestDeterminePhase",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.536594976Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestParseLLMResponse_ValidJSON",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.536700776Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestParseLLMResponse_PlainText",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.536866776Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestParseLLMResponse_PartialJSON",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.537015476Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestParseLLMResponse_LongFallback",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.537201576Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestToolRegistry_OnceToolBlocksDuplicate",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.537411877Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestToolRegistry_CheckFailureDoesNotCountCall",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.537582677Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestToolRegistry_UnknownTool",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.537684677Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestExtractCurrentNode",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.538019377Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestEvidenceTool_ReturnsRealData",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.538242677Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestEvidenceTool_FiltersByDataType",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.538479777Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestEvidenceTool_QueryMatchesContent",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.538837477Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestMemoryTool_RememberAndList",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.539074877Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestMemoryTool_ForgetByKind",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.539353977Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestMemoryTool_DeduplicatesSameContent",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.539602477Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestEditScriptTool_GeneratesProposalWithValidIDs",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.539824378Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestEditScriptTool_RejectsUnknownIDs",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.540055778Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestEditTool_RequiresChanges",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.540360378Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestPlanProjectTool_NoRunner_ReportsNotSubmitted",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.540598078Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestPlanProjectTool_WithRunner_SubmitsExecution",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.540804778Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestPlanProjectTool_RunnerRejects_ReportsError",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:32.541066278Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestRegisterAvatarTools_PhaseGating",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-07T04:03:33.543393978Z",
+      "Action": "pass",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Elapsed": 1.037
+    }
+  ],
+  "diagnostics": [],
+  "stderr": ""
+}

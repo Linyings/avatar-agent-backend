@@ -1,0 +1,123 @@
+{
+  "exit_code": 1,
+  "events": [
+    {
+      "test": "TestAdversarialHistoryWithoutMemorySession",
+      "output": "zz_adversarial_review_test.go:35: cold history: HTTP=200 store.Load=0 messages=0; persisted history must be returned"
+    },
+    {
+      "test": "TestAdversarialHistoryWithoutMemorySession",
+      "output": "--- FAIL: TestAdversarialHistoryWithoutMemorySession (0.00s)"
+    },
+    {
+      "Time": "2026-11-06T19:32:04.517013237Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAdversarialHistoryWithoutMemorySession",
+      "Elapsed": 0
+    },
+    {
+      "test": "TestAdversarialAbortBeforeLLMReturns",
+      "output": "zz_adversarial_review_test.go:56: stopped turn still invoked [avatar.configure]; reply=\"已中止。\""
+    },
+    {
+      "test": "TestAdversarialAbortBeforeLLMReturns",
+      "output": "--- FAIL: TestAdversarialAbortBeforeLLMReturns (0.00s)"
+    },
+    {
+      "Time": "2026-11-06T19:32:04.517617536Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAdversarialAbortBeforeLLMReturns",
+      "Elapsed": 0
+    },
+    {
+      "test": "TestAdversarialAbortBetweenTools",
+      "output": "zz_adversarial_review_test.go:67: abort during first tool did not stop batch: [avatar.inspect avatar.configure]"
+    },
+    {
+      "test": "TestAdversarialAbortBetweenTools",
+      "output": "--- FAIL: TestAdversarialAbortBetweenTools (0.00s)"
+    },
+    {
+      "Time": "2026-11-06T19:32:04.518124836Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAdversarialAbortBetweenTools",
+      "Elapsed": 0
+    },
+    {
+      "test": "TestAdversarialConcurrentTurnIdentity",
+      "output": "zz_adversarial_review_test.go:91: first turn used another turn's package identity: [turn-B/avatar.configure]"
+    },
+    {
+      "test": "TestAdversarialConcurrentTurnIdentity",
+      "output": "--- FAIL: TestAdversarialConcurrentTurnIdentity (0.00s)"
+    },
+    {
+      "Time": "2026-11-06T19:32:04.519018436Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Test": "TestAdversarialConcurrentTurnIdentity",
+      "Elapsed": 0
+    },
+    {
+      "Time": "2026-11-06T19:32:04.520014835Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/agent",
+      "Elapsed": 0.009
+    },
+    {
+      "test": "TestAdversarialUnknownOrderAfterConfigure",
+      "output": "zz_adversarial_review_test.go:60: unresolved order bypassed: new_run=true new_revision=2 status=failed provider_requests=1; error=配音模型调用失败；提交状态已记录"
+    },
+    {
+      "test": "TestAdversarialUnknownOrderAfterConfigure",
+      "output": "--- FAIL: TestAdversarialUnknownOrderAfterConfigure (0.22s)"
+    },
+    {
+      "Time": "2026-11-06T19:32:05.523699836Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAdversarialUnknownOrderAfterConfigure",
+      "Elapsed": 0.22
+    },
+    {
+      "test": "TestAdversarialRenameThenSaveSettings",
+      "output": "zz_adversarial_review_test.go:82: rename reverted when saving ratio: draft title=\"旧名称\" final name=\"旧名称\""
+    },
+    {
+      "test": "TestAdversarialRenameThenSaveSettings",
+      "output": "--- FAIL: TestAdversarialRenameThenSaveSettings (0.18s)"
+    },
+    {
+      "Time": "2026-11-06T19:32:05.708433144Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAdversarialRenameThenSaveSettings",
+      "Elapsed": 0.18
+    },
+    {
+      "test": "TestAdversarialScriptProposalWithoutVideoPrerequisites",
+      "output": "zz_adversarial_review_test.go:100: script-only edit blocked by unrelated video prerequisite: 请先上传人物照片"
+    },
+    {
+      "test": "TestAdversarialScriptProposalWithoutVideoPrerequisites",
+      "output": "--- FAIL: TestAdversarialScriptProposalWithoutVideoPrerequisites (0.19s)"
+    },
+    {
+      "Time": "2026-11-06T19:32:05.902397447Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAdversarialScriptProposalWithoutVideoPrerequisites",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-06T19:32:05.903986146Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Elapsed": 0.604
+    }
+  ],
+  "stderr": ""
+}

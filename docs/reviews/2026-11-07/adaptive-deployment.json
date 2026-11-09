@@ -1,0 +1,84 @@
+{
+  "time": "2026-11-07T09:09:04.075235+00:00",
+  "ip_url": "http://172.17.234.187:8080/",
+  "localhost_url": "http://localhost:8080/",
+  "source_hashes": [
+    {
+      "file": "backend/internal/agent/session.go",
+      "source": "e4d757bdf0078fe4e9e7bb05c89b461831215a98a9ca4cd4ba051e68c8287e57",
+      "deployed": "e4d757bdf0078fe4e9e7bb05c89b461831215a98a9ca4cd4ba051e68c8287e57",
+      "match": true
+    },
+    {
+      "file": "backend/internal/agent/execution_followthrough.go",
+      "source": "6d68fac2ddb65f27107966fac9875f351e1b260cfe61fe401ad71ccd91cf8a37",
+      "deployed": "6d68fac2ddb65f27107966fac9875f351e1b260cfe61fe401ad71ccd91cf8a37",
+      "match": true
+    },
+    {
+      "file": "backend/internal/agent/activity.go",
+      "source": "153441d0cf0b503374b047bd79e005669936b36a529e2f2523e170bb9649f256",
+      "deployed": "153441d0cf0b503374b047bd79e005669936b36a529e2f2523e170bb9649f256",
+      "match": true
+    },
+    {
+      "file": "backend/internal/avatar/workflow_plan.go",
+      "source": "4c7112f1f4f6bc934e6b77f6f79bac4e4f8f025fca7a1ef4fb732823f18d52a9",
+      "deployed": "4c7112f1f4f6bc934e6b77f6f79bac4e4f8f025fca7a1ef4fb732823f18d52a9",
+      "match": true
+    },
+    {
+      "file": "backend/internal/server/avatar_workflow_execute.go",
+      "source": "5488734c48c8e1aea7dd1807c0125d6de21c8d8fc25d020653428ed833b0123b",
+      "deployed": "5488734c48c8e1aea7dd1807c0125d6de21c8d8fc25d020653428ed833b0123b",
+      "match": true
+    },
+    {
+      "file": "backend/internal/server/agent_packages.go",
+      "source": "e1893959c9c65b713fde39096b2bdf3c9f5b5996265b41a827b3b1ae55e10aba",
+      "deployed": "e1893959c9c65b713fde39096b2bdf3c9f5b5996265b41a827b3b1ae55e10aba",
+      "match": true
+    },
+    {
+      "file": "frontend/src/features/agent/StudioWorkspace.tsx",
+      "source": "e6063fae6883bbb779ecf396aa4bd7f41b78ed4f8a1eb5f24fd6cb827850dc44",
+      "deployed": "e6063fae6883bbb779ecf396aa4bd7f41b78ed4f8a1eb5f24fd6cb827850dc44",
+      "match": true
+    },
+    {
+      "file": "frontend/src/features/agent/ExecutionStatus.tsx",
+      "source": "02023871266981cc302ce531055f6e1393b1ff1ccd034e1eae50108a8fe8a9ea",
+      "deployed": "02023871266981cc302ce531055f6e1393b1ff1ccd034e1eae50108a8fe8a9ea",
+      "match": true
+    },
+    {
+      "file": "frontend/src/features/agent/workflowProgress.ts",
+      "source": "160b0121102b64867e59c779120f037212fd6a0bf12379707ab0acd843133a4f",
+      "deployed": "160b0121102b64867e59c779120f037212fd6a0bf12379707ab0acd843133a4f",
+      "match": true
+    }
+  ],
+  "containers": [
+    {
+      "name": "aicat-avatar-api-1",
+      "status": "running",
+      "health": "healthy",
+      "started_at": "2026-11-07T09:08:45.042756711Z",
+      "image": "sha256:2538c0872d21c72e92ae115af6b91335fdd301d25d63703cbc9d88c44034e1df"
+    },
+    {
+      "name": "aicat-avatar-web-1",
+      "status": "running",
+      "health": "healthy",
+      "started_at": "2026-11-07T09:04:04.523967265Z",
+      "image": "sha256:d245850217bd3276635869eeb1cebf49ef69a27b5c202058201b8f7a869de5f6"
+    },
+    {
+      "name": "aicat-avatar-postgres-1",
+      "status": "running",
+      "health": "healthy",
+      "started_at": "2026-11-06T15:20:24.297658699Z",
+      "image": "sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b"
+    }
+  ]
+}

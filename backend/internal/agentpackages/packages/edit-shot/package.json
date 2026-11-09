@@ -1,0 +1,122 @@
+{
+  "id": "avatar.edit-shot",
+  "version": "1.0.0",
+  "tool": "edit_shot",
+  "title": "修改分镜",
+  "node": "",
+  "entrypoint": "edit_shot",
+  "dependencies": [],
+  "outputs": [
+    "分镜修改提案"
+  ],
+  "description": "修改已有分镜的布局、配方、素材或文字；保留镜头时间，先读取实际素材 ID。确认后重渲预览和成片。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "changes": {
+        "type": "string",
+        "description": "修改说明",
+        "maxLength": 10000
+      },
+      "shots": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "description": "分镜 ID",
+              "maxLength": 10000
+            },
+            "primary": {
+              "type": "string",
+              "description": "主素材 ID",
+              "maxLength": 10000
+            },
+            "overlay": {
+              "type": "string",
+              "description": "叠加素材 ID",
+              "maxLength": 10000
+            },
+            "layout": {
+              "type": "string",
+              "enum": [
+                "full",
+                "pip",
+                "split"
+              ]
+            },
+            "recipe": {
+              "type": "string",
+              "description": "配方",
+              "maxLength": 10000
+            },
+            "keyword": {
+              "type": "string",
+              "description": "标题",
+              "maxLength": 10000
+            },
+            "card": {
+              "type": "string",
+              "description": "信息卡",
+              "maxLength": 10000
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "description": "要点",
+                "maxLength": 10000
+              },
+              "maxItems": 100
+            },
+            "primary_in": {
+              "type": "number",
+              "minimum": 0
+            },
+            "overlay_in": {
+              "type": "number",
+              "minimum": 0
+            },
+            "intent": {
+              "type": "string",
+              "description": "画面意图",
+              "maxLength": 10000
+            },
+            "avatar_position": {
+              "type": "string",
+              "enum": [
+                "left",
+                "right",
+                "top-left",
+                "top-right",
+                "bottom-left",
+                "bottom-right"
+              ]
+            },
+            "avatar_shape": {
+              "type": "string",
+              "enum": [
+                "circle",
+                "rounded"
+              ]
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false
+        },
+        "maxItems": 100
+      }
+    },
+    "required": [
+      "changes",
+      "shots"
+    ],
+    "additionalProperties": false
+  },
+  "tools": [
+    "proposal.shot"
+  ]
+}

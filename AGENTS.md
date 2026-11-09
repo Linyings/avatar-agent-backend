@@ -9,6 +9,7 @@
 - 前端、Go API 和数据库统一部署到本机 WSL2 Docker；默认更新入口为本项目 deploy/wsl2/deploy.ps1。日常修改后必须更新部署并验证，不只交付 Windows 构建结果。
 - 保留 /opt/aicat/avatar-mvp 中的服务端配置、账号、数据库、任务素材及模型缓存；禁止 docker compose down -v。
 - 当前 WSL2 发行版 `Ubuntu-24.04` 已迁移到 `D:\WSL\Ubuntu-24.04`。后续所有部署与调试使用此 D 盘发行版；Linux 部署位置继续为 `/opt/aicat/avatar-mvp`。
+- 当前默认访问 `http://localhost:8080/`（新版首页），Agent 工作台为 `/workspace/:projectId`。旧版表单页面及 `frontend/src/features/avatarMvp` 已删除，`/avatar-mvp` 仅重定向到首页；禁止再将它作为默认入口或恢复旧 UI。日常启动使用 `deploy/wsl2/start.ps1`，更新当前工作区前后端使用 `deploy/wsl2/deploy.ps1 -Service all`；部署后通过 `deploy/wsl2/verify-current-browser.cjs` 实测新版首页、登录和工作台。
 - 部署后反馈实测 IP 和端口。模型 Key 只保存在 WSL 的服务端 .env，不进 Git、前端或日志。
 - 保留复用源码的许可与来源记录。后端 Go module 和前端依赖包名保留上游名称，以维持既有导入及锁文件；这不表示使用参考目录构建。
 

@@ -1,0 +1,66 @@
+{
+  "time": "2026-11-07T15:08:35.420024+08:00",
+  "ip_url": "http://172.17.234.187:8080/",
+  "localhost_url": "http://localhost:8080/",
+  "source_hashes": [
+    {
+      "file": "internal/server/avatar_workflow.go",
+      "source": "589ea737135c681d15ec86020a18fd92e54d57790d7ad1bf31e6757ed7869375",
+      "deployed": "589ea737135c681d15ec86020a18fd92e54d57790d7ad1bf31e6757ed7869375",
+      "match": true
+    },
+    {
+      "file": "internal/server/avatar_workflow_execute.go",
+      "source": "8ad4f4c4b97248560e13ad0aec6f786ec8307fa743b2cd27e6833c3e059671da",
+      "deployed": "8ad4f4c4b97248560e13ad0aec6f786ec8307fa743b2cd27e6833c3e059671da",
+      "match": true
+    },
+    {
+      "file": "internal/server/avatar_workflow_revision.go",
+      "source": "939ecc4192a82ff29b158a297f2cf2f48dac89af37e0abdb3c0f9cb8346dc52a",
+      "deployed": "939ecc4192a82ff29b158a297f2cf2f48dac89af37e0abdb3c0f9cb8346dc52a",
+      "match": true
+    },
+    {
+      "file": "internal/server/avatar_workflow_catalog.go",
+      "source": "9b10055b0106b5d3fdcd7b515cfd2fcb493271219276444b91b26301a3aa38da",
+      "deployed": "9b10055b0106b5d3fdcd7b515cfd2fcb493271219276444b91b26301a3aa38da",
+      "match": true
+    },
+    {
+      "file": "internal/server/agent_packages.go",
+      "source": "98ac8f73c31075e25bd3fbcacf585ab519a5537db64d03926fd3f9ffc2cc19d0",
+      "deployed": "98ac8f73c31075e25bd3fbcacf585ab519a5537db64d03926fd3f9ffc2cc19d0",
+      "match": true
+    },
+    {
+      "file": "internal/server/agent_package_edits.go",
+      "source": "4289eca4873f8c91ff8e750b147a8452070920779d187de388c13832723139aa",
+      "deployed": "4289eca4873f8c91ff8e750b147a8452070920779d187de388c13832723139aa",
+      "match": true
+    }
+  ],
+  "containers": [
+    {
+      "name": "aicat-avatar-api-1",
+      "status": "running",
+      "health": "healthy",
+      "started_at": "2026-11-07T07:07:54.545963246Z",
+      "image": "sha256:43986259e794c1c583714d7787ac695ddd1848222930f25d2b6c793947c640cf"
+    },
+    {
+      "name": "aicat-avatar-web-1",
+      "status": "running",
+      "health": "healthy",
+      "started_at": "2026-11-07T06:51:18.461845009Z",
+      "image": "sha256:8e74a0a19d9bec95e473ca4c0965ed95b71594096dfb1e6b4536690c023d0543"
+    },
+    {
+      "name": "aicat-avatar-postgres-1",
+      "status": "running",
+      "health": "healthy",
+      "started_at": "2026-11-06T15:20:24.297658699Z",
+      "image": "sha256:266d3c257594e195b309ae9d1805e54c788f1d7b375f56bf6c367aac6c917e7b"
+    }
+  ]
+}

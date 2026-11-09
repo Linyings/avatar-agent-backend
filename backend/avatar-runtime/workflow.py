@@ -12,8 +12,11 @@ import shutil
 import subprocess
 import sys
 import zipfile
+from media_quality import motion_window, audio_metrics, quality_issues
+from avatar_framing import analyze_avatar
 
 ROOT=Path(__file__).resolve().parent
+PRESENTATION_VERSION='film-design/3'
 
 def read(p):return json.loads(Path(p).read_text(encoding='utf-8'))
 def write(p,v):
@@ -62,7 +65,14 @@ def default_shots(segments,materials):
 def dimensions(ratio):return {'9:16':(720,1280),'16:9':(1280,720),'1:1':(720,720)}[ratio]
 
 def command_probe(args):
-    inp=read(args.task/'probe-input.json');p=Path(inp['path']);info=probe(args,p)
+    inp=read(args.task/'probe-input.json');p=Path(inp['path'])
+    if inp['kind']=='text':
+        data=p.read_bytes()
+        if len(data)>1048576:raise ValueError('Reference text exceeds 1MB')
+        text=data.decode('utf-8-sig')
+        if not text.strip() or '\x00' in text:raise ValueError('Reference must be nonempty UTF-8 text')
+        return {'duration':0,'sha256':hashlib.sha256(data).hexdigest()}
+    info=probe(args,p)
     kind='video' if inp['kind']=='video' else 'image'
     stream=next(s for s in info['streams'] if s['codec_type']=='video')
     if kind=='image' and (stream.get('codec_name') not in ['png','mjpeg'] or not any(x in info.get('format',{}).get('format_name','') for x in ['image2','png_pipe','jpeg_pipe'])):raise ValueError('Photo must decode as a static PNG or JPEG image')
@@ -123,18 +133,13 @@ def audio_diagnostic(args,source,reference,folder):
     return score
 
 def command_avatar(args):
-    need=args.inp['need'];seg=args.inp['segment'];pieces=args.inp['pieces'];warnings=[];normalised=[];face=[]
+    need=args.inp['need'];seg=args.inp['segment'];pieces=args.inp['pieces'];warnings=[];normalised=[]
     for piece in pieces:
         folder=args.task/'pieces';source=folder/f"{need['id']}-{piece['id']}.mp4";info=probe(args,source);sec=duration(info,'video')
         if sec+.045<piece['duration']:raise ValueError('Source video cannot cover its actual driven speech; no looping or retiming')
         qa=args.task/'qa'/f"{need['id']}-{piece['id']}";qa.mkdir(parents=True,exist_ok=True)
         for label,t in [('first',0),('middle',piece['duration']/2),('last',max(0,piece['duration']-.08))]:
             run([args.ffmpeg,'-y','-v','error','-ss',t,'-i',source,'-frames:v',1,qa/(label+'.jpg')])
-        try:
-            run([sys.executable,ROOT/'talkcraft/face_bbox.py',source,qa/'face-zone.json'],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL,timeout=90)
-            data=read(qa/'face-zone.json');face=data.get('safe_zone') or []
-            if not face or data.get('detect_rate',0)<.6:warnings.append(need['id']+'：人脸安全区检测不确定，保留完整人物画面')
-        except Exception:warnings.append(need['id']+'：人脸检查未完成，保留完整画面并继续')
         try:
             if any(x['codec_type']=='audio' for x in info['streams']):
                 score=audio_diagnostic(args,source,safe_file(args.task,piece['audio']),qa)
@@ -145,7 +150,46 @@ def command_avatar(args):
     dest=args.task/'materials'/(need['id']+'.mp4');concat=args.task/'pieces'/(need['id']+'-concat.txt')
     concat.write_text(''.join("file '"+str(p).replace("'","'\\''")+"'\n" for p in normalised),encoding='utf-8')
     run([args.ffmpeg,'-y','-v','error','-f','concat','-safe','0','-i',concat,'-c','copy',dest])
-    return {**material_result(need,'materials/'+need['id']+'.mp4',face),'warnings':warnings}
+    result=material_result(need,'materials/'+need['id']+'.mp4')
+    framed,checks=enrich_avatar_material(args,result,[p['start'] for p in pieces[1:]])
+    return {**result,'face_zone':framed.get('face_zone',[]),'warnings':warnings+checks}
+
+
+def enrich_avatar_material(args,material,breaks=()):
+    item=dict(material);warnings=[]
+    source=safe_file(args.task,material['path'])
+    info=probe(args,source);video=next(s for s in info['streams'] if s['codec_type']=='video')
+    item.update(width=video['width'],height=video['height'])
+    if material['kind']!='avatar':return item,warnings
+    try:
+        cache=safe_file(args.task,'avatar-framing/'+material['need_id']+'.json')
+        if not breaks and cache.exists():breaks=read(cache).get('source',{}).get('breaks',[])
+        track=analyze_avatar(source,cache,breaks)
+        item['avatar_framing']=track
+        item['face_zone']=track['safe_zone'] if track['status']=='tracked' else []
+        messages={'uncertain_face':'主人物定位不确定，后期保留完整矩形画面，不使用猜测裁剪','source_zoom':'源片人物大小有变化，后期按检测结果稳定头肩大小，请复核','source_reframing':'源片构图有跳变，已分别定位，请复核衔接','multiple_faces':'源片含额外人像，已优先定位最大主人物，请复核是否需要重生干净素材','ambiguous_person':'部分时刻存在大小相近的多张脸，定位不足时保留完整画面'}
+        warnings.extend(material['need_id']+'：'+messages[code] for code in track['warnings'])
+    except Exception:
+        item['face_zone']=[];item.pop('avatar_framing',None)
+        warnings.append(material['need_id']+'：主人物检查未完成，保留完整矩形画面，不使用猜测裁剪')
+    return item,warnings
+
+def command_motion_context(args):
+    """Sample actual same-segment talking footage; reference demos are never inputs."""
+    segment=args.inp['segment'];frames=[];identifiers=[]
+    for material in args.state.get('materials',[]):
+        if material['kind']!='avatar' or material['segment_id']!=segment['id']:continue
+        source=safe_file(args.task,material['path'])
+        if not source.is_file():raise ValueError('本段人物视频缺失，无法设计配套动效')
+        folder=args.task/'motion-context';folder.mkdir(exist_ok=True)
+        total=min(float(material['duration']),float(args.inp['need']['duration']))
+        for index,time in enumerate([min(.1,total/4),total*.5]):
+            target=folder/(material['need_id']+f'-{index}.jpg')
+            run([args.ffmpeg,'-y','-v','error','-ss',time,'-i',source,'-frames:v',1,'-vf','scale=640:-2','-q:v',4,target])
+            frames.append('data:image/jpeg;base64,'+base64.b64encode(target.read_bytes()).decode())
+        identifiers.append(material['need_id'])
+        if len(identifiers)>=2:break
+    return {'frames':frames,'source':'generated-avatar-frames' if frames else 'no-avatar','avatar_ids':identifiers}
 
 def template_manifest(args,need):
     w,h=dimensions(args.state['input']['ratio']);seg=next(s for s in args.state['segments'] if s['id']==need['segment_id'])
@@ -153,17 +197,39 @@ def template_manifest(args,need):
     phrases=[p.strip() for p in re.split(r'[。；！？\n，、]',seg['text']) if p.strip()]
     selected=need.get('items') or []
     if selected and len(selected)<=4 and all(isinstance(p,str) and p.strip() and p in seg['text'] for p in selected):phrases=selected
-    return {'width':w,'height':h,'fps':25,'duration':need['duration'],'style':args.state['input']['style'],'template':need.get('template','highlight'),'title':seg.get('chapter') or '', 'brief':need['content'],'text':seg['text'],'items':phrases[:4],'render_mode':'native-template','words':[w for s in timing['sentences'] for w in s['words']]}
+    plan=getattr(args,'inp',{}).get('motion_plan')
+    if args.state['input']['style'].startswith('mg-') and not plan:raise ValueError('动效缺少本段内容方案，不能使用演示视频替代')
+    window=motion_window(args.state.get('needs',[]),need,seg.get('duration',need['duration']))
+    required=[need['narration_quote']] if need.get('narration_quote') else []
+    return {'width':w,'height':h,'fps':25,'duration':need['duration'],'style':args.state['input']['style'],'template':need.get('template','highlight'),'title':seg.get('chapter') or '', 'brief':need['content'],'text':seg['text'],'items':phrases[:4],'render_mode':'content-motion' if plan else 'semantic','motion_plan':plan,'words':[w for s in timing['sentences'] for w in s['words']],'narration_window':window,'required_quotes':required}
+
+
+def command_motion_scope(args):
+    need=args.inp['need'];seg=args.inp['segment']
+    window=motion_window(args.state.get('needs',[]),need,seg['duration'])
+    timing=read(args.task/seg['id']/'timestamps.json')
+    words=[w for s in timing['sentences'] for w in s['words']]
+    return {'narration_window':window,'allowed_quote':need.get('narration_quote',''),'words':[w for w in words if w['end']>window['start'] and w['start']<window['end']]}
+
+
+def command_audio_review(args):
+    rows=[]
+    for seg in args.state['segments']:
+        aligned=read(args.task/seg['id']/'timestamps.json');words=[w for s in aligned['sentences'] for w in s['words']]
+        rows.append({**audio_metrics(safe_file(args.task,seg['audio']),words,args.ffmpeg),'segment_id':seg['id'],'start':seg['start']})
+    issues=quality_issues({'shots':[]},rows)
+    report={'status':'needs_review' if issues else 'measured','human_review':'not_reviewed','segments':rows,'issues':issues}
+    write(args.task/'audio-quality.json',report)
+    return {'audio_quality':report,'warnings':[f"{i['time']:.2f}s：{i['message']}" for i in issues]}
 
 def command_material(args):
     need=args.inp['need'];dest=args.task/'materials'/(need['id']+'.mp4');dest.parent.mkdir(exist_ok=True)
     if need['kind']=='animation':
         manifest=template_manifest(args,need);write(args.task/'animation-props.json',{'animation':manifest})
-        run([args.node,ROOT/'workflow-render.mjs','animation',args.task,dest])
+        run([args.node,ROOT/'workflow-render.mjs','animation',args.task,dest],timeout=600)
         report=args.task/'animation-native-report.json'
         if report.exists():shutil.copy2(report,args.task/'materials'/(need['id']+'-native-report.json'))
-        source=ROOT/'templates'/args.state['input']['style']/'original-prompt.md'
-        (args.task/'materials'/(need['id']+'-prompt.md')).write_text(source.read_text(encoding='utf-8')+'\n\n## 本次参数适配\n'+json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
+        (args.task/'materials'/(need['id']+'-prompt.md')).write_text('# 本段内容动效方案\n\n风格参考仅用于配色、材质、线条和运动。以下为当前口播设计；未使用演示视频。\n\n'+json.dumps(manifest,ensure_ascii=False,indent=2),encoding='utf-8')
     else:
         source=Path(args.paths[need['source_id']]);asset=next(a for a in args.state['input']['assets'] if a['id']==need['source_id'])
         cmd=[args.ffmpeg,'-y','-v','error']
@@ -171,7 +237,11 @@ def command_material(args):
         else:cmd+=['-ss',need.get('source_start',0)]
         cmd+=['-i',source,'-t',need['duration'],'-an','-vf','fps=25,scale=trunc(iw/2)*2:trunc(ih/2)*2','-c:v','libx264','-preset','fast','-pix_fmt','yuv420p',dest];run(cmd)
     duration(probe(args,dest),'video')
-    return material_result(need,'materials/'+need['id']+'.mp4')
+    result=material_result(need,'materials/'+need['id']+'.mp4')
+    report=args.task/'materials'/(need['id']+'-native-report.json')
+    if need['kind']=='animation' and report.exists():
+        result['rendered_scenes']=read(report).get('scenes',[])
+    return result
 
 def frame_sample_times(start,end,fps):
     # Container duration can extend past the final frame. Seeking .01 seconds
@@ -260,14 +330,14 @@ def command_plan(args):
     for material in args.state['materials']:
         path=args.task/material['path']
         if path.exists():
-            info=probe(args,path);video=next(s for s in info['streams'] if s['codec_type']=='video')
-            geometry.append({'need_id':material['need_id'],'width':video['width'],'height':video['height'],'face_zone':material.get('face_zone',[]),'fit_policy':'头部安全区优先；不安全时完整保留人物并延展背景'})
-    plan={'version':'film-design/1','style':args.state['input']['style'],'ratio':args.state['input']['ratio'],'segments':candidates,'material_geometry':geometry,'upstream_references':matches,'rules':['一个镜头一个视觉主角','只选择已经实现的recipes；上游候选只用于语义参考','动画已含标题和图解，不重复叠信息卡','默认单机位，不增加人物生成','同构图重复只提醒，不强制切镜']}
+            item,checks=enrich_avatar_material(args,material);warnings+=checks
+            geometry.append({'need_id':material['need_id'],'width':item['width'],'height':item['height'],'face_zone':item.get('face_zone',[]),'fit_policy':'按源时间定位主人物；固定窗口，稳定头肩大小；定位不确定时保留完整矩形画面'})
+    plan={'version':PRESENTATION_VERSION,'style':args.state['input']['style'],'ratio':args.state['input']['ratio'],'segments':candidates,'material_geometry':geometry,'upstream_references':matches,'rules':['一个镜头一个视觉主角','只选择已经实现的recipes；上游候选只用于语义参考','动画已含标题和图解，不重复叠信息卡','默认单机位，不增加人物生成','同构图重复只提醒，不强制切镜']}
     write(args.task/'design-plan.json',plan)
     return {'plan':plan,'warnings':warnings}
 
 def command_shotbook(args):
-    state=args.state;shots=state['shots'];materials={m['need_id']:m for m in state['materials']};lines=['# SHOTBOOK','','G0 '+state['input']['style']+' / '+state['input']['ratio'],'','视觉版本：film-design/1；颜色、字体、容器及字幕统一从 filmTheme 读取。','','| 镜 | 人物形态·方位 | 素材容器 | 主卡 / 配方 |','| --- | --- | --- | --- |'];warnings=[]
+    state=args.state;shots=state['shots'];materials={m['need_id']:m for m in state['materials']};lines=['# SHOTBOOK','','G0 '+state['input']['style']+' / '+state['input']['ratio'],'','视觉版本：'+PRESENTATION_VERSION+'；颜色、字体、容器及字幕统一从 filmTheme 读取。','','| 镜 | 人物形态·方位 | 素材容器 | 主卡 / 配方 |','| --- | --- | --- | --- |'];warnings=[]
     for shot in shots:
         material=materials[shot['primary']]
         host='主画面上半身' if material['kind']=='avatar' else ('画中画上半身' if shot.get('overlay') else '无人物')
@@ -286,7 +356,7 @@ def command_shotbook(args):
     sources=['# 素材来源与使用记录','','用户上传素材的授权范围待用户确认；此清单不授予商业许可。','配音：用户确认的分段音频，最终 voice.wav 仅混入一次。','']
     for m in state['materials']:
         if m['kind']=='real':origin=f"用户上传 {m.get('source_id','')}；源入点 {m.get('source_start',0):.6f} 秒，截取 {m.get('duration',0):.6f} 秒；未联网检索"
-        elif m['kind']=='animation':origin='代码动画；源码、原提示词与许可见 templates/'+state['input']['style']+'/SOURCE.json'
+        elif m['kind']=='animation':origin='按当前文案与人物画面设计的代码动画；风格参考与许可见 templates/'+state['input']['style']+'/SOURCE.json'
         else:origin='用户人物照片及对应实际配音驱动；供应商订单与模型配置见运行报告'
         sources.append('- '+m['path']+'：'+origin)
     (args.task/'sources.md').write_text('\n'.join(sources)+'\n',encoding='utf-8')
@@ -323,9 +393,9 @@ def command_shotbook(args):
         item=dict(material)
         path=args.task/material['path']
         if path.exists():
-            info=probe(args,path);video=next(s for s in info['streams'] if s['codec_type']=='video');item.update(width=video['width'],height=video['height'])
+            item,checks=enrich_avatar_material(args,material);warnings+=checks
         enriched.append(item)
-    w,h=dimensions(state['input']['ratio']);manifest={**state,'materials':enriched,'presentation_version':'film-design/1','width':w,'height':h,'fps':25,'duration':state['duration'],'timing':read(args.task/'timing.json')}
+    w,h=dimensions(state['input']['ratio']);manifest={**state,'materials':enriched,'presentation_version':PRESENTATION_VERSION,'width':w,'height':h,'fps':25,'duration':state['duration'],'timing':read(args.task/'timing.json')}
     if (args.task/'subtitle-timing.json').exists():manifest['caption_timing']=read(args.task/'subtitle-timing.json')
     write(args.task/'workflow-manifest.json',manifest);write(args.task/'workflow-props.json',{'manifest':manifest})
     return {'warnings':warnings}
@@ -333,11 +403,19 @@ def command_shotbook(args):
 def artifact(id,name,path,type):return {'id':id,'name':name,'path':path,'media_type':type}
 
 def renderer(args,preview=False):
+    # Upgrade only during an explicitly requested render, without paid calls.
+    props_path=args.task/'workflow-props.json';props=read(props_path);manifest=props['manifest'];framing_warnings=[]
+    if manifest.get('presentation_version')!=PRESENTATION_VERSION:
+        enriched=[]
+        for material in manifest['materials']:
+            item,checks=enrich_avatar_material(args,material);enriched.append(item);framing_warnings+=checks
+        manifest.update(materials=enriched,presentation_version=PRESENTATION_VERSION)
+        write(props_path,props);write(args.task/'workflow-manifest.json',manifest)
     command=[args.node,ROOT/'workflow-render.mjs','preview' if preview else 'render',args.task]
     run(command)
     warnings=[];log=args.task/'render-quality.json'
     if log.exists():warnings=read(log).get('warnings',[])
-    return warnings
+    return warnings+framing_warnings
 
 def command_preview(args):
     warnings=renderer(args,True);shots=args.state['shots'];items=[]
@@ -345,7 +423,69 @@ def command_preview(args):
         p=args.task/'preview'/(shot['id']+'.mp4')
         if p.exists():items.append(artifact('preview-'+shot['id'],shot['id']+'有声预览.mp4','preview/'+shot['id']+'.mp4','video/mp4'))
     if not items:raise ValueError('No actual preview produced')
-    return {'artifacts':items,'warnings':warnings}
+    review,review_items=review_rendered_shots(args,True)
+    return {'artifacts':items+review_items,'warnings':warnings,'quality_review':review}
+
+
+def review_rendered_shots(args,preview=False):
+    audio=read(args.task/'audio-quality.json').get('segments',[]) if (args.task/'audio-quality.json').exists() else []
+    issues=quality_issues(args.state,audio);shots=[];items=[]
+    rendered=read(args.task/'render-quality.json') if (args.task/'render-quality.json').exists() else {}
+    framing={row['shot_id']:row for row in rendered.get('avatar_framing',[])}
+    props=args.task/'workflow-props.json'
+    if props.exists():
+        manifest=read(props).get('manifest',{});reported=set()
+        for shot in args.state['shots']:
+            for material in manifest.get('materials',[]):
+                if material.get('kind')!='avatar' or material.get('need_id') not in (shot.get('primary'),shot.get('overlay')) or material['need_id'] in reported:continue
+                reported.add(material['need_id']);track=material.get('avatar_framing',{})
+                messages={'source_zoom':'源片人物大小有变化，请复核小窗稳定效果；过近而无法安全裁剪的镜头会保留完整矩形画面','source_reframing':'源片出现构图跳变，请检查镜头衔接','multiple_faces':'源片存在额外人像，已优先定位主人物；仍需检查源片是否干净','ambiguous_person':'源片部分时刻人物定位不明确，请检查；定位不足的镜头会保留完整矩形画面'}
+                for code in track.get('warnings',[]):
+                    if code in messages:issues.append({'code':'avatar_'+code,'severity':'review','shot_id':shot['id'],'time':shot['start'],'message':messages[code]})
+                if track.get('status')!='tracked':issues.append({'code':'avatar_framing_unavailable','severity':'review','shot_id':shot['id'],'time':shot['start'],'message':'主人物定位不足，后期保留完整矩形人物画面，请复核'})
+    detector=None
+    try:
+        import cv2
+        model=Path.home()/'.cache/koubo/face_detection_yunet_2023mar.onnx'
+        if model.exists():detector=cv2.FaceDetectorYN.create(str(model),'',(720,1280),.6,.3,5000)
+    except Exception:pass
+    materials={m['need_id']:m for m in args.state.get('materials',[])}
+    for shot in args.state['shots']:
+        duration=shot['end']-shot['start'];margin=min(.15,duration/4)
+        decision=framing.get(shot['id'],{})
+        if decision.get('mode')=='full-source':issues.append({'code':'avatar_full_source','severity':'review','shot_id':shot['id'],'time':shot['start'],'message':'定位不足或源片取景过近，已整镜保留完整矩形画面；需复核或重做干净人物素材'})
+        times=[margin,duration/2,max(margin,duration-margin)];frames=[];face_sizes=[]
+        for index,local in enumerate(times):
+            relative=f"quality/{shot['id']}-{index+1}.jpg";dest=safe_file(args.task,relative);dest.parent.mkdir(exist_ok=True)
+            source=args.task/'preview'/(shot['id']+'.mp4') if preview else args.task/'output.mp4'
+            second=local if preview else shot['start']+local
+            try:
+                run([args.ffmpeg,'-v','error','-y','-ss',second,'-i',source,'-frames:v',1,'-q:v','3',dest],stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+                if not dest.is_file():raise ValueError('frame not available')
+            except Exception:
+                issues.append({'code':'sample_missing','severity':'review','shot_id':shot['id'],'time':shot['start']+local,'message':'抽帧未完成，请播放此镜头检查'})
+                continue
+            aid=f"quality-{shot['id']}-{index+1}";items.append(artifact(aid,f"{shot['id']} {shot['start']+local:.2f}s 检查帧",relative,'image/jpeg'));frames.append({'artifact_id':aid,'time':round(shot['start']+local,3)})
+            shape=decision.get('actual_shape') or shot.get('avatar_shape') or args.state['input'].get('avatar_shape')
+            if detector is not None and shape=='circle' and materials.get(shot.get('overlay'),{}).get('kind')=='avatar':
+                try:
+                    im=cv2.imread(str(dest));h,w=im.shape[:2];size=min(w,h)*.28;side=shot.get('avatar_position') or args.state['input'].get('avatar_position') or 'right'
+                    x=w*.055 if 'left' in side else w*.945-size;y=h*.07 if side.startswith('top') else h*.88-size
+                    crop=im[max(0,int(y)):min(h,int(y+size)),max(0,int(x)):min(w,int(x+size))]
+                    detector.setInputSize((crop.shape[1],crop.shape[0]));_,faces=detector.detect(crop)
+                    clipped=faces is None or len(faces)==0
+                    if not clipped:
+                        f=max(faces,key=lambda a:a[14]);face_sizes.append(float(f[3]/size))
+                        clipped=any(((float(f[j])-size/2)**2+(float(f[j+1])-size/2)**2)**.5>size*.46 for j in (4,6,10,12))
+                    if clipped:issues.append({'code':'circle_face','severity':'review','shot_id':shot['id'],'time':round(shot['start']+local,3),'artifact_id':aid,'message':'圆窗内未检出完整眼部和嘴部，请检查裁切位置'})
+                except Exception:
+                    issues.append({'code':'face_check_unavailable','severity':'review','shot_id':shot['id'],'time':round(shot['start']+local,3),'artifact_id':aid,'message':'此检查帧未完成脸部检测，请人工检查裁切'})
+        if len(face_sizes)>1 and max(face_sizes)>min(face_sizes)*1.3:
+            issues.append({'code':'face_scale','severity':'review','shot_id':shot['id'],'time':shot['start'],'message':'人物在圆窗内的脸部大小变化超过 30%，请检查是否发生变焦'})
+        shots.append({'shot_id':shot['id'],'frames':frames,'avatar_framing':decision,'status':'needs_review' if any(x.get('shot_id')==shot['id'] for x in issues) else 'sampled'})
+    report={'version':'render-review/1','status':'needs_review' if issues else 'awaiting_visual_review','human_review':'not_reviewed','face_check':'sampled' if detector is not None else 'unavailable','scope':['镜头长度','配音节奏测量','逐镜首中尾抽帧','圆窗眼嘴可见性抽查'],'limitations':['抽帧不能证明全片口型同步或人物身份一致','背景连续性、重复文字和新闻事实仍需人工复核'],'issues':issues,'shots':shots}
+    write(args.task/'quality-review.json',report);items.append(artifact('quality-review','逐镜质量检查.json','quality-review.json','application/json'))
+    return report,items
 
 def command_render(args):
     warnings=renderer(args);out=args.task/'output.mp4';info=probe(args,out);sec=duration(info,'video')
@@ -358,19 +498,24 @@ def command_render(args):
     run([args.ffmpeg,'-y','-v','error','-ss',min(.5,sec/2),'-i',out,'-frames:v',1,args.task/'cover.jpg'])
     def stamp(t):
         ms=round(t*1000);return f'{ms//3600000:02}:{ms//60000%60:02}:{ms//1000%60:02},{ms%1000:03}'
-    captions=[]
+    captions=[];scenes=[]
     for row in read(args.task/'caption-timestamps.json')['sentences']:
         # One subtitle block per short measured character group.
         chars=load_upstream('make_timing').expand_chars(row['text'],row['words'],row['start'])
-        for i in range(0,len(chars),16):
-            group=chars[i:i+16];start=group[0]['t'];end=max(start+.02,group[-1]['e']);captions += [str(len(captions)//4+1),stamp(start)+' --> '+stamp(end),''.join(c['ch'] for c in group),'']
+        scenes.append({'chars':chars})
+    width,height=dimensions(args.state['input']['ratio']);font=min(width,height)*.045*(args.state['input'].get('subtitle_scale') or 1)
+    payload=json.dumps({'scenes':scenes,'budget':width*.91/font*1.35},ensure_ascii=False)
+    groups=json.loads(subprocess.check_output([str(args.node),str(ROOT/'caption-pages.mjs')],input=payload.encode()))
+    for group in groups:
+        start=group[0]['t'];end=max(start+.02,group[-1]['e']);captions += [str(len(captions)//4+1),stamp(start)+' --> '+stamp(end),''.join(c['ch'] for c in group),'']
     (args.task/'subtitles.srt').write_text('\n'.join(captions),encoding='utf-8')
+    review,review_items=review_rendered_shots(args)
     # Self-contained source+media package; no env, secrets or signed URLs.
     project=args.task/'project.zip'
     with zipfile.ZipFile(project,'w',zipfile.ZIP_DEFLATED) as archive:
         for path in ROOT.joinpath('src').rglob('*'):
             if path.is_file():archive.write(path,'src/'+path.relative_to(ROOT/'src').as_posix())
-        for name in ['package.json','package-lock.json','tsconfig.json','UPSTREAM.json','TALKCRAFT-LICENSE','workflow-render.mjs','mg-native.mjs','mg-shell.js','native-styles.json']:
+        for name in ['package.json','package-lock.json','tsconfig.json','UPSTREAM.json','TALKCRAFT-LICENSE','workflow-render.mjs','director-motion.mjs','motion-checks.mjs','content-motion.mjs','caption-pages.mjs','catalog-previews.mjs','mg-native.mjs','mg-shell.js','native-styles.json']:
             archive.write(ROOT/name,name)
         for folder in ['talkcraft','templates','mg-upstream']:
             for path in (ROOT/folder).rglob('*'):
@@ -380,16 +525,31 @@ def command_render(args):
             archive.write(args.task/name,name)
         for name in ['design-plan.json','design-semantics.json','DESIGN.md','design-card-candidates.md','design-card-candidates.json','semantics.json','card-candidates.md','card-candidates.json','render-quality.json','preflight.log','beat-lint.log','card-match.log','semantic-init.log']:
             if (args.task/name).is_file():archive.write(args.task/name,name)
-        for folder in ['materials','preview','qa']:
+        for name in ['quality-review.json','audio-quality.json']:
+            if (args.task/name).exists():archive.write(args.task/name,name)
+        for folder in ['materials','preview','qa','quality','avatar-framing']:
             for path in (args.task/folder).rglob('*'):
                 if path.is_file():archive.write(path,path.relative_to(args.task))
     items=[artifact('video','口播成片.mp4','output.mp4','video/mp4'),artifact('subtitles','字幕.srt','subtitles.srt','application/x-subrip'),artifact('cover','封面.jpg','cover.jpg','image/jpeg'),artifact('project','制作工程.zip','project.zip','application/zip'),artifact('shotbook','SHOTBOOK.md','SHOTBOOK.md','text/markdown'),artifact('mapping','素材时间映射.json','workflow-manifest.json','application/json')]
     for shot in args.state['shots']:
         p=args.task/'preview'/(shot['id']+'.mp4')
         if p.exists():items.append(artifact('preview-'+shot['id'],shot['id']+'有声预览.mp4','preview/'+shot['id']+'.mp4','video/mp4'))
-    return {'artifacts':items,'warnings':warnings}
+    return {'artifacts':items+review_items,'warnings':warnings,'quality_review':review}
+
+def command_motion_timing(args):
+    manifest=template_manifest(args,args.inp['need'])
+    source=args.task/'motion-timing-input.json';result=args.task/'motion-timing-result.json'
+    write(source,{'mode':'timing','animation':manifest})
+    run([args.node,ROOT/'motion-validate.mjs',source,result],timeout=30)
+    return {**read(result),'animation':manifest}
+
+
+def command_motion_validate(args):
+    run([args.node, ROOT/'motion-validate.mjs', args.task/'media-input.json'])
+    return {'valid': True}
 
 COMMANDS={k[8:]:v for k,v in list(globals().items()) if k.startswith('command_')}
+
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('stage',choices=COMMANDS);parser.add_argument('--task-dir',required=True);parser.add_argument('--ffmpeg',default='ffmpeg');parser.add_argument('--ffprobe',default='ffprobe');parser.add_argument('--node',default='node');parser.add_argument('--asr-backend',default='whisper');parser.add_argument('--asr-model-dir',default='')
     args=parser.parse_args();args.task=Path(args.task_dir).resolve();args.state=read(args.task/'workflow.json') if (args.task/'workflow.json').exists() else {};args.inp=read(args.task/'media-input.json') if (args.task/'media-input.json').exists() else {};args.paths=read(args.task/'asset-paths.json') if (args.task/'asset-paths.json').exists() else {}

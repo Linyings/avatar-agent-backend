@@ -1,21 +1,53 @@
 import unittest
 from pathlib import Path
 import tempfile
+from unittest.mock import patch
 import workflow
 from types import SimpleNamespace
 
 class WorkflowTimelineTests(unittest.TestCase):
-    def test_mg_materials_use_original_template_renderer_with_current_content(self):
+    def test_avatar_material_uses_full_source_track_and_discards_legacy_last_piece_box(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder=Path(d);(folder/'host.mp4').write_bytes(b'fixture')
+            material={'need_id':'host','kind':'avatar','path':'host.mp4','face_zone':[500,900,100,150]}
+            track={'status':'tracked','safe_zone':[180,70,350,600],'warnings':[]}
+            args=SimpleNamespace(task=folder,ffprobe='ffprobe')
+            with patch.object(workflow,'probe',return_value={'streams':[{'codec_type':'video','width':720,'height':1280}]}),patch.object(workflow,'analyze_avatar',return_value=track) as analyze:
+                enriched,_=workflow.enrich_avatar_material(args,material,[11])
+                self.assertEqual(enriched['face_zone'],track['safe_zone'])
+                self.assertEqual(enriched['avatar_framing'],track)
+                self.assertEqual(analyze.call_args.args[2],[11])
+            self.assertEqual(material['face_zone'],[500,900,100,150])
+            with patch.object(workflow,'probe',return_value={'streams':[{'codec_type':'video','width':720,'height':1280}]}),patch.object(workflow,'analyze_avatar',side_effect=RuntimeError('unavailable')):
+                enriched,warnings=workflow.enrich_avatar_material(args,material)
+                self.assertEqual(enriched['face_zone'],[])
+                self.assertNotIn('avatar_framing',enriched)
+                self.assertTrue(warnings)
+
+    def test_review_preserves_render_when_optional_detector_fails(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder=Path(d)
+            state={'input':{},'shots':[],'segments':[],'materials':[]}
+            fake=SimpleNamespace(FaceDetectorYN=SimpleNamespace(create=lambda *a:(_ for _ in ()).throw(RuntimeError('bad model'))))
+            with patch.dict('sys.modules',{'cv2':fake}),patch.object(Path,'exists',return_value=True),patch.object(workflow,'read',return_value={}):
+                report,_=workflow.review_rendered_shots(SimpleNamespace(task=folder,state=state))
+            self.assertEqual(report['face_check'],'unavailable')
+            self.assertTrue((folder/'quality-review.json').is_file())
+
+    def test_mg_materials_require_current_content_plan_not_demo_video(self):
         with tempfile.TemporaryDirectory() as d:
             folder=Path(d);workflow.write(folder/'p1/timestamps.json',{'sentences':[]})
             state={'input':{'style':'mg-collage','ratio':'16:9'},'segments':[{'id':'p1','text':'先确认声音。再准备素材。','chapter':'制作流程'}]}
-            args=SimpleNamespace(task=folder,state=state)
+            args=SimpleNamespace(task=folder,state=state,inp={'motion_plan':{'version':'content-motion/1','scenes':[]}})
             need={'segment_id':'p1','duration':3,'content':'声音与素材','template':'steps','items':['确认声音','准备素材']}
             manifest=workflow.template_manifest(args,need)
             self.assertEqual(manifest['items'],['确认声音','准备素材'])
-            self.assertEqual(manifest['render_mode'],'native-template')
+            self.assertEqual(manifest['render_mode'],'content-motion')
+            self.assertEqual(manifest['motion_plan'],args.inp['motion_plan'])
             manifest=workflow.template_manifest(args,{**need,'items':['虚构场景']})
             self.assertNotIn('虚构场景',manifest['items'])
+            args.inp={}
+            with self.assertRaisesRegex(ValueError,'不能使用演示视频'):workflow.template_manifest(args,need)
     def test_design_analysis_precedes_shots_and_exposes_renderable_candidates(self):
         with tempfile.TemporaryDirectory() as d:
             folder=Path(d)

@@ -133,18 +133,24 @@ type Config struct {
 	MovieNarrationModel           string
 	MovieNarrationThinkingType    string
 	MovieNarrationReasoningEffort string
-	OpenAIProAPIKey               string
-	OpenAIProAPIBaseURL           string
-	OpenAIProModel                string
-	OpenAIProSupportsVision       bool
-	OpenAIFlashAPIKey             string
-	OpenAIFlashAPIBaseURL         string
-	OpenAIFlashModel              string
-	OpenAIFlashThinkingType       string
-	OpenAIFlashReasoningEffort    string
-	OpenAITemperature             float64
-	OpenAIProThinkingType         string
-	OpenAIProReasoningEffort      string
+	// Platform Agent LLM (for avatar-agent chat), separate from Pro/Flash.
+	AgentAPIKey                string
+	AgentAPIBaseURL            string
+	AgentModel                 string
+	AgentThinkingType          string
+	AgentReasoningEffort       string
+	OpenAIProAPIKey            string
+	OpenAIProAPIBaseURL        string
+	OpenAIProModel             string
+	OpenAIProSupportsVision    bool
+	OpenAIFlashAPIKey          string
+	OpenAIFlashAPIBaseURL      string
+	OpenAIFlashModel           string
+	OpenAIFlashThinkingType    string
+	OpenAIFlashReasoningEffort string
+	OpenAITemperature          float64
+	OpenAIProThinkingType      string
+	OpenAIProReasoningEffort   string
 	// 画面分析 model, separate from Pro/Flash. INPUT is "image" (a 3x3 contact sheet)
 	// or "video" (a short clip of the segment with its audio); left empty, omni models
 	// such as qwen3.8-omni-flash get video and every other model gets images.
@@ -296,6 +302,11 @@ func Load() Config {
 		MovieNarrationModel:               env("MOVIE_NARRATION_MODEL", ""),
 		MovieNarrationThinkingType:        env("MOVIE_NARRATION_THINKING_TYPE", ""),
 		MovieNarrationReasoningEffort:     env("MOVIE_NARRATION_REASONING_EFFORT", ""),
+		AgentAPIKey:                       env("AGENT_API_KEY", ""),
+		AgentAPIBaseURL:                   env("AGENT_API_BASE_URL", ""),
+		AgentModel:                        env("AGENT_MODEL", ""),
+		AgentThinkingType:                 env("AGENT_THINKING_TYPE", ""),
+		AgentReasoningEffort:              env("AGENT_REASONING_EFFORT", ""),
 		OpenAIProAPIKey:                   env("OPENAI_PRO_API_KEY", ""),
 		OpenAIProAPIBaseURL:               env("OPENAI_PRO_API_BASE_URL", "https://api.openai.com/v1"),
 		OpenAIProModel:                    env("OPENAI_PRO_MODEL", "gpt-4.1"),
@@ -308,9 +319,9 @@ func Load() Config {
 		OpenAITemperature:                 envFloat("OPENAI_TEMPERATURE", 0.7),
 		OpenAIProThinkingType:             env("OPENAI_PRO_THINKING_TYPE", ""),
 		OpenAIProReasoningEffort:          env("OPENAI_PRO_REASONING_EFFORT", ""),
-		MovieVisionAPIKey:                 env("DASHSCOPE_API_KEY", ""),
-		MovieVisionAPIBaseURL:             env("QWEN_VISION_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
-		MovieVisionModel:                  env("QWEN_VISION_MODEL", "qwen3.6-plus"),
+		MovieVisionAPIKey:                 env("DASHSCOPE_API_KEY", env("MOVIE_VISION_API_KEY", "")),
+		MovieVisionAPIBaseURL:             env("QWEN_VISION_BASE_URL", env("MOVIE_VISION_API_BASE_URL", "https://dashscope.aliyuncs.com/compatible-mode/v1")),
+		MovieVisionModel:                  env("QWEN_VISION_MODEL", env("MOVIE_VISION_MODEL", "qwen3.6-plus")),
 		MovieVisionThinkingType:           "disabled",
 		MovieVisionThinkingBudget:         max(0, envInt("MOVIE_VISION_THINKING_BUDGET", 0)),
 		DeepSeekAPIKey:                    env("DEEPSEEK_API_KEY", ""),
@@ -411,6 +422,10 @@ func (c Config) OpenAIConfigured() bool {
 
 func (c Config) MovieNarrationConfigured() bool {
 	return strings.TrimSpace(c.MovieNarrationAPIKey) != "" && strings.TrimSpace(c.MovieNarrationAPIBaseURL) != "" && strings.TrimSpace(c.MovieNarrationModel) != ""
+}
+
+func (c Config) AgentConfigured() bool {
+	return strings.TrimSpace(c.AgentAPIKey) != "" && strings.TrimSpace(c.AgentAPIBaseURL) != "" && strings.TrimSpace(c.AgentModel) != ""
 }
 
 func (c Config) OpenAIProConfigured() bool {

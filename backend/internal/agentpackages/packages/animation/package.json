@@ -1,0 +1,33 @@
+{
+  "id": "avatar.animation",
+  "version": "1.1.0",
+  "tool": "avatar_animation",
+  "title": "动效制作",
+  "node": "F07",
+  "entrypoint": "run",
+  "dependencies": [
+    "F05",
+    "F06"
+  ],
+  "outputs": [
+    "动效视频"
+  ],
+  "description": "参考所选风格的配色、材质和运动，结合当前文案与实际人物画面设计并渲染新动效，不使用演示视频。自动复用前置步骤，只运行到本节点；确认节点需由用户在界面确认。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "motion.plan_from_content",
+    "remotion.render",
+    "ffmpeg.encode"
+  ]
+}

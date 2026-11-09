@@ -67,7 +67,7 @@ wsl -d Ubuntu-24.04 -u root -- bash -lc 'cd /opt/aicat/avatar-mvp && docker comp
 python deploy/wsl2/summarize-workflow.py docs/evidence/v22/case-a/state.json docs/evidence/v22/case-a/成本耗时报告.md
 ```
 
-工程复现检查工具：`backend/scripts/verify_workflow_export.py`。真实验收脚本：`deploy/wsl2/verify-workflow-live.py`（需显式 `--paid`，支持 `--pause-at script/audio`，不会自动重交失败或未知订单）。浏览器只读验收：`frontend/scripts/verify-avatar-workflow.mjs <run_id>`。
+工程复现检查工具：`backend/scripts/verify_workflow_export.py`。真实验收脚本：`deploy/wsl2/verify-workflow-live.py`（需显式 `--paid`，支持 `--pause-at script/audio`，不会自动重交失败或未知订单）。旧表单 UI 及其浏览器验收脚本已于 2026-11-06 删除；当前新版首页和 Agent 工作台使用 `deploy/wsl2/verify-current-browser.cjs` 验收。
 
 `prepare-local-acceptance-revision.py` 是操作员的风格/比例修订工具：先检查既有人物缓存、配音和对齐文件，复用原需求/分镜并保存幂等准入。它不会重试原来状态不明的请求。缓存预检不能替代记账，完成后仍检查新运行的订单和 billing；草稿已有其他修改时拒绝覆盖。修订仍沿用原需求/分镜的来源，人工分镜不会因此变成自动规划验收。
 

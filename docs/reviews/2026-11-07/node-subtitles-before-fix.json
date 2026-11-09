@@ -1,0 +1,23 @@
+{
+  "exit_code": 1,
+  "passed": 38,
+  "failures": [
+    {
+      "Time": "2026-11-07T06:43:20.109933136Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestPackageNodeResegmentationDropsOnlyStaleSubtitles",
+      "Elapsed": 0.24
+    },
+    {
+      "Time": "2026-11-07T06:43:25.583558493Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Elapsed": 6.9719999999999995
+    }
+  ],
+  "diagnostics": [
+    "agent_node_operations_test.go:238: 字幕更正段落不存在"
+  ],
+  "stderr": ""
+}

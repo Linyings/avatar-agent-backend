@@ -3,6 +3,8 @@ FROM golang:1.26.2-bookworm AS builder
 WORKDIR /src
 ARG GOPROXY=https://goproxy.cn,direct
 ENV GOPROXY=${GOPROXY}
+# Keep compiler fan-out below the host/WSL shared memory budget.
+ENV GOMAXPROCS=2 GOFLAGS=-p=2
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
@@ -13,8 +15,8 @@ FROM aicat-avatar-runtime-cache:local
 USER root
 WORKDIR /app
 COPY --from=builder /out/ /usr/local/bin/
-COPY avatar-runtime ./avatar-runtime
-COPY prompt ./prompt
-RUN node avatar-runtime/workflow-render.mjs catalog \
- && chown -R node:node /app/avatar-runtime /app/prompt
+COPY --chown=node:node avatar-runtime ./avatar-runtime
+COPY --chown=node:node prompt ./prompt
+# Avoid copying all inherited dependencies into a new layer via recursive chown.
 USER node
+RUN node avatar-runtime/workflow-render.mjs catalog

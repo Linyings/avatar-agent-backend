@@ -1,0 +1,31 @@
+{
+  "id": "avatar.needs",
+  "version": "1.0.0",
+  "tool": "avatar_needs",
+  "title": "素材规划",
+  "node": "F05",
+  "entrypoint": "run",
+  "dependencies": [
+    "F04"
+  ],
+  "outputs": [
+    "素材需求"
+  ],
+  "description": "根据实测配音规划数字人、动效及实拍需求。自动复用前置步骤，只运行到本节点；确认节点需由用户在界面确认。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "llm.plan_materials",
+    "materials.validate"
+  ]
+}

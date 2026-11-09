@@ -1,0 +1,32 @@
+{
+  "exit_code": 1,
+  "passed": 22,
+  "failures": [
+    {
+      "Time": "2026-11-07T07:02:19.291853937Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAdversarialNodeRejectsMalformedEditsWithoutMutation/invalid_color",
+      "Elapsed": 0.19
+    },
+    {
+      "Time": "2026-11-07T07:02:19.844004624Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAdversarialNodeRejectsMalformedEditsWithoutMutation",
+      "Elapsed": 3
+    },
+    {
+      "Time": "2026-11-07T07:02:20.044225227Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Elapsed": 4.209
+    }
+  ],
+  "diagnostics": [
+    "2026/11/07 07:02:16 \u001b[34;1m/src/internal/server/node_adversarial_test.go:200",
+    "\u001b[0m\u001b[35m[warn] \u001b[0mremoving callback `node-adversarial-admission` from /src/internal/server/node_adversarial_test.go:200",
+    "node_adversarial_test.go:236: invalid edit accepted"
+  ],
+  "stderr": ""
+}

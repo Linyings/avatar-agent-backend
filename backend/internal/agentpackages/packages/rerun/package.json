@@ -1,0 +1,72 @@
+{
+  "outputs": [
+    "重做方案"
+  ],
+  "tools": [
+    "proposal.rerun"
+  ],
+  "input_schema": {
+    "required": [
+      "from",
+      "changes"
+    ],
+    "properties": {
+      "from": {
+        "enum": [
+          "F01.4",
+          "F02",
+          "F03",
+          "F04",
+          "F05",
+          "F06",
+          "F07",
+          "F08",
+          "F09",
+          "F10",
+          "F11",
+          "F12",
+          "F01.2",
+          "F01.6",
+          "F11.1",
+          "F11.2"
+        ],
+        "type": "string"
+      },
+      "target": {
+        "enum": [
+          "F01.4",
+          "F02",
+          "F03",
+          "F04",
+          "F05",
+          "F06",
+          "F07",
+          "F08",
+          "F09",
+          "F10",
+          "F11",
+          "F12",
+          "F01.2",
+          "F01.6",
+          "F11.1",
+          "F11.2"
+        ],
+        "type": "string"
+      },
+      "changes": {
+        "maxLength": 2000,
+        "type": "string",
+        "description": "说明重做起点、终点和原因"
+      }
+    },
+    "type": "object",
+    "additionalProperties": false
+  },
+  "dependencies": [],
+  "version": "1.0.0",
+  "title": "从节点重新制作",
+  "id": "avatar.rerun",
+  "entrypoint": "rerun",
+  "tool": "avatar_rerun",
+  "description": "从 from 节点开始重做直到 target（默认 F12），保留上游和历史版本，使起点及后续重新执行。先 avatar_inspect。仅生成方案，用户在当前工作台确认后启动；不自动绕过稿件和配音审核。"
+}

@@ -1,0 +1,32 @@
+{
+  "id": "avatar.shots",
+  "version": "1.0.0",
+  "tool": "avatar_shots",
+  "title": "分镜设计",
+  "node": "F10",
+  "entrypoint": "run",
+  "dependencies": [
+    "F09"
+  ],
+  "outputs": [
+    "分镜方案"
+  ],
+  "description": "依据真实素材和锁定音频安排分镜。自动复用前置步骤，只运行到本节点；确认节点需由用户在界面确认。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "talkcraft.plan",
+    "llm.design_shots",
+    "shotbook.validate"
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "exit_code": 1,
+  "passed": 0,
+  "failures": [
+    {
+      "Time": "2026-11-07T06:59:28.499906505Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAdversarialNodeResegmentKeepsExtractedDirections",
+      "Elapsed": 0.51
+    },
+    {
+      "Time": "2026-11-07T06:59:28.835734486Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAdversarialNodeDescriptionEditAcrossVisionConfigChange",
+      "Elapsed": 0.34
+    },
+    {
+      "Time": "2026-11-07T06:59:29.130283246Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAdversarialNodeMissingCacheKeepsHistoricalMaterial/rerun=false",
+      "Elapsed": 0.29
+    },
+    {
+      "Time": "2026-11-07T06:59:29.451456219Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAdversarialNodeMissingCacheKeepsHistoricalMaterial/rerun=true",
+      "Elapsed": 0.32
+    },
+    {
+      "Time": "2026-11-07T06:59:29.451476219Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAdversarialNodeMissingCacheKeepsHistoricalMaterial",
+      "Elapsed": 0.62
+    },
+    {
+      "Time": "2026-11-07T06:59:29.84269893Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Test": "TestAdversarialNodeProposalChangedDuringAdmission",
+      "Elapsed": 0.39
+    },
+    {
+      "Time": "2026-11-07T06:59:29.856341938Z",
+      "Action": "fail",
+      "Package": "github.com/narratoai/backend-go/internal/server",
+      "Elapsed": 1.884
+    }
+  ],
+  "diagnostics": [
+    "node_adversarial_test.go:38: resegment lost upstream production instructions: notes=[] angles=[]",
+    "node_adversarial_test.go:51: accepted description edit silently disappeared: []avatar.SourceDescription(nil)",
+    "node_adversarial_test.go:87: unaffected historical material regenerated: calls=2 content=version-2",
+    "node_adversarial_test.go:87: unaffected historical material regenerated: calls=2 content=version-2",
+    "node_adversarial_test.go:127: stale proposal was admitted after its base changed at the transaction boundary"
+  ],
+  "stderr": ""
+}

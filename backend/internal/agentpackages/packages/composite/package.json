@@ -1,0 +1,32 @@
+{
+  "id": "avatar.composite",
+  "version": "3.0.0",
+  "tool": "avatar_composite",
+  "title": "分层融合与逐帧渲染",
+  "node": "F11.1",
+  "entrypoint": "run",
+  "dependencies": [
+    "F11"
+  ],
+  "outputs": [
+    "完整成片"
+  ],
+  "description": "镜头审阅确认后使用相同构图和时间轴渲染完整视频。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "talkcraft.plan",
+    "llm.design_shots",
+    "shotbook.validate"
+  ]
+}

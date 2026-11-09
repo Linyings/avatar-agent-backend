@@ -74,6 +74,8 @@ func AutoMigrate(db *gorm.DB) error {
 		&models.SystemSetting{},
 		&models.Notification{},
 		&models.UploadRecord{},
+		&models.AgentMessage{},
+		&models.AgentMemory{},
 	); err != nil {
 		return err
 	}

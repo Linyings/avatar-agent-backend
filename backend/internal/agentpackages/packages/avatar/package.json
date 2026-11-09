@@ -1,0 +1,32 @@
+{
+  "id": "avatar.avatar",
+  "version": "1.0.0",
+  "tool": "avatar_avatar",
+  "title": "数字人生成",
+  "node": "F06",
+  "entrypoint": "run",
+  "dependencies": [
+    "F05"
+  ],
+  "outputs": [
+    "人物视频"
+  ],
+  "description": "使用已上传人物照片、配音与用户指定机位生成口播视频。自动复用前置步骤，只运行到本节点；确认节点需由用户在界面确认。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "request_id": {
+        "type": "string",
+        "description": "可选幂等请求 ID",
+        "maxLength": 10000
+      }
+    },
+    "required": [],
+    "additionalProperties": false
+  },
+  "tools": [
+    "video.upload",
+    "video.submit",
+    "video.query"
+  ]
+}

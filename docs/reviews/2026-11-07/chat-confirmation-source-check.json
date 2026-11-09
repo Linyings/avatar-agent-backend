@@ -1,0 +1,38 @@
+[
+  {
+    "file": "StudioWorkspace.tsx",
+    "source": "e263d6070d76f493193bf8ee2d9fb9217626b754b2ca0d782f62972782e84996",
+    "deployed": "e263d6070d76f493193bf8ee2d9fb9217626b754b2ca0d782f62972782e84996",
+    "match": true
+  },
+  {
+    "file": "ExecutionStatus.tsx",
+    "source": "72e4981bb6ebffa22c90e70d04664c26a24810c220f91177865aca3d3133e838",
+    "deployed": "72e4981bb6ebffa22c90e70d04664c26a24810c220f91177865aca3d3133e838",
+    "match": true
+  },
+  {
+    "file": "WorkspaceNotice.tsx",
+    "source": "c9c1b8b79c07b6112e67be8a140a0c21058f03384952655fecfc42c6e593c27b",
+    "deployed": "c9c1b8b79c07b6112e67be8a140a0c21058f03384952655fecfc42c6e593c27b",
+    "match": true
+  },
+  {
+    "file": "workflowProgress.ts",
+    "source": "f7c3900fa844db39ac67c96849c1239566e7bb898236d638acb661c609264090",
+    "deployed": "f7c3900fa844db39ac67c96849c1239566e7bb898236d638acb661c609264090",
+    "match": true
+  },
+  {
+    "file": "studioService.ts",
+    "source": "5cd2689a58fbd70fc282914c58b1ddab4be73c90bcd564b4da2681d3c72579b7",
+    "deployed": "5cd2689a58fbd70fc282914c58b1ddab4be73c90bcd564b4da2681d3c72579b7",
+    "match": true
+  },
+  {
+    "file": "Studio.module.css",
+    "source": "619f779393d2ee8dfdf1c3a19fbcf0c0809c00a1b33a0fb9cabcf9ca44d9cf51",
+    "deployed": "619f779393d2ee8dfdf1c3a19fbcf0c0809c00a1b33a0fb9cabcf9ca44d9cf51",
+    "match": true
+  }
+]

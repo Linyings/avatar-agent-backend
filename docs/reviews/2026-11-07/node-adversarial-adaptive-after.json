@@ -1,0 +1,10 @@
+{
+  "exit_code": 0,
+  "passed": 135,
+  "failures": [],
+  "diagnostics": [
+    "2026/11/07 08:52:35 \u001b[34;1m/src/internal/server/node_adversarial_test.go:200",
+    "\u001b[0m\u001b[35m[warn] \u001b[0mremoving callback `node-adversarial-admission` from /src/internal/server/node_adversarial_test.go:200"
+  ],
+  "stderr": ""
+}

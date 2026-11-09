@@ -62,3 +62,57 @@ func TestAvatarContentFailureRecordsSafeResponseDiagnostic(t *testing.T) {
 		})
 	}
 }
+
+func TestAvatarContentTruncatedOutputIsCompletedAndKeepsUsage(t *testing.T) {
+	for _, content := range []string{`{"needs":[{"prompt":"unfinished`, `{"needs":[]}`, ""} {
+		calls := 0
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			calls++
+			json.NewEncoder(w).Encode(map[string]any{"id": "req-truncated", "choices": []any{map[string]any{"finish_reason": "length", "message": map[string]string{"content": content}}}, "usage": map[string]int{"completion_tokens": 6000, "prompt_tokens": 6304, "total_tokens": 12304}})
+		}))
+		client := NewOpenAIClient(config.Config{OpenAIFlashAPIKey: "private", OpenAIFlashAPIBaseURL: srv.URL, OpenAIFlashModel: "test"}, nil)
+		path := filepath.Join(t.TempDir(), "operations.jsonl")
+		_, err := client.AvatarContent(avatar.WithTelemetry(context.Background(), path), "plan", nil, nil)
+		srv.Close()
+		if err == nil || calls != 1 {
+			t.Fatalf("truncation must fail without implicit retry: %v calls=%d", err, calls)
+		}
+		diagnostic, ok := err.(interface{ ProviderOutputReceived() bool })
+		if !ok || !diagnostic.ProviderOutputReceived() {
+			t.Fatal("received output classified as uncertain submission")
+		}
+		data, _ := os.ReadFile(path)
+		var event map[string]any
+		_ = json.Unmarshal(data, &event)
+		if event["error_code"] != "model_output_truncated" || event["finish_reason"] != "length" || event["provider_request_id"] != "req-truncated" || event["usage"].(map[string]any)["completion_tokens"] != "6000" {
+			t.Fatalf("missing truncation evidence: %s", data)
+		}
+	}
+}
+
+func TestMotionOutputBudgetAndReasoningDiagnostics(t *testing.T) {
+	t.Setenv("AVATAR_MOTION_MAX_TOKENS", "14000")
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var request map[string]any
+		json.NewDecoder(r.Body).Decode(&request)
+		if request["max_tokens"] != float64(14000) {
+			t.Errorf("wrong per-scene budget: %v", request["max_tokens"])
+		}
+		w.Write([]byte(`{"id":"req-scene","choices":[{"finish_reason":"stop","message":{"content":"{\"code\":\"example\"}"}}],"usage":{"prompt_tokens":123,"completion_tokens":9000,"total_tokens":9123,"completion_tokens_details":{"reasoning_tokens":8500,"private":"secret"}}}`))
+	}))
+	defer srv.Close()
+	client := NewOpenAIClient(config.Config{OpenAIFlashAPIKey: "test", OpenAIFlashAPIBaseURL: srv.URL, OpenAIFlashModel: "test"}, nil)
+	path := filepath.Join(t.TempDir(), "operations.jsonl")
+	_, err := client.AvatarContent(avatar.WithMotionCode(avatar.WithTelemetry(context.Background(), path)), "scene", nil, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	raw, _ := os.ReadFile(path)
+	var event map[string]any
+	json.Unmarshal(raw, &event)
+	usage := event["usage"].(map[string]any)
+	details, ok := usage["completion_tokens_details"].(map[string]any)
+	if !ok || details["reasoning_tokens"] != "8500" || event["max_output_tokens"] != float64(14000) || event["output_bytes"] != float64(len(`{"code":"example"}`)) || strings.Contains(string(raw), "secret") {
+		t.Fatalf("missing safe output metrics: %s", raw)
+	}
+}

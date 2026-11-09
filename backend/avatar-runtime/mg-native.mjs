@@ -66,7 +66,7 @@ export function prepareNativeSource(text,mime,style,c){
 
 export async function renderNative(a,output,{frameSamples}={}){
  validateAnimation(a);const style=nativeStyles.find(s=>s.id===a.style);const content=makeContent(a);
- if(style.production_mode==='original-video'){
+ if((style.reference_mode||style.production_mode)==='original-video'){
   const source=path.join(root,'catalog',style.id+'-reference.mp4');
   const fit=`scale=${a.width}:${a.height}:force_original_aspect_ratio=decrease,pad=${a.width}:${a.height}:(ow-iw)/2:(oh-ih)/2:color=black,setsar=1`;
   if(frameSamples){fs.mkdirSync(output,{recursive:true});for(let i=0;i<frameSamples.length;i++)execFileSync('ffmpeg',['-v','error','-y','-ss',String(sceneClock(frameSamples[i],a.duration)),'-i',source,'-vf',fit,'-frames:v','1',path.join(output,`frame-${i}.jpg`)]);}

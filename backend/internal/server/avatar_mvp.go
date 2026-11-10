@@ -918,7 +918,6 @@ func (s *avatarMVPService) produce(ctx context.Context, state *avatarTask, userI
 				return e
 			}
 		}
-		shot.Clip = source
 		shot.Status = "succeeded"
 		completed := time.Now().UTC()
 		shot.CompletedAt = &completed

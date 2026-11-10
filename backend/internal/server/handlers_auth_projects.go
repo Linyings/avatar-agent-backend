@@ -721,11 +721,14 @@ func (a *App) deleteProject(c *gin.Context) {
 	if !okProject {
 		return
 	}
-	if err := a.db.Delete(&project).Error; err != nil {
-		fail(c, http.StatusInternalServerError, "删除项目失败")
+	if err := a.purgeAvatarProjectData(project.ID); err != nil {
+		if errors.Is(err, errProjectProducing) {
+			fail(c, http.StatusConflict, err.Error())
+			return
+		}
+		fail(c, http.StatusInternalServerError, "项目文件清理未完成，请重试删除")
 		return
 	}
-	a.purgeAvatarProjectData(project.ID)
 	ok(c, gin.H{"project_id": project.ID.String(), "deleted": true, "message": "项目已删除", "success": true})
 }
 

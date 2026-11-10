@@ -50,7 +50,7 @@ func (w *avatarWorkflowService) motionFingerprint(s *avatar.WorkflowState, need 
 			sources[name] = avatar.Digest(string(data))
 		}
 	}
-	return avatar.Digest([]any{avatar.MotionPlanVersion, motionDesignPrompt, need, seg.Text, seg.Fingerprint, s.Input.Topic, s.Input.Style, s.Input.Ratio, s.Input.Direction, s.ProductionNotes, s.Input.Photo, motionAvatarMaterials(s, seg.ID), sources})
+	return avatar.Digest([]any{avatar.MotionPlanVersion, motionDesignPrompt, need, seg.Text, seg.Fingerprint, s.Input.Topic, s.Input.Style, s.Input.Ratio, s.Input.Direction, s.ProductionNotes, s.Input.Photo, motionAvatarMaterials(s, seg.ID), sources, workflowStyleProductionContext(w.app.avatarMVP.options.RuntimeRoot, s.Input.Style)})
 }
 
 func (w *avatarWorkflowService) planMotion(ctx context.Context, s *avatar.WorkflowState, step *avatar.WorkflowStep, need avatar.MaterialNeed, seg avatar.Segment, fingerprint string) (avatar.MotionPlan, error) {
@@ -98,6 +98,9 @@ func (w *avatarWorkflowService) planMotion(ctx context.Context, s *avatar.Workfl
 	// Extract only the style's signature section. The original creative seed and
 	// output/demo instructions never enter a production model request.
 	styleReference := fmt.Sprint(style.Design["features"])
+	if method, ok := workflowStyleProductionContext(w.app.avatarMVP.options.RuntimeRoot, s.Input.Style)["method"].(string); ok {
+		styleReference += "\n" + method
+	}
 	if data, err := os.ReadFile(filepath.Join(w.app.avatarMVP.options.RuntimeRoot, "templates", s.Input.Style, "original-prompt.md")); err == nil {
 		text := string(data)
 		if start := strings.Index(text, "# Signature features"); start >= 0 {

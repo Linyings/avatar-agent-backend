@@ -39,11 +39,17 @@ func (w *avatarWorkflowService) validatePackageInput(in *avatar.WorkflowInput, t
 		return fmt.Errorf("文本模型未配置")
 	}
 	if target >= "F04" {
-		if err := w.speechConfigured(); err != nil {
+		var err error
+		if avatar.NativeSpeech(*in) {
+			err = w.nativeSpeechConfigured()
+		} else {
+			err = w.speechConfigured()
+		}
+		if err != nil {
 			return err
 		}
 	}
-	if target >= "F06" && in.UseAvatar {
+	if (target >= "F06" || (avatar.NativeSpeech(*in) && target >= "F04")) && in.UseAvatar {
 		if in.Photo == "" {
 			return fmt.Errorf("请先上传人物照片")
 		}

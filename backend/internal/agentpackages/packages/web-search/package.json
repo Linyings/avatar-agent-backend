@@ -1,0 +1,30 @@
+{
+  "id": "avatar.web-search",
+  "version": "1.0.0",
+  "tool": "avatar_web_search",
+  "title": "网络搜索",
+  "node": "",
+  "entrypoint": "tavily_search",
+  "dependencies": [],
+  "outputs": [
+    "搜索结果摘要",
+    "来源网页列表"
+  ],
+  "description": "使用 Tavily 实时搜索互联网，获取热点新闻、数据、背景资料和事实依据，用于丰富口播稿件、补充视频素材描述或核实信息。搜索前先用 avatar_inspect 确认项目状态；一次只搜索一个具体问题；搜索结果只作为参考，核实后再写入稿件。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "query": {
+        "type": "string",
+        "description": "搜索问题或关键词，越具体越好（如「OpenAI 2026年融资金额」）",
+        "maxLength": 400
+      }
+    },
+    "required": ["query"],
+    "additionalProperties": false
+  },
+  "tools": [
+    "web.search",
+    "web.read_page"
+  ]
+}

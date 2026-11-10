@@ -2,18 +2,18 @@
   "id": "avatar.voice",
   "version": "1.0.0",
   "tool": "avatar_voice",
-  "title": "分段配音",
+  "title": "Seedance 原声口播",
   "node": "F04",
   "entrypoint": "run",
   "dependencies": [
     "F03"
   ],
   "outputs": [
-    "分段音频",
-    "字级时间戳",
-    "配音确认"
+    "原声人物视频",
+    "视频原声",
+    "实测时长与字级时间戳"
   ],
-  "description": "生成配音并对齐字幕；需要用户已确认文案。自动复用前置步骤，只运行到本节点；确认节点需由用户在界面确认。",
+  "description": "文案确认后，由 Seedance 2.5 根据文案、人物照片和表演提示词同时生成有声视频；可用参考音色。提取原声并测量时长、对齐字幕。新任务不调用 TTS，也不单独等待配音确认。历史任务按原流程恢复。",
   "input_schema": {
     "type": "object",
     "properties": {
@@ -27,8 +27,9 @@
     "additionalProperties": false
   },
   "tools": [
-    "tts.submit",
-    "tts.query",
+    "video.upload",
+    "video.submit",
+    "video.query",
     "ffmpeg.audio",
     "asr.align"
   ]

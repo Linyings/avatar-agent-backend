@@ -41,7 +41,7 @@ function FilmShot({shot,manifest:m}:{shot:Shot;manifest:Manifest}){
  if(recipe==='visual-pip'&&!overlay)recipe='visual-hero';
  // Content animations already carry their own visual hierarchy. Host-only
  // shots keep the talking footage clear instead of adding an unrelated card.
- if(m.input.style.startsWith('mg-')&&!overlay&&primary.kind!=='animation')recipe=primary.kind==='avatar'?'host-hero':'visual-hero';
+ if(/^(mg-|explain-)/.test(m.input.style)&&!overlay&&primary.kind!=='animation')recipe=primary.kind==='avatar'?'host-hero':'visual-hero';
  const side=shot.avatar_position||m.input.avatar_position||'right';
  const layout=shotLayout(width,height,recipe,side),theme=filmTheme(m.input.style);
  if(recipe==='visual-pip'&&overlay?.kind==='avatar'&&layout.overlay){layout.primary={x:0,y:0,w:width,h:height};layout.overlay=avatarWindowBox(width,height,shot.avatar_shape||'rounded',side);}

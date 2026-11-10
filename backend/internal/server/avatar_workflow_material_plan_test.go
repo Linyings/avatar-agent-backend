@@ -159,7 +159,9 @@ func TestAvatarMaterialPlanningRejectsInvalidSourceBeforeCaching(t *testing.T) {
 }
 
 func TestAvatarMaterialPlanningRetriesMissingGlobalRequirements(t *testing.T) {
-	for _, kind := range []string{"animation", "angle"} {
+	// Native speech always produces one frontal performance per segment, so the
+	// only global requirement left to police is the animation coverage.
+	for _, kind := range []string{"animation"} {
 		t.Run(kind, func(t *testing.T) {
 			a, _, _, s := workflowFixture(t)
 			w := a.avatarWorkflow

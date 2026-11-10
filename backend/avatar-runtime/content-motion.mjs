@@ -1,5 +1,8 @@
 import fs from 'node:fs';
-const styles=JSON.parse(fs.readFileSync(new URL('./native-styles.json',import.meta.url),'utf8'));
+const styles=['native-styles.json','explainer-styles.json'].flatMap(name=>{
+ const file=new URL(name,import.meta.url);
+ return fs.existsSync(file)?JSON.parse(fs.readFileSync(file,'utf8')):[];
+});
 export const MOTION_VERSION='content-motion/1';
 const kinds=['coin','chart','chip','cloud','people','document','shield','globe','clock','code','spark','box','leaf','link'];
 export function styleProfile(id){

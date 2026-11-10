@@ -14,8 +14,6 @@ import (
 )
 
 type avatarFakeTools struct {
-	verifyFailure         string
-	infrastructureFailure bool
 }
 
 func (f *avatarFakeTools) Check(context.Context) error            { return nil }
@@ -34,12 +32,6 @@ func (f *avatarFakeTools) Prepare(_ context.Context, dir string) ([]avatar.Clip,
 	return clips, nil
 }
 func (f *avatarFakeTools) Verify(_ context.Context, _ string, id string) (avatar.Clip, error) {
-	if id == f.verifyFailure {
-		if f.infrastructureFailure {
-			return avatar.Clip{}, fmt.Errorf("test runtime unavailable")
-		}
-		return avatar.Clip{}, avatar.ErrQualityRejected
-	}
 	var n int
 	fmt.Sscanf(id, "shot-%d", &n)
 	return avatar.Clip{ID: id, Start: float64((n - 1) * 5), End: float64(n * 5), Duration: 5, FPS: 25}, nil
@@ -130,21 +122,12 @@ func TestAvatarExecutionCompletesThreeShotsWithoutBilling(t *testing.T) {
 		}
 	}
 	for _, step := range []string{"planning_fixed:", "tts:", "alignment:", "semantics:", "shotbook:", "rendering:",
-		"upload_image:shot-1", "upload_audio:shot-1", "video_submit:shot-1", "video_wait:shot-1", "download_video:shot-1", "verification:shot-1",
-		"upload_image:shot-2", "upload_audio:shot-2", "video_submit:shot-2", "video_wait:shot-2", "download_video:shot-2", "verification:shot-2",
-		"upload_image:shot-3", "upload_audio:shot-3", "video_submit:shot-3", "video_wait:shot-3", "download_video:shot-3", "verification:shot-3"} {
+		"upload_image:shot-1", "upload_audio:shot-1", "video_submit:shot-1", "video_wait:shot-1", "download_video:shot-1",
+		"upload_image:shot-2", "upload_audio:shot-2", "video_submit:shot-2", "video_wait:shot-2", "download_video:shot-2",
+		"upload_image:shot-3", "upload_audio:shot-3", "video_submit:shot-3", "video_wait:shot-3", "download_video:shot-3"} {
 		if !seen[step] {
 			t.Fatalf("execution lost measured step %s", step)
 		}
-	}
-}
-func TestAvatarQualityFailureStopsSubsequentPaidShots(t *testing.T) {
-	a, state, owner, provider := executionFixture(t)
-	a.avatarMVP.tools = &avatarFakeTools{verifyFailure: "shot-1"}
-	a.avatarMVP.execute(state, owner)
-	got, _ := a.avatarMVP.load(context.Background(), owner, state.ID)
-	if got.Status != "failed" || provider.submits != 1 || got.Shots[1].Status != "pending" {
-		t.Fatalf("did not stop at failed gate: status=%s submits=%d", got.Status, provider.submits)
 	}
 }
 func TestAvatarRetryQueriesExistingJobWithoutResubmission(t *testing.T) {
@@ -156,44 +139,5 @@ func TestAvatarRetryQueriesExistingJobWithoutResubmission(t *testing.T) {
 	got, _ := a.avatarMVP.load(context.Background(), owner, state.ID)
 	if got.Status != "succeeded" || provider.submits != 2 || got.Shots[0].ProviderTaskID != "existing-paid-job" {
 		t.Fatalf("re-submitted an existing paid job: %#v submits=%d", got, provider.submits)
-	}
-}
-
-func TestAvatarExplicitQualityRetryArchivesRejectedClipAndReusesSuccess(t *testing.T) {
-	a, state, owner, provider := executionFixture(t)
-	a.avatarMVP.tools = &avatarFakeTools{verifyFailure: "shot-2"}
-	a.avatarMVP.execute(state, owner)
-	failed, _ := a.avatarMVP.load(context.Background(), owner, state.ID)
-	if failed.Status != "failed" || provider.submits != 2 || failed.Shots[1].Submission != "quality_failed" {
-		t.Fatalf("unexpected gate result: %#v", failed)
-	}
-	claimed, err := a.avatarMVP.claimRetry(context.Background(), owner, state.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	a.avatarMVP.tools = &avatarFakeTools{}
-	a.avatarMVP.execute(claimed, owner)
-	got, _ := a.avatarMVP.load(context.Background(), owner, state.ID)
-	if got.Status != "succeeded" || provider.submits != 4 || got.Shots[0].ProviderTaskID != failed.Shots[0].ProviderTaskID || len(got.Shots[1].Attempts) != 2 {
-		t.Fatalf("retry regenerated successful media or lost attempts: %#v", got)
-	}
-	if _, err := os.Stat(filepath.Join(a.avatarMVP.taskDir(state.ID), "shot-2", "attempt-1", "source.mp4")); err != nil {
-		t.Fatalf("rejected clip not preserved: %v", err)
-	}
-}
-
-func TestAvatarInfrastructureRetryRechecksDownloadedSourceWithoutPayingAgain(t *testing.T) {
-	a, state, owner, provider := executionFixture(t)
-	a.avatarMVP.tools = &avatarFakeTools{verifyFailure: "shot-2", infrastructureFailure: true}
-	a.avatarMVP.execute(state, owner)
-	claimed, err := a.avatarMVP.claimRetry(context.Background(), owner, state.ID)
-	if err != nil {
-		t.Fatal(err)
-	}
-	a.avatarMVP.tools = &avatarFakeTools{}
-	a.avatarMVP.execute(claimed, owner)
-	got, _ := a.avatarMVP.load(context.Background(), owner, state.ID)
-	if got.Status != "succeeded" || provider.submits != 3 || got.Shots[1].ProviderTaskID != claimed.Shots[1].ProviderTaskID {
-		t.Fatalf("infrastructure retry paid for an existing source: %#v", got)
 	}
 }

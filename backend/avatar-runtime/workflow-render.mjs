@@ -6,17 +6,19 @@ import {fileURLToPath} from 'node:url';
 import {bundle} from '@remotion/bundler';
 import {selectComposition,renderMedia} from '@remotion/renderer';
 import {compileMotion} from './content-motion.mjs';
-import {buildCardCatalog} from './catalog-previews.mjs';
+import {buildCardCatalog,buildExplainerCatalog} from './catalog-previews.mjs';
 import {renderDirectorMotion} from './director-motion.mjs';
 import {printMotionError} from './motion-checks.mjs';
 import {avatarFramingReport} from './src/framing-report.ts';
 const root=path.dirname(fileURLToPath(import.meta.url));
 const nativeStyles=JSON.parse(fs.readFileSync(path.join(root,'native-styles.json'),'utf8'));
+const explainerFile=path.join(root,'explainer-styles.json');
+const explainerStyles=fs.existsSync(explainerFile)?JSON.parse(fs.readFileSync(explainerFile,'utf8')):[];
 const [mode,taskArg,outArg]=process.argv.slice(2);const task=path.resolve(taskArg||root);
 if(mode==='animation'){
  const inputProps=JSON.parse(fs.readFileSync(path.join(task,'animation-props.json'),'utf8'));
  if(inputProps.animation.motion_plan?.code){try{const report=await renderDirectorMotion(inputProps.animation,outArg);fs.writeFileSync(path.join(task,'animation-native-report.json'),JSON.stringify(report));process.exit(0);}catch(error){printMotionError(error);process.exit(1);}}
- const content=String(inputProps.animation.style).startsWith('mg-')?compileMotion(inputProps.animation):undefined;
+ const content=/^(mg-|explain-)/.test(String(inputProps.animation.style))?compileMotion(inputProps.animation):undefined;
  if(content)inputProps.animation.content_motion=content;
  const serveUrl=await bundle({entryPoint:path.join(root,'src/workflow-entry.tsx'),publicDir:task});
  const composition=await selectComposition({serveUrl,id:'AnimationTemplate',inputProps});
@@ -38,6 +40,8 @@ if(mode==='catalog'){
  }
  execFileSync('python3',[path.join(root,'package_mg_styles.py')],{stdio:'inherit'});
  const cards=buildCardCatalog(root,nativeStyles);
+ const explainers=buildExplainerCatalog(root,explainerStyles);
+ console.log(JSON.stringify({explainer_previews:explainers.length}));
  console.log(JSON.stringify({card_previews:cards.length,bytes:cards.reduce((sum,item)=>sum+item.bytes,0)}));
  process.exit(0);
 }

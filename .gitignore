@@ -40,4 +40,5 @@ backend/exports/
 /backend/avatar-runtime/catalog/*
 !/backend/avatar-runtime/catalog/*-reference.mp4
 !/backend/avatar-runtime/catalog/*-reference.jpg
+!/backend/avatar-runtime/catalog/explain-*-reference.webp
 

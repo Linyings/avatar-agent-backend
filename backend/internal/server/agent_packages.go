@@ -14,6 +14,7 @@ import (
 	"github.com/narratoai/backend-go/internal/agentpackages"
 	"github.com/narratoai/backend-go/internal/avatar"
 	"github.com/narratoai/backend-go/internal/models"
+	"github.com/narratoai/backend-go/internal/providers"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -71,7 +72,7 @@ func (h avatarPackageHost) project(ctx context.Context, owner, project string) (
 	}
 	in, err := workflowInput(p)
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		in = avatar.WorkflowInput{Title: p.Name, Ratio: "9:16", Style: defaultWorkflowStyle(h.app.avatarMVP.options.RuntimeRoot), Voice: sVoice(h.app), Assets: []avatar.SourceAsset{}}
+		in = avatar.WorkflowInput{SpeechMode: avatar.NativeSpeechMode, Title: p.Name, Ratio: "9:16", Style: defaultWorkflowStyle(h.app.avatarMVP.options.RuntimeRoot), Voice: sVoice(h.app), Assets: []avatar.SourceAsset{}}
 		if p.Description != nil {
 			in.Topic = *p.Description
 		}
@@ -105,6 +106,15 @@ func (h avatarPackageHost) snapshot(ctx context.Context, owner, project string) 
 	if err != nil {
 		return nil, err
 	}
+	// Offer the six current plans to the Agent as well as the UI. Keep only
+	// the selected archived style when inspecting an existing project.
+	available := styles[:0]
+	for _, style := range styles {
+		if !style.Archived || style.ID == in.Style {
+			available = append(available, style)
+		}
+	}
+	styles = available
 	return gin.H{"project": gin.H{"id": p.ID, "name": p.Name, "input": in}, "run": run, "material_drafts": visibleMaterialDrafts(p, state), "audio_timing": workflowAudioTiming(state), "testing_mode": workflowTestingMode(), "workflow_plan": avatar.PlanWorkflow(in, planRun), "agent_activity": agent.ProjectActivity(project), "proposal": proposalOf(p), "styles": styles, "voices": h.app.avatarWorkflow.voicesFor(h.app.avatarWorkflow.voiceModel(in)), "voice_models": h.app.avatarWorkflow.voiceModels(), "packages": h.catalog(), "skills": agent.DefaultSkills(), "agent_configured": h.app.cfg.AgentConfigured() || h.app.cfg.OpenAIProConfigured() || h.app.cfg.OpenAIFlashConfigured()}, nil
 }
 func (h avatarPackageHost) catalog() []map[string]any {
@@ -124,7 +134,7 @@ func (h avatarPackageHost) catalog() []map[string]any {
 			reason = "视频理解模型未配置；没有上传视频时自动跳过"
 		}
 		if p.Node == "F04" {
-			if err := h.app.avatarWorkflow.speechConfigured(); err != nil {
+			if err := h.app.avatarWorkflow.nativeSpeechConfigured(); err != nil {
 				reason = err.Error()
 			}
 		}
@@ -132,6 +142,9 @@ func (h avatarPackageHost) catalog() []map[string]any {
 			if err := h.app.avatarMVP.options.ValidateVideo(); err != nil {
 				reason = "数字人视频服务未配置"
 			}
+		}
+		if p.Entrypoint == "tavily_search" && !h.app.cfg.TavilyConfigured() {
+			reason = "网络搜索未配置：请在 .env 中设置 TAVILY_API_KEY"
 		}
 		item["ready"] = reason == ""
 		item["reason"] = reason
@@ -179,8 +192,110 @@ func (h avatarPackageHost) Invoke(ctx context.Context, owner, project, id string
 		return h.draftNode(ctx, record, in, p, args)
 	case "edit_script", "edit_voice", "edit_material", "edit_shot":
 		return h.draft(ctx, record, in, p, args)
+	case "tavily_search":
+		return h.tavilySearch(ctx, args)
+	case "render_opener":
+		return h.renderOpener(ctx, record, args)
+	case "chromakey_composite":
+		return h.chromakeyComposite(ctx, record, args)
 	}
 	return nil, fmt.Errorf("package 执行入口未注册")
+}
+
+func (h avatarPackageHost) tavilySearch(ctx context.Context, args map[string]any) (any, error) {
+	query, _ := args["query"].(string)
+	client := providers.NewTavilyClient(h.app.cfg)
+	if !client.Configured() {
+		return nil, fmt.Errorf("网络搜索未配置：请在 .env 中设置 TAVILY_API_KEY")
+	}
+	resp, err := client.Search(ctx, query)
+	if err != nil {
+		return nil, err
+	}
+	return gin.H{"query": resp.Query, "answer": resp.Answer, "results": resp.Results, "count": len(resp.Results)}, nil
+}
+
+func (h avatarPackageHost) renderOpener(ctx context.Context, p models.Project, args map[string]any) (any, error) {
+	title, _ := args["title"].(string)
+	ratio, _ := args["ratio"].(string)
+	if title == "" {
+		return nil, fmt.Errorf("请提供片头标题")
+	}
+	if ratio == "" {
+		ratio = "16:9"
+	}
+	needID := "opener-" + uuid.NewString()[:8]
+	input := map[string]any{
+		"need_id": needID,
+		"title":   title,
+		"ratio":   ratio,
+	}
+	if v, ok := args["subtitle"].(string); ok {
+		input["subtitle"] = v
+	}
+	if v, ok := args["accent_color"].(string); ok {
+		input["accent_color"] = v
+	}
+	if v, ok := args["duration"].(float64); ok {
+		input["duration"] = int(v)
+	}
+	s, err := h.app.latestAgentRun(ctx, p.OwnerID, p.ID)
+	if err != nil {
+		return nil, fmt.Errorf("请先创建制作项目再生成片头")
+	}
+	var result map[string]any
+	if err := h.app.avatarWorkflow.mediaStep(ctx, &s, "3d-opener", input, &result); err != nil {
+		return nil, err
+	}
+	return gin.H{"asset": result, "note": "片头已生成，可在 F10 分镜中将第一个镜头的 primary 设为此素材 need_id"}, nil
+}
+
+func (h avatarPackageHost) chromakeyComposite(ctx context.Context, p models.Project, args map[string]any) (any, error) {
+	needID, _ := args["avatar_need_id"].(string)
+	background, _ := args["background"].(string)
+	if needID == "" {
+		return nil, fmt.Errorf("请提供 avatar_need_id，从 avatar_inspect 的 materials 中获取")
+	}
+	if background == "" {
+		background = "color"
+	}
+	s, err := h.app.latestAgentRun(ctx, p.OwnerID, p.ID)
+	if err != nil {
+		return nil, fmt.Errorf("请先创建制作项目再做背景融合")
+	}
+	mat := func() *avatar.SourceAsset {
+		for _, m := range s.Input.Assets {
+			if m.ID == needID {
+				return &m
+			}
+		}
+		return nil
+	}()
+	if mat == nil {
+		return nil, fmt.Errorf("素材 %s 不存在，请用 avatar_inspect 确认 materials 列表", needID)
+	}
+	input := map[string]any{
+		"need_id":     "ck-" + needID,
+		"source_path": mat.Path,
+		"background":  background,
+	}
+	if v, ok := args["background_color"].(string); ok && v != "" {
+		input["background_color"] = v
+	}
+	if v, ok := args["chroma_color"].(string); ok && v != "" {
+		input["chroma_color"] = v
+	}
+	if v, ok := args["similarity"].(float64); ok {
+		input["similarity"] = v
+	}
+	if v, ok := args["blend"].(float64); ok {
+		input["blend"] = v
+	}
+	var result map[string]any
+	if err := h.app.avatarWorkflow.mediaStep(ctx, &s, "chromakey", input, &result); err != nil {
+		return nil, err
+	}
+	return gin.H{"asset": result, "note": "背景融合完成；has_alpha=true 时 Remotion 渲染时自动透明合成演播室背景"}, nil
 }
 
 func (h avatarPackageHost) configure(ctx context.Context, p models.Project, in avatar.WorkflowInput, args map[string]any) (any, error) {

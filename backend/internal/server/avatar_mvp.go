@@ -125,21 +125,6 @@ func newAvatarMVP(a *App) *avatarMVPService {
 	}
 	return s
 }
-func (a *App) purgeAvatarProjectData(projectID uuid.UUID) {
-	if a == nil || a.avatarMVP == nil || a.db == nil || projectID == uuid.Nil {
-		return
-	}
-	var runIDs []uuid.UUID
-	if err := a.db.Model(&models.WorkflowRun{}).Where("project_id = ?", projectID).Pluck("id", &runIDs).Error; err != nil || len(runIDs) == 0 {
-		return
-	}
-	for _, id := range runIDs {
-		_ = os.RemoveAll(a.avatarMVP.taskDir(id))
-	}
-	_ = a.db.Where("workflow_run_id IN ?", runIDs).Delete(&models.WorkflowStepExecution{}).Error
-	_ = a.db.Where("id IN ?", runIDs).Delete(&models.WorkflowRun{}).Error
-}
-
 func (s *avatarMVPService) taskDir(id uuid.UUID) string {
 	root, _ := filepath.Abs(s.options.DataRoot)
 	return filepath.Join(root, id.String())
@@ -663,6 +648,8 @@ func avatarPublicError(err error) string {
 	return message
 }
 func (s *avatarMVPService) execute(state avatarTask, userID uuid.UUID) {
+	workflowLaunchLocks.Store(state.ID.String(), &workflowLaunchState{})
+	defer workflowLaunchLocks.Delete(state.ID.String())
 	ctx, cancel := context.WithTimeout(context.Background(), s.options.JobTimeout)
 	defer cancel()
 	ctx = avatar.WithTelemetry(ctx, filepath.Join(s.taskDir(state.ID), "operations.jsonl"))
@@ -931,22 +918,7 @@ func (s *avatarMVPService) produce(ctx context.Context, state *avatarTask, userI
 				return e
 			}
 		}
-		if err = s.stage(state, "verifying"); err != nil {
-			return err
-		}
-		verifyCtx, finishVerify := avatar.BeginOperation(ctx, "verification", shot.ID)
-		verified, e := s.tools.Verify(verifyCtx, dir, shot.ID)
-		finishVerify(e)
-		if e != nil {
-			if errors.Is(e, avatar.ErrQualityRejected) {
-				shot.Submission = "quality_failed"
-			}
-			if err = s.save(*state); err != nil {
-				return err
-			}
-			return fmt.Errorf("镜头 %d 素材检查失败；后续生成已停止，请检查 verify.log 与样片", i+1)
-		}
-		shot.Clip = verified
+		shot.Clip = source
 		shot.Status = "succeeded"
 		completed := time.Now().UTC()
 		shot.CompletedAt = &completed

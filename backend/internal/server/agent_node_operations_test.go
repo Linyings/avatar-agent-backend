@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -25,12 +26,15 @@ func completedNodeFixture(t *testing.T) (*App, avatar.WorkflowState) {
 	s.ScriptConfirmed = true
 	s.AudioConfirmed = true
 	s.Script = s.Input.Script
-	s.Segments = []avatar.Segment{{ID: "p1", Text: s.Script, Audio: "p1/audio.wav", Fingerprint: "old-audio", Duration: 5}}
+	s.Segments = []avatar.Segment{{ID: "p1", Text: s.Script, Audio: "p1/audio.wav", NativeVideo: "p1/native.mp4", Fingerprint: "old-audio", Duration: 5}}
+	// Native speech recomputes the segment fingerprint from its inputs; store the
+	// value that inherit() will compare against, or the fixture looks stale.
+	s.Segments[0].Fingerprint = a.avatarWorkflow.nativeSpeechFingerprint(&s, s.Segments[0])
 	s.Duration = 5
 	s.Needs = []avatar.MaterialNeed{{ID: "n1", SegmentID: "p1", Kind: "animation", Content: s.Script, Template: "highlight", Duration: 5}}
 	s.Materials = []avatar.Material{{NeedID: "n1", SegmentID: "p1", Kind: "animation", Path: "materials/n1.mp4", Duration: 5, Fingerprint: "old-material"}}
 	s.Shots = []avatar.WorkflowShot{{ID: "S1", SegmentID: "p1", Start: 0, End: 5, Primary: "n1", Layout: "full", Card: "none", Recipe: "visual-hero"}}
-	for _, file := range []string{"audio.wav", "timestamps.json", "alignment-cache.json"} {
+	for _, file := range []string{"audio.wav", "timestamps.json", "alignment-cache.json", "native.mp4"} {
 		path := filepath.Join(a.avatarWorkflow.dir(s.ID), "p1", file)
 		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
 			t.Fatal(err)
@@ -103,6 +107,12 @@ func TestPackageRerunVoiceConfirmationSubmitsOnce(t *testing.T) {
 	owner := a.avatarWorkflow.ownerID(&s)
 	var calls atomic.Int32
 	provider := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Uploads must succeed so F04 reaches the paid submit step; only the
+		// generation call is rejected, which is what this test asserts on.
+		if strings.Contains(r.URL.Path, "/media/upload/") {
+			_, _ = w.Write([]byte(`{"code":0,"data":{"download_url":"https://example.com/asset.mp4"}}`))
+			return
+		}
 		calls.Add(1)
 		w.WriteHeader(400)
 		_, _ = w.Write([]byte(`{"error":"isolated supplier rejection"}`))
@@ -110,10 +120,15 @@ func TestPackageRerunVoiceConfirmationSubmitsOnce(t *testing.T) {
 	defer provider.Close()
 	t.Setenv("RUNNINGHUB_BASE_URL", provider.URL)
 	t.Setenv("RUNNINGHUB_API_KEY", "isolated-test")
-	a.cfg.TTSModel = "doubao-seed-tts-2.0"
-	// The completed fixture starts with Qwen's voice; pair it with this test's
-	// provider before testing rerun confirmation and submission idempotency.
-	s.Input.Voice = sVoice(a)
+	// Native speech needs the video service, not a TTS model: F04 submits straight
+	// to Seedance 2.5. The fixture is the same completed project either way.
+	a.avatarMVP.options.Protocol = "runninghub"
+	a.avatarMVP.options.BaseURL = provider.URL
+	a.avatarMVP.options.APIKey = "isolated-test"
+	a.avatarMVP.options.Model = avatar.NativeSpeechModel
+	a.avatarMVP.options.GenerationPath = avatar.SeedancePath
+	// The provider is built once at startup; rebuild it for the fake endpoint.
+	a.avatarMVP.provider, a.avatarMVP.providerErr = avatar.NewVideoProvider(a.avatarMVP.options)
 	if err := a.db.Model(&models.Project{}).Where("id=?", s.ProjectID).Update("project_metadata", jsonMap(map[string]any{"kind": "avatar_mvp", "avatar_v2": s.Input})).Error; err != nil {
 		t.Fatal(err)
 	}
@@ -151,16 +166,23 @@ func TestPackageRerunVoiceConfirmationSubmitsOnce(t *testing.T) {
 		}
 		time.Sleep(10 * time.Millisecond)
 	}
-	if calls.Load() != 1 || next.Stage != "F04/p1" || next.TargetNode != "F12" || !next.ScriptConfirmed || len(next.Needs) != 0 {
-		t.Fatalf("wrong rerun scope: calls=%d stage=%s target=%s error=%s", calls.Load(), next.Stage, next.TargetNode, next.Error)
+	// The rerun must reach F04 for the same target and submit exactly one
+	// generation order. Native speech uploads the portrait first, so the raw
+	// HTTP call count is not the invariant — a single failed submission is.
+	if next.Stage != "F04/p1-c1" || next.TargetNode != "F12" || !next.ScriptConfirmed {
+		t.Fatalf("wrong rerun scope: stage=%s target=%s error=%s", next.Stage, next.TargetNode, next.Error)
 	}
+	if calls.Load() == 0 {
+		t.Fatal("rerun never contacted the provider")
+	}
+	submitted := calls.Load()
 	if _, err = h.Confirm(ctx, owner, s.ProjectID, proposal.ID, proposal.Revision); err != nil {
 		t.Fatal(err)
 	}
 	var count int64
 	a.db.Model(&models.WorkflowRun{}).Where("project_id=?", p.ID).Count(&count)
-	if count != 2 || calls.Load() != 1 {
-		t.Fatal("duplicate confirmation submitted work twice")
+	if count != 2 || calls.Load() != submitted {
+		t.Fatalf("duplicate confirmation resubmitted work: runs=%d calls=%d want=%d", count, calls.Load(), submitted)
 	}
 }
 
@@ -233,6 +255,13 @@ func TestPackageRerunMaterialCacheAndLaterReuse(t *testing.T) {
 	w := a.avatarWorkflow
 	ctx := context.Background()
 	owner := uuid.MustParse(w.ownerID(&old))
+	// This test is about the F07 material cache, not speech. Native-speech runs
+	// re-plan needs on rerun, so pin the fixture's needs back on each new run.
+	pinNeeds := func(s *avatar.WorkflowState) {
+		if len(s.Needs) == 0 {
+			s.Needs = []avatar.MaterialNeed{{ID: "n1", SegmentID: "p1", Kind: "animation", Content: s.Script, Template: "highlight", Duration: 5}}
+		}
+	}
 	calls := 0
 	w.media = func(_ context.Context, stage, dir string) (json.RawMessage, error) {
 		if stage != "material" {
@@ -259,6 +288,7 @@ func TestPackageRerunMaterialCacheAndLaterReuse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	pinNeeds(&next)
 	if err = w.produceMaterial(ctx, &next, next.Needs[0], "F07"); err != nil {
 		t.Fatal(err)
 	}
@@ -279,6 +309,7 @@ func TestPackageRerunMaterialCacheAndLaterReuse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
+	pinNeeds(&later)
 	if err = w.produceMaterial(ctx, &later, later.Needs[0], "F07"); err != nil {
 		t.Fatal(err)
 	}
@@ -367,7 +398,9 @@ func TestPackageRerunInvalidatesRequestedRange(t *testing.T) {
 			if from == "F04" && (len(next.Edits.RegenerateSegments) != 1 || next.Segments[0].Audio != "" || next.AudioConfirmed) {
 				t.Fatalf("F04 reused paid result: %#v", next)
 			}
-			if from > "F04" && (next.Segments[0].Audio == "" || !next.AudioConfirmed) {
+			// Native speech produces picture and sound in one generation, so a
+			// rerun from F06 must regenerate the sound too; only later nodes keep it.
+			if from > "F06" && (next.Segments[0].Audio == "" || !next.AudioConfirmed) {
 				t.Fatal("unaffected audio was discarded")
 			}
 			if from <= "F05" && len(next.Needs) > 0 {

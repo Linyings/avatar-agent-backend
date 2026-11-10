@@ -204,61 +204,6 @@ func TestPackagePauseSurvivesWorkerSave(t *testing.T) {
 	}
 }
 
-func TestPackageVoiceEditPersistsDraftAndRecoversConfirmation(t *testing.T) {
-	a, owner, p, s := workflowFixture(t)
-	h := avatarPackageHost{a}
-	ctx := context.Background()
-	s.Status = "paused"
-	s.ScriptConfirmed = true
-	s.Segments = []avatar.Segment{{ID: "p1", Text: "第一句。第二句。"}}
-	if err := a.avatarWorkflow.save(&s); err != nil {
-		t.Fatal(err)
-	}
-	voice := ""
-	for _, v := range a.avatarWorkflow.voices() {
-		if v.ID != s.Input.Voice {
-			voice = v.ID
-			break
-		}
-	}
-	if voice == "" {
-		t.Fatal("missing alternate voice")
-	}
-	_, err := h.Invoke(ctx, owner.String(), p.ID.String(), "avatar.edit-voice", map[string]any{"changes": "更换音色", "segmentIds": []any{"p1"}, "voice": voice}, "voice-draft")
-	if err != nil {
-		t.Fatal(err)
-	}
-	stored, _, _ := h.project(ctx, owner.String(), p.ID.String())
-	proposal := proposalOf(stored)
-	// Simulate admission succeeding before the confirmation response is saved.
-	next, err := a.avatarWorkflow.create(ctx, owner, p.ID, "proposal-"+proposal.ID, proposal.Revision, proposal.Edits)
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, draft, err := h.project(ctx, owner.String(), p.ID.String())
-	if err != nil || draft.Voice != voice || draft.Revision != 2 || next.Input.Revision != draft.Revision {
-		t.Fatalf("voice edit not persisted with a new revision: draft=%#v run=%#v err=%v", draft, next.Input, err)
-	}
-	next.Status = "paused"
-	if err = a.avatarWorkflow.save(&next); err != nil {
-		t.Fatal(err)
-	}
-	for i := 0; i < 2; i++ {
-		if _, err = h.Confirm(ctx, owner.String(), p.ID.String(), proposal.ID, proposal.Revision); err != nil {
-			t.Fatal(err)
-		}
-	}
-	var count int64
-	a.db.Model(&models.WorkflowRun{}).Where("project_id=?", p.ID).Count(&count)
-	if count != 2 {
-		t.Fatalf("confirmation created %d runs", count)
-	}
-	later, err := a.avatarWorkflow.create(ctx, owner, p.ID, "later-request", draft.Revision)
-	if err != nil || later.Input.Voice != voice {
-		t.Fatalf("later run lost new voice: %v", err)
-	}
-}
-
 func TestPackageEmptyTitlePreservesProjectName(t *testing.T) {
 	a, owner, p, _ := workflowFixture(t)
 	h := avatarPackageHost{a}

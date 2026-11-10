@@ -41,7 +41,7 @@ func (*nodePackageHost) Confirm(context.Context, string, string, string, int) (a
 }
 
 func TestPackagePlanNodeAliasesAndRerun(t *testing.T) {
-	for _, target := range []string{"F04", "f4", "avatar_voice", "avatar.voice", "分段配音"} {
+	for _, target := range []string{"F04", "f4", "avatar_voice", "avatar.voice", "分段配音", "Seedance 原声口播"} {
 		t.Run(target, func(t *testing.T) {
 			h := &nodePackageHost{}
 			r := NewToolRegistry()

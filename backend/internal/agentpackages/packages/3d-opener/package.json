@@ -1,0 +1,50 @@
+{
+  "id": "avatar.3d-opener",
+  "version": "1.0.0",
+  "tool": "avatar_3d_opener",
+  "title": "3D 片头",
+  "node": "",
+  "entrypoint": "render_opener",
+  "dependencies": [],
+  "outputs": [
+    "片头视频素材"
+  ],
+  "description": "为口播视频生成 3D 科技感片头：三维地球/粒子场景 + 节目标题动画，时长 8–15 秒。在分镜规划（F10）前调用；片头素材会作为 real 类型素材注入工作流，可在第一个镜头使用。先用 avatar_inspect 查看当前项目标题和风格再调用。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "title": {
+        "type": "string",
+        "description": "片头显示的节目标题",
+        "maxLength": 60
+      },
+      "subtitle": {
+        "type": "string",
+        "description": "标题上方的小字副标题（如栏目名称），可选",
+        "maxLength": 40
+      },
+      "accent_color": {
+        "type": "string",
+        "description": "强调色 hex 值，如 #38bdf8，默认科技蓝",
+        "maxLength": 20
+      },
+      "duration": {
+        "type": "integer",
+        "description": "片头时长（秒），8–15，默认 10",
+        "minimum": 8,
+        "maximum": 15
+      },
+      "ratio": {
+        "type": "string",
+        "enum": ["16:9", "9:16", "1:1"],
+        "description": "画幅，需与当前项目一致，先用 avatar_inspect 确认"
+      }
+    },
+    "required": ["title", "ratio"],
+    "additionalProperties": false
+  },
+  "tools": [
+    "renderer.three_scene",
+    "ffmpeg.encode"
+  ]
+}

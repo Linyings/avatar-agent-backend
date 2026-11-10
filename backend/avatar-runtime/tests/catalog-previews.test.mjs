@@ -30,5 +30,13 @@ test('card demos are small silent H264 files, fast-start, cached, and preserve t
   fs.unlinkSync(thumbnail);
   assert.equal(buildCardPreview({source,poster,output,thumbnail}).cached,false);
   assert.ok(fs.statSync(thumbnail).size<fs.statSync(poster).size);
+  assert.equal(buildCardPreview({source,poster,output,thumbnail,start:.75,seconds:.5}).cached,false);
+  const trimmed=JSON.parse(execFileSync('ffprobe',['-v','error','-show_format','-of','json',output]));
+  assert.ok(Math.abs(Number(trimmed.format.duration)-.5)<.1);
+  const firstSegment=digest(output);
+  assert.equal(buildCardPreview({source,poster,output,thumbnail,start:.75,seconds:.5}).cached,true);
+  assert.equal(buildCardPreview({source,poster,output,thumbnail,start:1.25,seconds:.5}).cached,false);
+  assert.notEqual(digest(output),firstSegment,'Changing the start must select a different animation segment');
+  assert.equal(digest(source),original);
  }finally{fs.rmSync(dir,{recursive:true,force:true})}
 });

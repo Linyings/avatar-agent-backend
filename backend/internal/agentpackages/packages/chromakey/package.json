@@ -1,0 +1,57 @@
+{
+  "id": "avatar.chromakey",
+  "version": "1.0.0",
+  "tool": "avatar_chromakey",
+  "title": "绿幕背景融合",
+  "node": "",
+  "entrypoint": "chromakey_composite",
+  "dependencies": [],
+  "outputs": [
+    "带透明通道的人物视频",
+    "背景融合成片"
+  ],
+  "description": "将绿幕人物视频与自定义背景合成：用 ffmpeg chromakey 滤镜去除绿色背景，输出带 alpha 的 WebM，再与背景视频/图片合层。需要人物视频已生成（F06 完成）且使用绿幕背景；合成结果作为 real 素材注入工作流。先用 avatar_inspect 确认人物素材路径再调用。",
+  "input_schema": {
+    "type": "object",
+    "properties": {
+      "avatar_need_id": {
+        "type": "string",
+        "description": "需要做背景融合的人物素材 need_id，从 avatar_inspect 的 materials 中获取",
+        "maxLength": 200
+      },
+      "background": {
+        "type": "string",
+        "description": "背景类型：studio（代码渲染演播室）、color（纯色）、video（上传的背景视频，需先上传素材）",
+        "enum": ["studio", "color", "video"]
+      },
+      "background_color": {
+        "type": "string",
+        "description": "当 background=color 时的背景色 hex，如 #0f172a",
+        "maxLength": 20
+      },
+      "chroma_color": {
+        "type": "string",
+        "description": "人物视频的绿幕颜色，默认 0x00FF00（纯绿），如有偏差可调整",
+        "maxLength": 20
+      },
+      "similarity": {
+        "type": "number",
+        "description": "色度容差 0.1–0.5，越大抠除范围越广，默认 0.28",
+        "minimum": 0.1,
+        "maximum": 0.5
+      },
+      "blend": {
+        "type": "number",
+        "description": "边缘柔化 0.0–0.2，默认 0.08",
+        "minimum": 0.0,
+        "maximum": 0.2
+      }
+    },
+    "required": ["avatar_need_id", "background"],
+    "additionalProperties": false
+  },
+  "tools": [
+    "ffmpeg.chromakey",
+    "renderer.studio_background"
+  ]
+}

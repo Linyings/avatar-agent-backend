@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"math"
-	"os"
-	"path/filepath"
 	"strings"
 	"testing"
 
@@ -142,74 +140,5 @@ func TestWorkflowNarrationDurationRetryPreservesCompletedAudio(t *testing.T) {
 				t.Fatal("retry started a worker")
 			}
 		})
-	}
-}
-
-func TestWorkflowNarrationDurationPipelineAcceptsLongAudioAndReusesItOnRecovery(t *testing.T) {
-	a, owner, _, s := workflowFixture(t)
-	w := a.avatarWorkflow
-	s.ScriptConfirmed = true
-	s.Segments = []avatar.Segment{{ID: "p1", Text: "第一句。"}, {ID: "p2", Text: "第二句。"}, {ID: "p3", Text: "第三句。"}}
-	for _, segment := range s.Segments {
-		dir := filepath.Join(w.projectDir(s.ProjectID), "cache", "audio", w.audioFingerprint(&s, segment))
-		if err := os.MkdirAll(dir, 0700); err != nil {
-			t.Fatal(err)
-		}
-		if err := os.WriteFile(filepath.Join(dir, "audio.wav"), []byte("fixture-audio"), 0600); err != nil {
-			t.Fatal(err)
-		}
-	}
-	calls := 0
-	w.media = func(_ context.Context, stage, _ string) (json.RawMessage, error) {
-		if stage == "audio_review" {
-			return json.RawMessage(`{"audio_quality":{"issues":[]}}`), nil
-		}
-		if stage != "audio" {
-			t.Fatalf("unexpected downstream work: %s", stage)
-		}
-		calls++
-		return json.RawMessage(`{"duration":31.18}`), nil
-	}
-	w.content = func(context.Context, string, any, []string) (json.RawMessage, error) {
-		t.Fatal("unexpected model request")
-		return nil, nil
-	}
-	if err := w.save(&s); err != nil {
-		t.Fatal(err)
-	}
-	w.execute(s, owner)
-	after, err := w.load(context.Background(), owner, s.ID)
-	if err != nil || calls != 3 || after.Status != "awaiting_confirmation" || after.Stage != "F04" || after.Confirmation != "audio" || after.ErrorType != "" {
-		t.Fatalf("unexpected aggregate validation: calls=%d state=%+v err=%v", calls, after, err)
-	}
-	if math.Abs(after.Duration-93.54) > 1e-6 || math.Abs(after.Segments[2].Start-62.36) > 1e-6 {
-		t.Fatal("lost calibrated timing")
-	}
-	for _, segment := range after.Segments {
-		if _, err := os.Stat(filepath.Join(w.dir(s.ID), segment.Audio)); err != nil {
-			t.Fatal("completed audio lost", err)
-		}
-	}
-	for _, step := range after.Steps {
-		if step.Status != "succeeded" {
-			t.Fatalf("successful audio reported as failed: %+v", step)
-		}
-	}
-	// Simulate the persisted failure produced by the retired policy. Recovery
-	// must reuse every successful audio step and stop at the batch approval.
-	after.Status, after.Confirmation = "failed", ""
-	after.ErrorType = "narration_duration_exceeded"
-	after.Error = "实测配音超过90秒，请缩短文案后新建运行；不会截断原稿"
-	if err := w.save(&after); err != nil {
-		t.Fatal(err)
-	}
-	next, err := w.retryRun(context.Background(), owner, after.ID, "", "resume-long-audio")
-	if err != nil {
-		t.Fatal(err)
-	}
-	w.execute(next, owner)
-	recovered, err := w.load(context.Background(), owner, after.ID)
-	if err != nil || recovered.Status != "awaiting_confirmation" || recovered.Confirmation != "audio" || calls != 3 || recovered.Duration != after.Duration {
-		t.Fatalf("recovery repeated audio or bypassed approval: calls=%d state=%+v err=%v", calls, recovered, err)
 	}
 }

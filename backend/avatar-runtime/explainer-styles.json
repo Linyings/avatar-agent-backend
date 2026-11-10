@@ -1,0 +1,224 @@
+[
+  {
+    "id": "explain-podcast",
+    "name": "口播图解 · 人物小窗",
+    "version": "explainer/1",
+    "source": "awesome-opus5-5-videos",
+    "production_mode": "content-motion",
+    "description": "人物口播与全屏图解交替，按台词推进重点，图解画面保留人物小窗。",
+    "ratios": [
+      "9:16",
+      "16:9",
+      "1:1"
+    ],
+    "templates": [
+      "steps",
+      "compare",
+      "relationship",
+      "highlight",
+      "summary",
+      "data"
+    ],
+    "preview_kind": "upstream-original",
+    "preview_start": 0,
+    "original_post": "https://x.com/stokebuilder/status/2103896101120356793",
+    "preview_page": "https://skillry.dev/ai-videos/opus-5-5/stokebuilder-356793",
+    "design": {
+      "treatment": "collage",
+      "motion": "stepped",
+      "palette": [
+        "#18191C",
+        "#303238",
+        "#FAF8F2",
+        "#D9D5CB",
+        "#A5ADB8"
+      ],
+      "features": "黑白炭灰编辑式排版、纸张纹理、打字标签、线稿标注；用图形演示关系，按原声关键词出现，避免连续堆砌文字卡。"
+    }
+  },
+  {
+    "id": "explain-timeline",
+    "name": "素材融合 · 演变时间线",
+    "version": "explainer/1",
+    "source": "awesome-opus5-5-videos",
+    "production_mode": "content-motion",
+    "description": "用真实素材承接事实，以结构生长、阶段对照和时间线解释变化。",
+    "ratios": [
+      "9:16",
+      "16:9",
+      "1:1"
+    ],
+    "templates": [
+      "steps",
+      "compare",
+      "relationship",
+      "highlight",
+      "summary",
+      "data"
+    ],
+    "preview_kind": "upstream-original",
+    "preview_start": 10,
+    "original_post": "https://x.com/RetropunkAI/status/2103237989065277590",
+    "preview_page": "https://skillry.dev/ai-videos/opus-5-5/retropunkai-277590",
+    "design": {
+      "treatment": "stroke",
+      "motion": "draw",
+      "palette": [
+        "#101D2B",
+        "#20364B",
+        "#F0F5FA",
+        "#64DCC7",
+        "#FFBB77"
+      ],
+      "features": "建筑式结构线、清楚的阶段节点和细线标注；结构从简到繁生长，时间线推动事件，真实素材与图解交替。"
+    }
+  },
+  {
+    "id": "explain-ui-morph",
+    "name": "UI 演示 · 连续变形",
+    "version": "explainer/1",
+    "source": "awesome-opus5-5-videos",
+    "production_mode": "content-motion",
+    "description": "围绕同一视觉主体连续变形，通过点击、输入和状态反馈解释操作流程。",
+    "ratios": [
+      "9:16",
+      "16:9",
+      "1:1"
+    ],
+    "templates": [
+      "steps",
+      "compare",
+      "relationship",
+      "highlight",
+      "summary",
+      "data"
+    ],
+    "preview_kind": "upstream-original",
+    "preview_start": 4,
+    "original_post": "https://x.com/verbove/status/2103483957266268381",
+    "preview_page": "https://skillry.dev/ai-videos/opus-5-5/verbove-268381",
+    "design": {
+      "treatment": "morph",
+      "motion": "spring",
+      "palette": [
+        "#101424",
+        "#252D43",
+        "#F5F7FF",
+        "#8F9CFF",
+        "#58DFC1"
+      ],
+      "features": "一个持续存在的容器改变尺寸、圆角和位置，内容错峰进出；光标动作与状态反馈配合，微弱弹性和连续构图。"
+    }
+  },
+  {
+    "id": "explain-product",
+    "name": "产品讲解 · 五段叙事",
+    "version": "explainer/1",
+    "source": "awesome-opus5-5-videos",
+    "production_mode": "content-motion",
+    "description": "按问题、价值、操作、证据、收尾组织内容，适合工具和产品介绍。",
+    "ratios": [
+      "9:16",
+      "16:9",
+      "1:1"
+    ],
+    "templates": [
+      "steps",
+      "compare",
+      "relationship",
+      "highlight",
+      "summary",
+      "data"
+    ],
+    "preview_kind": "upstream-original",
+    "preview_start": 15,
+    "original_post": "https://x.com/alex_prompter/status/2103499977632997524",
+    "preview_page": "https://skillry.dev/ai-videos/opus-5-5/alex-prompter-997524",
+    "design": {
+      "treatment": "solid",
+      "motion": "spring",
+      "palette": [
+        "#F7F4EF",
+        "#FFFFFF",
+        "#202744",
+        "#425CEB",
+        "#F1845B"
+      ],
+      "features": "醒目短标题、品牌强调色、清晰的主体图形、分步演示；一个场景一个论点，图形动作服务于解释。"
+    }
+  },
+  {
+    "id": "explain-storybook",
+    "name": "绘本科普 · 故事演绎",
+    "version": "explainer/1",
+    "source": "awesome-opus5-5-videos",
+    "production_mode": "content-motion",
+    "description": "把抽象知识转成一个主角的旅程，用比喻、过程和对照帮助理解。",
+    "ratios": [
+      "9:16",
+      "16:9",
+      "1:1"
+    ],
+    "templates": [
+      "steps",
+      "compare",
+      "relationship",
+      "highlight",
+      "summary",
+      "data"
+    ],
+    "preview_kind": "upstream-original",
+    "preview_start": 10,
+    "original_post": "https://x.com/AstroTheWizard/status/2103629247751618782",
+    "preview_page": "https://skillry.dev/ai-videos/opus-5-5/astrothewizard-618782",
+    "design": {
+      "treatment": "sketch",
+      "motion": "stepped",
+      "palette": [
+        "#F4E7CC",
+        "#FFF8E9",
+        "#2C3542",
+        "#D58042",
+        "#5B9EA2"
+      ],
+      "features": "暖纸底、手绘线条、低饱和色块、简洁原创图形角色；轨迹和物体变化承担解释，画面有故事感。"
+    }
+  },
+  {
+    "id": "explain-chronicle",
+    "name": "国风叙事 · 编年长卷",
+    "version": "explainer/1",
+    "source": "awesome-opus5-5-videos",
+    "production_mode": "content-motion",
+    "description": "宣纸与黑金画面交替，以书法关键词、纹样和卷轴时间线串联章节。",
+    "ratios": [
+      "9:16",
+      "16:9",
+      "1:1"
+    ],
+    "templates": [
+      "steps",
+      "compare",
+      "relationship",
+      "highlight",
+      "summary",
+      "data"
+    ],
+    "preview_kind": "upstream-original",
+    "preview_start": 20,
+    "original_post": "https://x.com/dotey/status/2103964025683927166",
+    "preview_page": null,
+    "design": {
+      "treatment": "stroke",
+      "motion": "draw",
+      "palette": [
+        "#F2E8D3",
+        "#FFF9EB",
+        "#24211E",
+        "#A8372D",
+        "#AC8A45"
+      ],
+      "features": "宣纸白描、玄底泥金、朱红印章；线稿逐笔展开、书法感关键词、卷轴时间尺与克制的传统纹样。"
+    }
+  }
+]

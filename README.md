@@ -44,7 +44,7 @@ cd D:\pro\ai_cat\avatar-agent
 - 登录信息：Windows `%LOCALAPPDATA%\AiCat\AvatarMVP\LOCAL_ACCESS.txt` 或 WSL `/opt/aicat/avatar-mvp/LOCAL_ACCESS.txt`。
 - 仅恢复服务：`.\deploy\wsl2\start.ps1`。
 
-所有模型 Key 仅留在 WSL 服务端配置中。当前已实际使用 RunningHub 视频、豆包 TTS、Flash 文本/视觉理解模型；适配其他厂商不代表已经验证其指定音频口播效果。新流程使用稿件和声音两次版本确认；质量弹窗不用点击也继续，只有主动停止才阻止新的提交。操作、配置及日志见 [V2.2 使用说明](docs/workflow-v22-operations.md)。
+所有模型 Key 仅留在 WSL 服务端配置中。新建项目使用 Seedance 2.5 同时生成口播画面和声音，不再调用独立 TTS 或可灵生成口型；文案确认后按视频原声的实际时长制作字幕和动效。默认使用模型声音，可在工作台上传参考音色。首页音色选择已隐藏并保留代码。新流程与历史兼容说明见 [Seedance 原声口播](docs/seedance-native-speech.md)；旧任务操作记录见 [V2.2 使用说明](docs/workflow-v22-operations.md)。
 
 历史测试报告只用于追溯旧任务，不作为当前 V2.2 的结果。新样片的 [成本耗时报告](docs/evidence/v22/case-a/成本耗时报告.md) 保留节点时间及真实回单；未返回价格或币种时不虚构金额。
 

@@ -40,6 +40,7 @@ const {chromium, expect} = require('../../frontend/node_modules/@playwright/test
     const heading = page.getByRole('heading', {name: /你的专属AI视频Agent/});
     await page.goto(base + '/', {waitUntil: 'domcontentloaded'});
     await expect(heading).toBeVisible();
+    await expect(page.getByRole('button', {name:/配音音色/})).toHaveCount(0);
 
     let validAccount;
     for (const candidate of accounts) {
@@ -65,7 +66,9 @@ const {chromium, expect} = require('../../frontend/node_modules/@playwright/test
     await expect(styles.getByText('演示仅供风格参考。AI 会结合你的口播文案和人物画面重新设计动效，人物仍由参考图生成。', {exact: true})).toBeVisible();
     await expect(styles.getByRole('complementary', {name: '风格预览'})).toHaveCount(0);
     await page.screenshot({path: resolve(output, 'content-motion-styles.png'), fullPage: true});
-    await styles.getByRole('button', {name: '取消', exact: true}).click();
+    const explainerStyles = process.env.AVATAR_VERIFY_EXPLAINER_STYLES === 'true'
+      ? await require('./verify-explainer-styles.cjs')({page, base, output}) : undefined;
+    if (!explainerStyles) await styles.getByRole('button', {name: '取消', exact: true}).click();
 
     for (const path of ['/avatar-mvp', '/avatar-mvp?task_id=old-task&legacy=1']) {
       await page.goto(base + path, {waitUntil: 'domcontentloaded'});
@@ -113,8 +116,10 @@ const {chromium, expect} = require('../../frontend/node_modules/@playwright/test
     if(legacyUpgradeEntry) await expect(page.getByRole('button', {name:'使用新版 11 步流程',exact:true})).toBeVisible();
     await page.screenshot({path: resolve(output, 'workspace.png'), fullPage: true});
     await page.getByRole('button', {name:'制作设置',exact:true}).click();
-    await expect(page.getByRole('textbox', {name:'全片配音语速',exact:true})).toBeVisible();
-    if (legacyRun?.segments?.length) {
+    const nativeMode = (studioBody.data??studioBody).project.input.speech_mode === 'native-video';
+    if (nativeMode) await expect(page.getByRole('button', {name:'上传参考音色（2–30 秒）',exact:true})).toBeVisible();
+    else await expect(page.getByRole('textbox', {name:'全片配音语速',exact:true})).toBeVisible();
+    if (!nativeMode && legacyRun?.segments?.length) {
       await page.getByText('单段语速微调', {exact:true}).click();
       const segment=legacyRun.segments[0];
       await expect(page.getByRole('textbox', {name:`${segment.id} · ${segment.chapter||'口播段落'}语速`,exact:true})).toBeVisible();
@@ -122,11 +127,13 @@ const {chromium, expect} = require('../../frontend/node_modules/@playwright/test
     await page.screenshot({path: resolve(output, 'voice-speed-settings.png'), fullPage: true});
     await page.reload({waitUntil: 'domcontentloaded'});
     await expect(page.getByRole('complementary', {name:'Agent 对话'})).toBeVisible();
+    const nativeSpeech = process.env.AVATAR_VERIFY_NATIVE_SPEECH === 'true'
+      ? await require('./verify-native-speech.cjs')({page,context,base,output}) : undefined;
     assert.deepEqual(errors, []);
     assert.equal(modelTasksStarted, 0, 'Read-only verification must not submit model work');
     const report = {url: base + '/', login: 'passed', home: 'passed', refresh: 'passed',
       removedForm: 'absent', legacyRedirect: 'passed', projectList: 'passed', workspace: 'passed',
-      agentHistory: 'passed', voiceSpeedSettings:'passed', errorNode, legacyUpgradeEntry:legacyUpgradeEntry?'visible':'not-applicable', contentMotionStyleReference: 'passed', pageErrors: errors, modelTasksStarted, screenshots: output};
+      agentHistory: 'passed', voiceSettings:'passed', nativeSpeech, explainerStyles, errorNode, legacyUpgradeEntry:legacyUpgradeEntry?'visible':'not-applicable', contentMotionStyleReference: 'passed', pageErrors: errors, modelTasksStarted, screenshots: output};
     writeFileSync(resolve(output, 'verification.json'), JSON.stringify(report, null, 2) + '\n');
     console.log(JSON.stringify(report, null, 2));
   } catch (error) {

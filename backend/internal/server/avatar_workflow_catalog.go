@@ -192,44 +192,22 @@ func (a *App) workflowVoiceSample(c *gin.Context) {
 	http.ServeContent(c.Writer, c.Request, "voice.wav", info.ModTime(), f)
 }
 func (w *avatarWorkflowService) validateInput(in *avatar.WorkflowInput, run bool) error {
-	if err := avatar.ValidateVoiceSpeed(in.VoiceSpeed); err != nil {
+	if err := validateVoiceReference(*in); err != nil {
 		return err
 	}
-	if len(in.SegmentVoiceSpeeds) > 40 {
-		return fmt.Errorf("单段语速设置过多")
+	// Speech is produced by the video model itself. TTS-only inputs are no
+	// longer accepted so a draft cannot silently ask for a removed pipeline.
+	if !avatar.NativeSpeech(*in) {
+		return fmt.Errorf("独立 TTS 配音已停用；声音由 Seedance 2.5 与画面同时生成，请新建项目")
 	}
-	for id, speed := range in.SegmentVoiceSpeeds {
-		if !avatar.SafeID.MatchString(id) {
-			return fmt.Errorf("配音段落 ID 无效")
-		}
-		if err := avatar.ValidateVoiceSpeed(speed); err != nil {
-			return err
-		}
+	if in.VoiceSpeed != 0 && in.VoiceSpeed != 1 {
+		return fmt.Errorf("原声口播不支持调节语速；请在文案或参考音色上调整")
 	}
-	in.VoiceModel = strings.TrimSpace(in.VoiceModel)
-	if in.VoiceModel == sTTSModel(w.app) {
-		// The deployment model is the implicit default; keep drafts portable.
-		in.VoiceModel = ""
+	if len(in.SegmentVoiceSpeeds) > 0 {
+		return fmt.Errorf("原声口播不支持单段语速")
 	}
-	if in.VoiceModel != "" {
-		if _, ok := avatar.FindSpeechModel(in.VoiceModel); !ok || !w.runningHubSpeech() {
-			return fmt.Errorf("配音模型不在服务端可用清单")
-		}
-	}
-	model := w.voiceModel(*in)
-	speedSupported := strings.HasPrefix(model, "minimax/")
-	if m, ok := avatar.FindSpeechModel(model); ok {
-		speedSupported = m.SupportsSpeed
-	}
-	if w.runningHubSpeech() && !speedSupported {
-		if avatar.EffectiveVoiceSpeed(*in, "") != 1 {
-			return fmt.Errorf("当前配音模型尚未接入语速参数，请使用原速或选择支持语速的模型")
-		}
-		for id := range in.SegmentVoiceSpeeds {
-			if avatar.EffectiveVoiceSpeed(*in, id) != 1 {
-				return fmt.Errorf("当前配音模型尚未接入单段语速参数")
-			}
-		}
+	if strings.TrimSpace(in.VoiceModel) != "" {
+		return fmt.Errorf("原声口播不使用 TTS 配音模型")
 	}
 	if len(in.ReferenceLinks) > 20 {
 		return fmt.Errorf("最多添加20个网页链接")
@@ -276,16 +254,6 @@ func (w *avatarWorkflowService) validateInput(in *avatar.WorkflowInput, run bool
 	if in.Ratio == "" {
 		in.Ratio = "9:16"
 	}
-	in.Voice = strings.TrimSpace(in.Voice)
-	if in.VoiceModel == "" {
-		// Legacy repair: drafts saved for another deployment model fall back.
-		// Unknown IDs are not guessed; they fail the catalog check below.
-		if in.Voice == "" || (avatar.SpeechVoiceIncompatible(model, in.Voice) && avatar.SpeechVoiceKnown(in.Voice)) {
-			in.Voice = sVoice(w.app)
-		}
-	} else if in.Voice == "" {
-		in.Voice = avatar.DefaultSpeechVoice(model)
-	}
 	if len([]rune(in.Script)) > 10000 || len([]rune(in.Topic)) > 2000 || len([]rune(in.Title)) > 100 || len([]rune(in.Direction)) > 2000 {
 		return fmt.Errorf("输入过长")
 	}
@@ -298,15 +266,6 @@ func (w *avatarWorkflowService) validateInput(in *avatar.WorkflowInput, run bool
 	}
 	if in.Ratio != "9:16" && in.Ratio != "16:9" && in.Ratio != "1:1" {
 		return fmt.Errorf("不支持的画面比例")
-	}
-	found := false
-	for _, v := range w.voicesFor(model) {
-		if v.ID == in.Voice {
-			found = true
-		}
-	}
-	if !found {
-		return fmt.Errorf("音色不在所选配音模型的可用清单")
 	}
 	for _, angle := range in.Angles {
 		if angle != "正面" && angle != "左前方20度" && angle != "右前方20度" {
@@ -351,6 +310,9 @@ func (a *App) workflowStylePreview(c *gin.Context) {
 	}
 	if strings.HasSuffix(c.FullPath(), "/poster") {
 		path = filepath.Join(a.avatarMVP.options.RuntimeRoot, "catalog", style+".jpg")
+		if strings.HasPrefix(style, "explain-") {
+			path = filepath.Join(a.avatarMVP.options.RuntimeRoot, "catalog", style+"-reference.jpg")
+		}
 		mediaType = "image/jpeg"
 	}
 	if !meta.Legacy {

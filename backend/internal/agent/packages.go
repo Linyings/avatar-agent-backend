@@ -62,6 +62,10 @@ func RegisterPackageTools(reg *ToolRegistry, host PackageHost, owner, project, t
 		}
 	}
 	resolve := func(raw string) string {
+		// Saved conversations may still use the former stage titles.
+		if strings.TrimSpace(raw) == "分段配音" {
+			return "F04"
+		}
 		for _, p := range manifests {
 			if p.Node != "" && (strings.EqualFold(strings.TrimSpace(raw), p.ID) || strings.EqualFold(strings.TrimSpace(raw), p.Tool) || strings.TrimSpace(raw) == p.Title) {
 				return p.Node

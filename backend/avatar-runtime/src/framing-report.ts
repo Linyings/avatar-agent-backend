@@ -15,7 +15,7 @@ export function avatarLayers(m:Manifest,shot:Shot):AvatarLayer[]{
  let recipe:string=resolveRecipe(shot,primary);
  if(primary.kind==='animation')recipe=overlay?'visual-pip':'visual-hero';
  if(recipe==='visual-pip'&&!overlay)recipe='visual-hero';
- if(m.input.style.startsWith('mg-')&&!overlay&&primary.kind!=='animation')recipe=primary.kind==='avatar'?'host-hero':'visual-hero';
+ if(/^(mg-|explain-)/.test(m.input.style)&&!overlay&&primary.kind!=='animation')recipe=primary.kind==='avatar'?'host-hero':'visual-hero';
  const side=shot.avatar_position||m.input.avatar_position||'right',shape=shot.avatar_shape||'rounded';
  const layout=shotLayout(m.width,m.height,recipe,side);
  if(recipe==='visual-pip'&&overlay?.kind==='avatar'&&layout.overlay){layout.primary={x:0,y:0,w:m.width,h:m.height};layout.overlay=avatarWindowBox(m.width,m.height,shape,side);}

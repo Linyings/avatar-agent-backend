@@ -99,10 +99,16 @@ func TestTestingRecoveryPackageActuallyRunsOnceAndExposesMode(t *testing.T) {
 	defer provider.Close()
 	t.Setenv("RUNNINGHUB_BASE_URL", provider.URL)
 	t.Setenv("RUNNINGHUB_API_KEY", "local-test")
-	a.cfg.TTSModel = "minimax/speech-2.8-hd"
+	// Native speech submits through the configured video service, not the TTS
+	// endpoint. Point that provider at the fake so the rejection is observable.
+	a.avatarMVP.options.Protocol = "runninghub"
+	a.avatarMVP.options.BaseURL = provider.URL
+	a.avatarMVP.options.APIKey = "local-test"
+	a.avatarMVP.options.Model = avatar.NativeSpeechModel
+	a.avatarMVP.options.GenerationPath = avatar.SeedancePath
+	a.avatarMVP.provider, a.avatarMVP.providerErr = avatar.NewVideoProvider(a.avatarMVP.options)
 	reviewTextConfig(a)
 	s.Status, s.TargetNode = "submission_unknown", "F04"
-	s.Input.Voice = "Wise_Woman"
 	s.ScriptConfirmed = true
 	s.Segments = []avatar.Segment{{ID: "p1", Text: s.Input.Script}}
 	s.Steps = []avatar.WorkflowStep{{ID: "F04/p1", Status: "failed", Submission: "unknown"}}

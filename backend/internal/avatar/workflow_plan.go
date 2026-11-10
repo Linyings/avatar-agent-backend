@@ -55,6 +55,13 @@ func PlanWorkflow(in WorkflowInput, run *WorkflowState) WorkflowPlan {
 	modern := run == nil || DirectorWorkflow(run)
 	if modern {
 		out.Stages = DirectorStages()
+		if NativeSpeech(in) {
+			for i := range out.Stages {
+				if out.Stages[i].Node == "F04" {
+					out.Stages[i].Title = "Seedance 原声口播与时间校准"
+				}
+			}
+		}
 	}
 	for _, node := range WorkflowNodes {
 		if !modern && (node == "F01.2" || node == "F01.6" || node == "F11.1" || node == "F11.2") {

@@ -1,8 +1,9 @@
 // Application layouts informed by talkcraft shot-design/design-language; upstream
 // sources remain unchanged. Timing and talking-footage source offsets are external.
 import styles from '../native-styles.json' with {type:'json'};
+import explainerStyles from '../explainer-styles.json' with {type:'json'};
 export const PRESENTATION_VERSION='film-design/3';
-export const RECIPES=['host-hero','host-explain','visual-hero','visual-pip','compare','steps','evidence','summary'] as const;
+export const RECIPES=['host-hero','host-explain','visual-hero','visual-pip','compare','steps','evidence','summary','opener','chromakey-composite'] as const;
 export type Recipe=typeof RECIPES[number];
 export type Box={x:number;y:number;w:number;h:number};
 export type FilmTheme={canvas:string;surface:string;ink:string;muted:string;accent:string;line:string;radius:number;paper:boolean;motion:number};
@@ -14,7 +15,7 @@ const themes:Record<string,FilmTheme>={
  'mg-collage':{canvas:'#F2ECDF',surface:'#FFFCF3',ink:'#29251F',muted:'#746A5B',accent:'#AC3C30',line:'#CFC2AD',radius:2,paper:true,motion:.4},
 };
 export function filmTheme(style:string):FilmTheme{
- const design=styles.find(s=>s.id===style)?.design;
+ const design=[...explainerStyles,...styles].find(s=>s.id===style)?.design;
  if(design){const [canvas,surface,ink,accent,line]=design.palette;return {canvas,surface,ink,accent,line,muted:line,radius:['geometric','pixel','collage'].includes(design.treatment)?2:24,paper:['paper','collage','sketch'].includes(design.treatment),motion:design.motion==='glide'?.7:.4};}
  return themes[style]||themes[style==='line-art'?'mg-line-art':'mg-flat-vector'];
 }

@@ -66,6 +66,9 @@ func (h avatarPackageHost) draft(ctx context.Context, p models.Project, in avata
 			return nil, err
 		}
 	case "edit_voice":
+		if avatar.NativeSpeech(s.Input) {
+			return nil, fmt.Errorf("本项目使用 Seedance 原声口播，不支持独立 TTS 修改；请修改文案或参考音色后从 F04 重做音画")
+		}
 		list, _ := args["segmentIds"].([]any)
 		if len(list) == 0 {
 			return nil, fmt.Errorf("请选择重配音段落")

@@ -97,7 +97,16 @@ func (h avatarPackageHost) materialNodeAction(ctx context.Context, owner, projec
 				return out, e
 			}
 			n, e := materialNeed(s, id)
-			if e != nil || s.Edits.MaterialOnly != id || s.Edits.BaseRunID != req.BaseRunID || n.Prompt != strings.TrimSpace(req.Prompt) {
+			scoped := s.Edits.MaterialOnly == id
+			if avatar.NativeSpeech(s.Input) && len(s.Edits.NativePrompts) > 0 {
+				for _, candidate := range s.Edits.Needs {
+					if candidate.ID == id {
+						n, e = candidate, nil
+						scoped = s.Edits.NativePrompts[n.SegmentID] == strings.TrimSpace(req.Prompt)
+					}
+				}
+			}
+			if e != nil || !scoped || s.Edits.BaseRunID != req.BaseRunID || n.Prompt != strings.TrimSpace(req.Prompt) {
 				return out, fmt.Errorf("生成请求编号已用于其他修改，请刷新后重试")
 			}
 			return materialNodeResult{RunID: s.ID, Status: s.Status}, nil
@@ -192,11 +201,18 @@ func (h avatarPackageHost) materialNodeAction(ctx context.Context, owner, projec
 			}
 		}
 		edits := avatar.WorkflowEdits{BaseRunID: s.ID, Needs: needs, MaterialOnly: id}
-		proposal := packageProposal{ID: uuid.NewString(), Revision: in.Revision, Package: "avatar.edit-material", Node: materialNodeID(n), TargetNode: "F08", Lines: []string{"重新生成单个视频：" + n.Content}, Edits: edits, BaseFingerprint: packageFingerprint(s), CreatedAt: time.Now().UTC()}
+		target := "F08"
+		if avatar.NativeSpeech(s.Input) && n.Kind == "avatar" {
+			edits.MaterialOnly = ""
+			edits.NativePrompts = map[string]string{n.SegmentID: prompt}
+			edits.RegenerateSegments = []string{n.SegmentID}
+			target = "F04"
+		}
+		proposal := packageProposal{ID: uuid.NewString(), Revision: in.Revision, Package: "avatar.edit-material", Node: materialNodeID(n), TargetNode: target, Lines: []string{"重新生成视频及其依赖：" + n.Content}, Edits: edits, BaseFingerprint: packageFingerprint(s), CreatedAt: time.Now().UTC()}
 		if err = h.storeProposal(ctx, p, proposal); err != nil {
 			return out, err
 		}
-		next, e := w.createToChecked(ctx, p.OwnerID, p.ID, "material-"+req.RequestID, in.Revision, "F08", &proposal, edits)
+		next, e := w.createToChecked(ctx, p.OwnerID, p.ID, "material-"+req.RequestID, in.Revision, target, &proposal, edits)
 		if e != nil {
 			return out, e
 		}

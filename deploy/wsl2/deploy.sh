@@ -77,7 +77,8 @@ defaults = {'VIDEO_PROVIDER': 'runninghub', 'VIDEO_API_PROTOCOL': '', 'VIDEO_API
             'TTS_MODEL': 'doubao-seed-tts-2.0', 'TTS_SPEAKER': '',
             'TTS_LANGUAGE': 'zh-cn', 'TTS_FORMAT': 'wav',
             'VIDEO_REFERENCE_AUDIO_SUPPORTED': 'false', 'VIDEO_UPLOAD_PATH': '',
-            'VIDEO_GENERATION_PATH': '', 'VIDEO_QUERY_PATH': ''}
+            'VIDEO_GENERATION_PATH': '', 'VIDEO_QUERY_PATH': '',
+            'TAVILY_API_KEY': ''}
 missing = ''.join(f'{key}={value}\n' for key, value in defaults.items() if key not in keys)
 if missing:
     env.write_text(existing.rstrip('\n') + '\n' + missing)
@@ -85,28 +86,50 @@ env.chmod(0o600)
 PY
 fi
 cd "$target_root"
-if [[ "$service" != frontend ]]; then
-runtime_same=true
-for runtime_file in package.json package-lock.json requirements.txt; do
-  local_sum="$(sha256sum "src/backend/avatar-runtime/$runtime_file" | cut -d' ' -f1)"
-  live_sum="$(docker compose exec -T api sha256sum "/app/avatar-runtime/$runtime_file" 2>/dev/null | cut -d' ' -f1 || true)"
-  if [[ "$local_sum" != "$live_sum" ]]; then runtime_same=false; fi
+# Preserve the images actually serving users, even after an earlier failed build
+# has moved :latest. One rollback tag per service is sufficient.
+case "$service" in
+  all) updated_services=(api web);;
+  backend) updated_services=(api);;
+  frontend) updated_services=(web);;
+esac
+for app_service in "${updated_services[@]}"; do
+  container="$(docker compose ps -q "$app_service")"
+  if [[ -n "$container" ]]; then
+    running_image="$(docker inspect --format '{{.Image}}' "$container")"
+    if docker image inspect "$running_image" >/dev/null 2>&1; then
+      docker tag "$running_image" "aicat-avatar-$app_service:previous"
+    else
+      printf 'WARNING: %s container image metadata is missing; cannot create a new rollback tag. Existing service remains running during build.\n' "$app_service" >&2
+    fi
+  fi
 done
-if [[ "$runtime_same" == true ]] && docker compose exec -T api test -d /app/.remotion 2>/dev/null; then
-  # Keep one verified dependency base. Rebasing on the previous application
-  # image on every deployment retains every historical source/catalog layer.
-  cache_same=true
+if docker compose ps --status running --services | grep -qx api; then
+  python3 "$source_root/deploy/wsl2/storage-maintenance.py" --root "$target_root" --apply
+fi
+if [[ "$service" != frontend ]]; then
+runtime_matches() {
+  local candidate="$1" local_sum cache_sum
+  docker image inspect "$candidate" >/dev/null 2>&1 || return 1
   for runtime_file in package.json package-lock.json requirements.txt; do
     local_sum="$(sha256sum "src/backend/avatar-runtime/$runtime_file" | cut -d' ' -f1)"
-    cache_sum="$(docker run --rm --entrypoint sha256sum aicat-avatar-runtime-cache:local "/app/avatar-runtime/$runtime_file" 2>/dev/null | cut -d' ' -f1 || true)"
-    if [[ "$local_sum" != "$cache_sum" ]]; then cache_same=false; fi
+    cache_sum="$(docker run --rm --entrypoint sha256sum "$candidate" "/app/avatar-runtime/$runtime_file" 2>/dev/null | cut -d' ' -f1 || true)"
+    [[ "$local_sum" == "$cache_sum" ]] || return 1
   done
-  if [[ "$cache_same" != true ]] || ! docker run --rm --entrypoint test aicat-avatar-runtime-cache:local -d /app/.remotion 2>/dev/null; then
-    docker tag aicat-avatar-api:latest aicat-avatar-runtime-cache:local
+  docker run --rm --entrypoint test "$candidate" -d /app/.remotion 2>/dev/null
+}
+# Prefer the stable base. A fully built image from an interrupted deployment can
+# also supply matching dependencies; application code is always rebuilt below.
+for candidate in aicat-avatar-runtime-cache:local aicat-avatar-api:previous aicat-avatar-api:latest; do
+  if runtime_matches "$candidate"; then
+    if [[ "$candidate" != aicat-avatar-runtime-cache:local ]]; then
+      docker tag "$candidate" aicat-avatar-runtime-cache:local
+    fi
+    export AVATAR_API_DOCKERFILE=deploy/Dockerfile.avatar-wsl.incremental
+    printf 'Reusing verified installed media dependencies and browser.\n'
+    break
   fi
-  export AVATAR_API_DOCKERFILE=deploy/Dockerfile.avatar-wsl.incremental
-  printf 'Reusing verified installed media dependencies and browser.\n'
-fi
+done
 fi
 docker compose config --quiet
 if docker compose ps --status running --services | grep -qx postgres; then
@@ -158,5 +181,10 @@ docker compose exec -T api /opt/avatar-venv/bin/python /app/avatar-runtime/pipel
 curl --fail --silent http://127.0.0.1:8080/api-health
 python3 "$source_root/deploy/wsl2/verify.py"
 python3 "$source_root/deploy/wsl2/record-revisions.py" "$target_root" "$service" "$source_root" "$frontend_source"
+if [[ "$service" != frontend ]] && [[ "${AVATAR_API_DOCKERFILE:-deploy/Dockerfile.avatar-wsl}" == deploy/Dockerfile.avatar-wsl ]]; then
+  # Seed the stable dependency base only after a full build has passed health.
+  docker tag "$(docker inspect --format '{{.Image}}' "$(docker compose ps -q api)")" aicat-avatar-runtime-cache:local
+fi
+python3 "$source_root/deploy/wsl2/docker-maintenance.py" --root "$target_root" --apply
 printf '\nFrontend: http://%s:8080/\n' "$(hostname -I | awk '{print $1}')"
 docker compose ps

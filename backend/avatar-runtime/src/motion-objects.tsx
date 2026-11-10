@@ -1,7 +1,6 @@
 import React,{useLayoutEffect,useRef,useState} from 'react';
 import {continueRender,delayRender} from 'remotion';
 // The installed Three.js runtime is also used by the style reference viewer.
-// @ts-expect-error The runtime has no installed TypeScript declaration package.
 import * as THREE from 'three';
 
 type ObjectSpec={kind:string;x:number;y:number;size:number;progress:number};

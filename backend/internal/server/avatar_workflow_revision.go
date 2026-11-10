@@ -25,9 +25,6 @@ func (w *avatarWorkflowService) configSnapshot() map[string]string {
 		visionModel, visionEndpoint = c.OpenAIFlashModel, c.OpenAIFlashAPIBaseURL
 	}
 	snapshot := map[string]string{"workflow": avatar.WorkflowVersion, "video": w.app.avatarMVP.options.VideoConfigID(), "tts_model": sTTSModel(w.app), "tts_language": c.TTSLanguage, "flash_model": c.OpenAIFlashModel, "flash_endpoint": c.OpenAIFlashAPIBaseURL, "vision_model": visionModel, "vision_endpoint": visionEndpoint, "vision_sampling": "1fps/batch20s", "style_version": avatar.MotionPlanVersion + "+legacy/2", "renderer": "talkcraft-workflow/5-stable-crop", "presentation_version": avatar.PresentationVersion, "skills": agent.SkillsDigest(), "avatar_footage": w.avatarFootageConfig()}
-	if strings.HasPrefix(snapshot["avatar_footage"], "talking:") {
-		snapshot["portrait_policy"] = encodePortraitPolicy(currentPortraitPolicy())
-	}
 	return snapshot
 }
 
@@ -63,7 +60,7 @@ func workflowProviderConfigCompatible(old, next map[string]string) bool {
 func textSegments(in []avatar.Segment) []avatar.Segment {
 	out := make([]avatar.Segment, len(in))
 	for i, p := range in {
-		out[i] = avatar.Segment{ID: p.ID, Chapter: p.Chapter, Text: p.Text, DirectorSceneID: p.DirectorSceneID}
+		out[i] = avatar.Segment{ID: p.ID, Chapter: p.Chapter, Text: p.Text, DirectorSceneID: p.DirectorSceneID, NativePrompt: p.NativePrompt, NativeRevision: p.NativeRevision}
 	}
 	return out
 }
@@ -93,7 +90,7 @@ func sameSourceInputs(a, b avatar.WorkflowInput) bool {
 	selectSources := func(in avatar.WorkflowInput) []avatar.SourceAsset {
 		out := []avatar.SourceAsset{}
 		for _, s := range in.Assets {
-			if s.Kind != "photo" && !s.Excluded {
+			if s.Kind != "photo" && s.Kind != "audio" && !s.Excluded {
 				out = append(out, s)
 			}
 		}
@@ -113,7 +110,7 @@ func (w *avatarWorkflowService) inherit(s *avatar.WorkflowState, previous avatar
 	activeReferences := func(in avatar.WorkflowInput) []avatar.SourceAsset {
 		out := []avatar.SourceAsset{}
 		for _, asset := range in.Assets {
-			if !asset.Excluded {
+			if !asset.Excluded && asset.Kind != "audio" {
 				out = append(out, asset)
 			}
 		}
@@ -208,6 +205,13 @@ func (w *avatarWorkflowService) inherit(s *avatar.WorkflowState, previous avatar
 			}
 			s.Script = body.String()
 			s.Segments = textSegments(edits.Segments)
+			for i := range s.Segments {
+				for _, old := range previous.Segments {
+					if old.ID == s.Segments[i].ID {
+						s.Segments[i].NativePrompt, s.Segments[i].NativeRevision = old.NativePrompt, old.NativeRevision
+					}
+				}
+			}
 			s.ScriptConfirmed = false
 			// Subtitle corrections are tied to the exact narration and alignment.
 			// Retain only bindings whose paragraph identity and spoken text survive.
@@ -228,7 +232,7 @@ func (w *avatarWorkflowService) inherit(s *avatar.WorkflowState, previous avatar
 		}
 		sameSegments := avatar.Digest(textSegments(s.Segments)) == avatar.Digest(textSegments(previous.Segments))
 		sameRequirements := s.Input.UseAvatar == previous.Input.UseAvatar && avatar.Digest(s.Input.UseAnimation) == avatar.Digest(previous.Input.UseAnimation) && s.Input.Direction == previous.Input.Direction && avatar.Digest(s.Input.Angles) == avatar.Digest(previous.Input.Angles)
-		if sameSegments && sameRequirements {
+		if sameSegments && sameRequirements && avatar.NativeSpeech(s.Input) == avatar.NativeSpeech(previous.Input) {
 			s.Needs = append([]avatar.MaterialNeed(nil), previous.Needs...)
 			if s.Input.Style == previous.Input.Style && s.Input.Ratio == previous.Input.Ratio && s.ConfigSnapshot["presentation_version"] == previous.ConfigSnapshot["presentation_version"] {
 				s.Shots = append([]avatar.WorkflowShot(nil), previous.Shots...)
@@ -364,23 +368,65 @@ func (w *avatarWorkflowService) inherit(s *avatar.WorkflowState, previous avatar
 		}
 	}
 	// Reuse the actual confirmed files and alignment for unchanged paragraphs.
+	if avatar.NativeSpeech(s.Input) {
+		for _, need := range edits.Needs {
+			if need.Kind != "avatar" {
+				continue
+			}
+			for _, old := range previous.Needs {
+				if old.ID == need.ID && old.Prompt != need.Prompt {
+					for i := range s.Segments {
+						if s.Segments[i].ID == need.SegmentID {
+							s.Segments[i].NativePrompt = need.Prompt
+							s.Segments[i].NativeRevision = s.ID
+						}
+					}
+				}
+			}
+		}
+		for id, prompt := range edits.NativePrompts {
+			found := false
+			for i := range s.Segments {
+				if s.Segments[i].ID == id {
+					s.Segments[i].NativePrompt = prompt
+					found = true
+				}
+			}
+			if !found {
+				return fmt.Errorf("人物提示词对应的段落不存在")
+			}
+		}
+		for i := range s.Segments {
+			if workflowRerunsNode(s, "F04") || edits.RerunFrom == "F06" || slices.Contains(edits.RegenerateSegments, s.Segments[i].ID) {
+				s.Segments[i].NativeRevision = s.ID
+			}
+		}
+	}
 	// Styling and subtitles must not re-run TTS or ask to approve the same sound.
 	allAudio := len(s.Segments) > 0
 	for i := range s.Segments {
 		p := &s.Segments[i]
+		if avatar.NativeSpeech(s.Input) {
+			p.Fingerprint = w.nativeSpeechFingerprint(s, *p)
+		}
 		var old avatar.Segment
 		for _, candidate := range previous.Segments {
 			if candidate.ID == p.ID && candidate.Text == p.Text && candidate.Fingerprint == p.Fingerprint {
 				old = candidate
 			}
 		}
-		usable := old.Audio != "" && old.Duration > 0 && old.Fingerprint != ""
+		usable := old.Audio != "" && old.Duration > 0 && old.Fingerprint != "" && avatar.NativeSpeech(s.Input) == avatar.NativeSpeech(previous.Input)
+		files := []string{"audio.wav", "timestamps.json", "alignment-cache.json"}
+		if avatar.NativeSpeech(s.Input) {
+			files = append(files, "native.mp4")
+			usable = usable && old.NativeVideo != ""
+		}
 		for _, id := range edits.RegenerateSegments {
 			if id == p.ID {
 				usable = false
 			}
 		}
-		for _, file := range []string{"audio.wav", "timestamps.json", "alignment-cache.json"} {
+		for _, file := range files {
 			if _, err := os.Stat(filepath.Join(w.dir(previous.ID), p.ID, file)); err != nil {
 				usable = false
 			}
@@ -389,16 +435,26 @@ func (w *avatarWorkflowService) inherit(s *avatar.WorkflowState, previous avatar
 			allAudio = false
 			continue
 		}
-		for _, file := range []string{"audio.wav", "timestamps.json", "alignment-cache.json"} {
+		for _, file := range files {
 			if err := copyWorkflowFile(filepath.Join(w.dir(previous.ID), p.ID, file), filepath.Join(w.dir(s.ID), p.ID, file)); err != nil {
 				return err
 			}
 		}
 		*p = old
+		if avatar.NativeSpeech(s.Input) {
+			w.nativeArtifacts(s, *p)
+		}
 		s.Steps = append(s.Steps, avatar.WorkflowStep{ID: "F04/" + p.ID, Status: "succeeded", InputHash: avatar.Digest(w.audioFingerprint(s, *p)), CostStatus: "reused"})
 		w.addArtifacts(s, []avatar.WorkflowArtifact{{ID: "audio-" + p.ID, Name: p.ID + ".wav", Path: p.Audio, MediaType: "audio/wav"}})
 	}
 	s.AudioConfirmed = allAudio && previous.AudioConfirmed && s.ScriptConfirmed
+	// Native speech must regenerate needs when the sound or person changes, so
+	// their descriptions match the new footage. An explicit need list from the
+	// caller is authoritative and must survive that reset.
+	if avatar.NativeSpeech(s.Input) && !allAudio && len(edits.Needs) == 0 {
+		s.Needs = nil
+		s.Shots = nil
+	}
 	if edits.MaterialOnly != "" {
 		return w.inheritMaterialNodes(s, previous)
 	}
@@ -406,6 +462,9 @@ func (w *avatarWorkflowService) inherit(s *avatar.WorkflowState, previous avatar
 }
 
 func (w *avatarWorkflowService) audioFingerprint(s *avatar.WorkflowState, seg avatar.Segment) string {
+	if avatar.NativeSpeech(s.Input) {
+		return w.nativeSpeechFingerprint(s, seg)
+	}
 	audioInput := s.Input
 	audioInput.VoiceSpeed = avatar.EffectiveVoiceSpeed(s.Input, seg.ID)
 	values := []any{avatar.AudioFingerprint(audioInput, seg.Text), w.voiceModel(s.Input), w.app.cfg.TTSLanguage}
@@ -436,6 +495,9 @@ func (w *avatarWorkflowService) reuseStableNeeds(ctx context.Context, s *avatar.
 		return
 	}
 	for i, n := range s.Needs {
+		if avatar.NativeSpeech(s.Input) && n.Kind == "avatar" {
+			continue
+		}
 		var current, old avatar.Segment
 		for _, p := range s.Segments {
 			if p.ID == n.SegmentID {

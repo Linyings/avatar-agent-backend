@@ -38,6 +38,7 @@ func (w *avatarWorkflowService) planMaterialNeeds(ctx context.Context, s *avatar
 			}
 		}
 		data := map[string]any{"segments": segments, "style": input.Style, "ratio": input.Ratio, "use_avatar": input.UseAvatar, "angles": input.Angles, "required_angles": requiredAngles, "direction": input.Direction, "descriptions": s.Descriptions, "assets": input.Assets, "director": director, "batch_index": start/batchSize + 1, "batch_count": (len(s.Segments) + batchSize - 1) / batchSize}
+		data["selected_style"] = workflowStyleProductionContext(w.app.avatarMVP.options.RuntimeRoot, input.Style)
 		var out struct {
 			Needs []avatar.MaterialNeed `json:"needs"`
 		}
@@ -45,11 +46,12 @@ func (w *avatarWorkflowService) planMaterialNeeds(ctx context.Context, s *avatar
 			if err := w.model(ctx, s, parent, prompt, data, nil, &out); err != nil {
 				return nil, err
 			}
-			return out.Needs, nil
+			return avatar.NativeMaterialNeeds(input, segments, out.Needs), nil
 		}
 		fingerprint := []any{"material-plan-batches/v1", prompt, data, s.ConfigID}
 		cache := filepath.Join(w.dir(s.ID), "material-plans", avatar.Digest(fingerprint)+".json")
 		validate := func() error {
+			out.Needs = avatar.NativeMaterialNeeds(input, segments, out.Needs)
 			// Global animation and angle coverage are checked after merging. Local
 			// validation still rejects foreign segments, gaps and invalid durations.
 			partial := input
@@ -137,8 +139,12 @@ func (w *avatarWorkflowService) materialPlanningPrompt(s *avatar.WorkflowState) 
 		prompt += " 按 director 已设计的镜头目的、画面与动效制作素材，把 motion 和 visual 的具体设计写入对应 need.prompt；配音已实测，素材覆盖真实时长。保留已确认的台词与主要创意。"
 	}
 	if style, found := findWorkflowStyle(w.app.avatarMVP.options.RuntimeRoot, s.Input.Style); found && !style.Legacy && avatar.AnimationEnabled(s.Input) {
+		prompt += " 遵循 selected_style.method 中的叙事、镜头和素材安排要求；素材时间来自实际原声。"
 		prompt += " 用户已选择动效风格，至少安排一段animation。风格仅提供配色、材质与运动参考；必须根据本段文案重新设计内容、图形和构图，禁止复制演示视频、示例品牌、固定图形故事或原片台词。content写清楚本段要解释的含义，items摘自本段原文，template按含义选择，duration覆盖该段实际配音。动效制作节点会结合已经生成的人物画面单独设计场景，再由分镜安排分层融合。风格特征：" + fmt.Sprint(style.Design["features"]) + "。不编造数据或证据。"
 	}
 	prompt += " 人物 avatar 的 prompt 只描述干净普通矩形口播素材的外观、背景、固定机位和自然表演，完整保留头顶与肩部，固定焦距和拍摄距离，不推进、不拉近、不变焦；不能要求人物生成模型制作圆窗、圆角、分屏、字幕、边框、重复小人像或其他合成图层。导演稿的窗口形状、方位与叠加动效只留给后期镜头规划和渲染。"
+	if avatar.NativeSpeech(s.Input) {
+		prompt += " 本项目人物已在 F04 由 Seedance 同时生成画面和原声；人物仅复用各段现有正面视频，不新建多角度或重新生成人物。根据其真实时长规划动效和实拍素材。"
+	}
 	return prompt
 }

@@ -93,6 +93,13 @@ def command_probe(args):
         if not text.strip() or '\x00' in text:raise ValueError('Reference must be nonempty UTF-8 text')
         return {'duration':0,'sha256':hashlib.sha256(data).hexdigest()}
     info=probe(args,p)
+    if inp['kind']=='audio':
+        if p.stat().st_size>20<<20:raise ValueError('参考音色不能超过 20MB')
+        if not any(s.get('codec_type')=='audio' for s in info['streams']):raise ValueError('参考音色文件没有音轨')
+        sec=duration(info,'audio')
+        if not 2<=sec<=30:raise ValueError('参考音色需要 2–30 秒')
+        run([args.ffmpeg,'-v','error','-i',p,'-map','0:a:0','-f','null','-'],stdout=subprocess.DEVNULL)
+        return {'duration':sec,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest()}
     kind='video' if inp['kind']=='video' else 'image'
     stream=next(s for s in info['streams'] if s['codec_type']=='video')
     if kind=='image' and (stream.get('codec_name') not in ['png','mjpeg'] or not any(x in info.get('format',{}).get('format_name','') for x in ['image2','png_pipe','jpeg_pipe'])):raise ValueError('Photo must decode as a static PNG or JPEG image')
@@ -101,6 +108,41 @@ def command_probe(args):
     # Decode the first frame to reject renamed/non-media uploads.
     run([args.ffmpeg,'-v','error','-i',p,'-frames:v',1,'-f','null','-'],stdout=subprocess.DEVNULL)
     return {'duration':duration(info,'video') if kind=='video' else 0,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest()}
+
+def command_voice_reference(args):
+    source=Path(args.inp['source']);info=probe(args,source)
+    if not any(s.get('codec_type')=='audio' for s in info['streams']):raise ValueError('参考音色没有声音轨')
+    sec=duration(info,'audio')
+    if sec<2:raise ValueError('参考音色至少需要 2 秒')
+    relative='voice-reference.wav';dest=args.task/relative
+    run([args.ffmpeg,'-y','-v','error','-i',source,'-map','0:a:0','-vn','-t',min(10,sec),'-ar','24000','-ac','1',dest])
+    return {'path':relative}
+
+def command_native_speech(args):
+    seg=args.inp['segment'];folder=args.task/seg['id'];folder.mkdir(parents=True,exist_ok=True)
+    normals=[]
+    for i,relative in enumerate(args.inp['pieces']):
+        source=safe_file(args.task,relative);info=probe(args,source)
+        if not any(s.get('codec_type')=='audio' for s in info['streams']):raise ValueError('Seedance 视频没有声音轨，不能继续合成')
+        sec=duration(info,'video');audio_sec=duration(info,'audio')
+        if sec<=0 or audio_sec<=0 or abs(sec-audio_sec)>.25:raise ValueError('Seedance 音画时长异常，请检查原始视频')
+        dest=folder/f'native-{i+1}-normal.mkv'
+        # Preserve the original sound and timestamp origin. Frame-rate conversion
+        # changes sampling, never playback speed; padding only fills encoder tail.
+        # PCM intermediates avoid accumulating AAC encoder delay at each cut.
+        run([args.ffmpeg,'-y','-v','error','-i',source,'-map','0:v:0','-map','0:a:0','-vf','fps=25,scale=trunc(iw/2)*2:trunc(ih/2)*2','-af','apad','-t',sec,'-c:v','libx264','-preset','fast','-crf','18','-c:a','pcm_s16le','-ar','24000','-ac','1',dest])
+        normals.append(dest)
+    if not normals:raise ValueError('Seedance 未返回任何人物片段')
+    listing=folder/'native-concat.txt';listing.write_text(''.join("file '"+str(p).replace("'","'\\''")+"'\n" for p in normals),encoding='utf-8')
+    video=folder/'native.mp4'
+    run([args.ffmpeg,'-y','-v','error','-f','concat','-safe','0','-i',listing,'-c:v','copy','-c:a','aac','-movflags','+faststart',video])
+    measured=duration(probe(args,video),'video')
+    run([args.ffmpeg,'-y','-v','error','-i',video,'-map','0:a:0','-vn','-af','apad','-t',measured,'-ar','24000','-ac','1',folder/'audio.wav'])
+    previous=args.inp;args.inp={'segment':seg,'native_speech':True}
+    try:result=command_audio(args)
+    finally:args.inp=previous
+    if abs(result['duration']-measured)>.05:raise ValueError('提取的原声与人物时长不一致')
+    return {**result,'duration':measured,'video':seg['id']+'/native.mp4','audio':seg['id']+'/audio.wav'}
 
 def command_audio(args):
     seg=args.inp['segment'];folder=args.task/seg['id'];audio=folder/'audio.wav'
@@ -114,6 +156,10 @@ def command_audio(args):
     else:words=mod.asr_whisper(str(audio),args.asr_model_dir or 'small')
     if not words:raise ValueError('Alignment produced no measured words')
     data=mod.align([seg['text']],words)
+    if args.inp.get('native_speech'):
+        write(folder/'native-transcript.json',{'words':words,'alignment':data,'status':'measured-ASR-not-human-review'})
+        if not data.get('sentences') or not all(s.get('ok') for s in data['sentences']):
+            raise ValueError('Seedance 原声与确认文案存在识别差异，请检查漏读或改词；原视频和识别结果已保留，未替换为 TTS')
     if not data.get('sentences') or not data['sentences'][0].get('words'):raise ValueError('Alignment has no usable word mapping')
     if not all(s.get('ok') for s in data['sentences']):warnings.append(seg['id']+'：配音识别/字词对齐存在差异，请试听；继续制作')
     for s in data['sentences']:
@@ -228,7 +274,7 @@ def template_manifest(args,need):
     selected=need.get('items') or []
     if selected and len(selected)<=4 and all(isinstance(p,str) and p.strip() and p in seg['text'] for p in selected):phrases=selected
     plan=getattr(args,'inp',{}).get('motion_plan')
-    if args.state['input']['style'].startswith('mg-') and not plan:raise ValueError('动效缺少本段内容方案，不能使用演示视频替代')
+    if args.state['input']['style'].startswith(('mg-', 'explain-')) and not plan:raise ValueError('动效缺少本段内容方案，不能使用演示视频替代')
     window=motion_window(args.state.get('needs',[]),need,seg.get('duration',need['duration']))
     required=[need['narration_quote']] if need.get('narration_quote') else []
     return {'width':w,'height':h,'fps':25,'duration':need['duration'],'style':args.state['input']['style'],'template':need.get('template','highlight'),'title':seg.get('chapter') or '', 'brief':need['content'],'text':seg['text'],'items':phrases[:4],'render_mode':'content-motion' if plan else 'semantic','motion_plan':plan,'words':[w for s in timing['sentences'] for w in s['words']],'narration_window':window,'required_quotes':required}
@@ -546,7 +592,7 @@ def command_render(args):
     with zipfile.ZipFile(project,'w',zipfile.ZIP_DEFLATED) as archive:
         for path in ROOT.joinpath('src').rglob('*'):
             if path.is_file():archive.write(path,'src/'+path.relative_to(ROOT/'src').as_posix())
-        for name in ['package.json','package-lock.json','tsconfig.json','UPSTREAM.json','TALKCRAFT-LICENSE','workflow-render.mjs','director-motion.mjs','motion-checks.mjs','content-motion.mjs','caption-pages.mjs','catalog-previews.mjs','mg-native.mjs','mg-shell.js','native-styles.json']:
+        for name in ['package.json','package-lock.json','tsconfig.json','UPSTREAM.json','TALKCRAFT-LICENSE','workflow-render.mjs','director-motion.mjs','motion-checks.mjs','content-motion.mjs','caption-pages.mjs','catalog-previews.mjs','mg-native.mjs','mg-shell.js','native-styles.json','explainer-styles.json']:
             archive.write(ROOT/name,name)
         for folder in ['talkcraft','templates','mg-upstream']:
             for path in (ROOT/folder).rglob('*'):
@@ -581,6 +627,114 @@ def command_motion_validate(args):
 
 COMMANDS={k[8:]:v for k,v in list(globals().items()) if k.startswith('command_')}
 COMMANDS['portrait-frames']=command_portrait_frames
+
+def command_3d_opener(args):
+    """Render a Three.js 3D opener via Remotion. Output is a self-contained MP4."""
+    import shlex
+    need_id = args.inp.get('need_id', '3d-opener')
+    title   = args.inp.get('title', '')
+    subtitle= args.inp.get('subtitle', '')
+    accent  = args.inp.get('accent_color', '#38bdf8')
+    dur_sec = max(8, min(15, int(args.inp.get('duration', 10))))
+    ratio   = args.inp.get('ratio', '16:9')
+    w, h    = dimensions(ratio)
+    dest    = args.task / 'materials' / (need_id + '.mp4')
+    dest.parent.mkdir(parents=True, exist_ok=True)
+    props_path = args.task / ('opener-props-' + need_id + '.json')
+    write(props_path, {
+        'compositionId': 'ThreeOpener',
+        'inputProps': {
+            'title': title,
+            'subtitle': subtitle,
+            'accentColor': accent,
+            'durationSec': dur_sec,
+        },
+        'durationInFrames': dur_sec * 25,
+        'fps': 25,
+        'width': w,
+        'height': h,
+        'outputLocation': str(dest),
+    })
+    run([args.node, ROOT / 'workflow-render.mjs', 'render-composition', props_path])
+    if not dest.exists():
+        raise ValueError('3D 片头渲染失败，输出文件不存在')
+    info = probe(args, dest)
+    sec  = duration(info, 'video')
+    return {
+        'need_id': need_id,
+        'path': 'materials/' + need_id + '.mp4',
+        'kind': 'real',
+        'duration': sec,
+        'width': w,
+        'height': h,
+    }
+
+def command_chromakey(args):
+    """Remove green-screen from an avatar video and composite onto a background."""
+    need_id    = args.inp['need_id']
+    source     = safe_file(args.task, args.inp['source_path'])
+    background = args.inp.get('background', 'color')
+    bg_color   = args.inp.get('background_color', '#0f172a').lstrip('#')
+    chroma_hex = args.inp.get('chroma_color', '0x00FF00').replace('#', '0x').replace('0X', '0x')
+    similarity = max(0.1, min(0.5, float(args.inp.get('similarity', 0.28))))
+    blend_val  = max(0.0, min(0.2, float(args.inp.get('blend', 0.08))))
+
+    dest_alpha = args.task / 'materials' / (need_id + '-alpha.webm')
+    dest_comp  = args.task / 'materials' / (need_id + '-composite.mp4')
+    dest_alpha.parent.mkdir(parents=True, exist_ok=True)
+
+    # Step 1: extract with alpha channel (VP9 supports transparency)
+    run([
+        args.ffmpeg, '-y', '-v', 'error',
+        '-i', source,
+        '-vf', f'chromakey={chroma_hex}:{similarity}:{blend_val}',
+        '-c:v', 'libvpx-vp9', '-auto-alt-ref', '0',
+        '-b:v', '0', '-crf', '18', '-an',
+        dest_alpha,
+    ])
+
+    if background == 'color':
+        # Step 2a: overlay alpha webm onto solid colour
+        run([
+            args.ffmpeg, '-y', '-v', 'error',
+            '-f', 'lavfi', '-i', f'color=0x{bg_color}:size={args.inp.get("width", 720)}x{args.inp.get("height", 1280)}:rate=25',
+            '-i', dest_alpha,
+            '-filter_complex', '[0][1]overlay=format=auto',
+            '-t', str(duration(probe(args, dest_alpha), 'video')),
+            '-c:v', 'libx264', '-preset', 'fast', '-crf', '18',
+            '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
+            dest_comp,
+        ])
+    elif background == 'video':
+        bg_path = safe_file(args.task, args.inp['background_path'])
+        run([
+            args.ffmpeg, '-y', '-v', 'error',
+            '-i', bg_path,
+            '-i', dest_alpha,
+            '-filter_complex', '[0][1]overlay=format=auto',
+            '-t', str(duration(probe(args, dest_alpha), 'video')),
+            '-c:v', 'libx264', '-preset', 'fast', '-crf', '18',
+            '-pix_fmt', 'yuv420p', '-movflags', '+faststart',
+            dest_comp,
+        ])
+    else:
+        # background == 'studio': renderer will composite at render time;
+        # just output the alpha webm as the deliverable
+        dest_comp = dest_alpha
+
+    info = probe(args, dest_comp)
+    sec  = duration(info, 'video')
+    return {
+        'need_id': need_id,
+        'path': 'materials/' + dest_comp.name,
+        'kind': 'real',
+        'duration': sec,
+        'has_alpha': background == 'studio',
+        'alpha_path': 'materials/' + dest_alpha.name,
+    }
+
+COMMANDS['3d-opener']  = command_3d_opener
+COMMANDS['chromakey']  = command_chromakey
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('stage',choices=COMMANDS);parser.add_argument('--task-dir',required=True);parser.add_argument('--ffmpeg',default='ffmpeg');parser.add_argument('--ffprobe',default='ffprobe');parser.add_argument('--node',default='node');parser.add_argument('--asr-backend',default='whisper');parser.add_argument('--asr-model-dir',default='')

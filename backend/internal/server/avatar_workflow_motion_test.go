@@ -42,20 +42,36 @@ func TestContentMotionUsesAvatarFramesAndReusesValidatedPlanOnRenderRetry(t *tes
 		t.Fatal(err)
 	}
 	modelCalls, renderCalls := 0, 0
-	w.content = func(_ context.Context, prompt string, input any, frames []string) (json.RawMessage, error) {
+	w.content = func(ctx context.Context, prompt string, input any, frames []string) (json.RawMessage, error) {
 		modelCalls++
 		in := input.(map[string]any)
-		if len(frames) != 1 || frames[0] != "actual-avatar-frame" || in["visual_source"] != "generated-avatar-frames" || in["direction"] != s.Input.Direction {
-			t.Fatalf("missing actual context: %v", in)
+		// Only the design phase receives the avatar frames and style reference;
+		// the per-scene code phase receives one scene plus the code budget.
+		if !avatar.MotionCodeEnabled(ctx) {
+			if len(frames) != 1 || frames[0] != "actual-avatar-frame" || in["visual_source"] != "generated-avatar-frames" || in["direction"] != s.Input.Direction {
+				t.Fatalf("missing actual context: %v", in)
+			}
+			if strings.Contains(fmt.Sprint(in["style_reference"]), "SOFT") || !strings.Contains(prompt, "不能复制参考片") {
+				t.Fatal("demo story leaked into motion planning")
+			}
+			return json.RawMessage(`{"version":"content-motion/1","tone":"warm","visual_context":"人物背景为暖色","scenes":[{"quote":"研发投入110亿元","title":"研发投入","layout":"data","elements":[{"label":"110亿元","kind":"coin"}]}]}`), nil
 		}
-		if strings.Contains(fmt.Sprint(in["style_reference"]), "SOFT") || !strings.Contains(prompt, "不能复制参考片") {
-			t.Fatal("demo story leaked into motion planning")
+		var scene avatar.MotionScene
+		if b, _ := json.Marshal(in["scene"]); json.Unmarshal(b, &scene) != nil || scene.Title == "" {
+			t.Fatalf("code phase must receive exactly one scene: %v", in["scene"])
 		}
-		return json.RawMessage(`{"version":"content-motion/1","tone":"warm","visual_context":"人物背景为暖色","scenes":[{"quote":"研发投入110亿元","title":"研发投入","layout":"data","elements":[{"label":"110亿元","kind":"coin"}]}]}`), nil
+		return json.RawMessage(`{"code":"ctx.fillRect(0,0,w,h);ctx.fillText(scene.title,20,40);"}`), nil
 	}
 	w.media = func(_ context.Context, stage, dir string) (json.RawMessage, error) {
 		if stage == "motion_context" {
 			return json.RawMessage(`{"frames":["actual-avatar-frame"],"source":"generated-avatar-frames","avatar_ids":["host"]}`), nil
+		}
+		// All styles now plan in two phases; timing is measured locally.
+		if stage == "motion_timing" {
+			return json.RawMessage(`{"scenes":[{"quote":"研发投入110亿元","title":"研发投入","layout":"data","elements":[{"label":"110亿元","kind":"coin","local_at":0.5}],"duration":4}],"animation":{}}`), nil
+		}
+		if stage == "motion_validate" {
+			return json.RawMessage(`{"valid":true}`), nil
 		}
 		if stage != "material" {
 			t.Fatalf("unexpected stage %s", stage)
@@ -81,8 +97,10 @@ func TestContentMotionUsesAvatarFramesAndReusesValidatedPlanOnRenderRetry(t *tes
 	if err := w.produceMaterial(context.Background(), &s, need, "F07"); err != nil {
 		t.Fatal(err)
 	}
-	if modelCalls != 1 || renderCalls != 2 || s.Materials[1].MotionPlan == nil {
-		t.Fatalf("plan lost or model resubmitted: %d %d", modelCalls, renderCalls)
+	// Design runs once; one scene means one code request. The render retry must
+	// not resubmit either phase — only the local encoder is retried.
+	if modelCalls != 2 || renderCalls != 2 || s.Materials[1].MotionPlan == nil {
+		t.Fatalf("plan lost or model resubmitted: modelCalls=%d renderCalls=%d", modelCalls, renderCalls)
 	}
 	before := w.motionFingerprint(&s, need, s.Segments[0])
 	s.Materials[0].Fingerprint = "new-host-frame"

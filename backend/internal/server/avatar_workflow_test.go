@@ -21,7 +21,16 @@ func workflowFixture(t *testing.T) (*App, uuid.UUID, models.Project, avatar.Work
 	a := newTestApp(t)
 	owner := uuid.New()
 	a.avatarMVP.options.DataRoot = t.TempDir()
-	in := avatar.WorkflowInput{Revision: 1, Script: "第一句。第二句。", Style: "flat-vector", Voice: "Cherry", Ratio: "9:16"}
+	// Native speech generates picture and sound through the video service, so
+	// every workflow fixture needs a working provider stub.
+	a.avatarMVP.options.Protocol = "runninghub"
+	a.avatarMVP.options.BaseURL = "https://test.invalid"
+	a.avatarMVP.options.APIKey = "unit-test"
+	a.avatarMVP.options.Model = avatar.NativeSpeechModel
+	a.avatarMVP.options.GenerationPath = avatar.SeedancePath
+	a.avatarMVP.provider = &workflowProviderSpy{ready: true}
+	a.avatarMVP.providerErr = nil
+	in := avatar.WorkflowInput{Revision: 1, SpeechMode: avatar.NativeSpeechMode, Script: "第一句。第二句。", Style: "flat-vector", Ratio: "9:16"}
 	p := models.Project{Name: "workflow", OwnerID: owner, ProjectMetadata: jsonMap(map[string]any{"kind": "avatar_mvp", "avatar_v2": in})}
 	if err := a.db.Create(&p).Error; err != nil {
 		t.Fatal(err)
@@ -141,8 +150,26 @@ func TestAvatarWorkflowQualityWarningsDoNotBlockDelivery(t *testing.T) {
 	var stages []string
 	w.media = func(_ context.Context, stage, dir string) (json.RawMessage, error) {
 		stages = append(stages, stage)
-		if stage == "audio" {
-			return json.RawMessage(`{"duration":2,"warnings":["对齐检查脚本未完成"]}`), nil
+		if stage == "voice_reference" {
+			// Later paragraphs borrow the sound of the first one; the stub only
+			// needs to hand back an existing file.
+			os.WriteFile(filepath.Join(dir, "voice-reference.wav"), []byte("unit-test-audio"), 0600)
+			return json.RawMessage(`{"path":"voice-reference.wav"}`), nil
+		}
+		if stage == "native_speech" {
+			// Seedance returns picture and sound together; this fixture only needs
+			// the resulting files and their measured duration.
+			var in struct {
+				Segment avatar.Segment `json:"segment"`
+			}
+			b, _ := os.ReadFile(filepath.Join(dir, "media-input.json"))
+			json.Unmarshal(b, &in)
+			os.MkdirAll(filepath.Join(dir, in.Segment.ID), 0700)
+			for _, name := range []string{"native.mp4", "audio.wav", "timestamps.json", "alignment-cache.json"} {
+				os.WriteFile(filepath.Join(dir, in.Segment.ID, name), []byte("unit-test-media"), 0600)
+			}
+			b, _ = json.Marshal(map[string]any{"duration": 2, "video": in.Segment.ID + "/native.mp4", "audio": in.Segment.ID + "/audio.wav", "warnings": []string{"对齐检查脚本未完成"}})
+			return b, nil
 		}
 		if stage == "material" {
 			var in struct {
@@ -172,20 +199,22 @@ func TestAvatarWorkflowQualityWarningsDoNotBlockDelivery(t *testing.T) {
 		os.MkdirAll(p, 0700)
 		os.WriteFile(filepath.Join(p, "audio.wav"), []byte("unit-test-audio"), 0600)
 	}
-	s, _ = w.load(context.Background(), owner, s.ID)
-	w.execute(s, owner)
-	s, _ = w.load(context.Background(), owner, s.ID)
-	if s.Confirmation != "audio" || len(s.Needs) != 0 {
-		t.Fatalf("F05 executed before audio confirmation: %s", s.Error)
-	}
-	if err := w.confirm(context.Background(), owner, s.ID, "audio", s.ConfirmationVersion, nil); err != nil {
-		t.Fatal(err)
-	}
+	// Native speech confirms its own sound, so there is no separate audio gate:
+	// the run goes straight from F04 to planning and must still deliver.
 	s, _ = w.load(context.Background(), owner, s.ID)
 	w.execute(s, owner)
 	s, _ = w.load(context.Background(), owner, s.ID)
 	if s.Status != "succeeded" || len(s.Events) < 2 || !strings.Contains(strings.Join(stages, ","), "preview,render") {
 		t.Fatalf("quality blocked delivery: %s %s %#v", s.Status, s.Error, stages)
+	}
+	quality := 0
+	for _, event := range s.Events {
+		if event.Type == "quality" {
+			quality++
+		}
+	}
+	if quality == 0 {
+		t.Fatal("quality warnings were expected to be recorded while still delivering")
 	}
 	for _, event := range s.Events {
 		if event.Read {
@@ -221,8 +250,10 @@ func (p *workflowProviderSpy) Query(_ context.Context, id string) (avatar.Provid
 func (p *workflowProviderSpy) Download(_ context.Context, _ string, path string) error {
 	return os.WriteFile(path, []byte("unit-test-video"), 0600)
 }
-func TestAvatarWorkflowResumeQueriesKnownOrderWithoutSubmit(t *testing.T) {
-	a, owner, _, s := workflowFixture(t)
+// F06 must hand back the footage F04 already paid for. It copies the file and
+// records any quality warning, but never contacts the provider again.
+func TestAvatarWorkflowF06ReusesNativeFootageWithoutSubmitting(t *testing.T) {
+	a, _, _, s := workflowFixture(t)
 	w := a.avatarWorkflow
 	spy := &workflowProviderSpy{}
 	a.avatarMVP.provider = spy
@@ -231,42 +262,35 @@ func TestAvatarWorkflowResumeQueriesKnownOrderWithoutSubmit(t *testing.T) {
 	photo := avatar.SourceAsset{ID: "photo", Kind: "photo", Path: "assets/photo"}
 	s.Input.Photo = photo.ID
 	s.Input.Assets = []avatar.SourceAsset{photo}
-	s.Segments = []avatar.Segment{{ID: "p1", Text: "一。", Audio: "p1/audio.wav", Duration: 2, Fingerprint: "audio"}}
+	s.Segments = []avatar.Segment{{ID: "p1", Text: "一。", Audio: "p1/audio.wav", NativeVideo: "p1/native.mp4", Duration: 2}}
+	s.Segments[0].Fingerprint = w.nativeSpeechFingerprint(&s, s.Segments[0])
 	w.save(&s)
 	w.media = func(_ context.Context, stage, dir string) (json.RawMessage, error) {
-		if stage == "pieces" {
-			return json.RawMessage(`{"pieces":[{"id":"c1","start":0,"duration":2,"audio":"pieces/n1-c1.wav"}]}`), nil
-		}
-		os.WriteFile(filepath.Join(dir, "materials", "n1.mp4"), []byte("unit-test-video"), 0600)
-		return json.RawMessage(`{"need_id":"n1","segment_id":"p1","kind":"avatar","duration":2,"path":"materials/n1.mp4","warnings":["声音对比检查异常"]}`), nil
+		t.Fatalf("F06 must not render a second video: stage=%s", stage)
+		return nil, nil
 	}
-	os.MkdirAll(w.dir(s.ID), 0700)
-	os.MkdirAll(filepath.Join(w.projectDir(s.ProjectID), "assets"), 0700)
+	for _, dir := range []string{w.dir(s.ID), filepath.Join(w.projectDir(s.ProjectID), "assets")} {
+		os.MkdirAll(filepath.Join(dir, "p1"), 0700)
+		os.MkdirAll(dir, 0700)
+	}
+	os.WriteFile(filepath.Join(w.dir(s.ID), "p1", "native.mp4"), []byte("paid-footage"), 0600)
 	os.WriteFile(filepath.Join(w.projectDir(s.ProjectID), "assets", "photo"), []byte("unit-test-photo"), 0600)
 	need := avatar.MaterialNeed{ID: "n1", SegmentID: "p1", Kind: "avatar", Duration: 2, Angle: "正面"}
-	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
-	defer cancel()
-	if w.produceMaterial(ctx, &s, need, "F06") == nil {
-		t.Fatal("expected query interruption")
-	}
-	if spy.submit != 1 {
-		t.Fatalf("submit count %d", spy.submit)
-	}
-	s, _ = w.load(context.Background(), owner, s.ID)
-	spy.ready = true
 	if err := w.produceMaterial(context.Background(), &s, need, "F06"); err != nil {
 		t.Fatal(err)
 	}
-	if spy.submit != 1 || len(s.Materials) != 1 {
-		t.Fatalf("resubmitted known order: %d", spy.submit)
+	if spy.submit != 0 {
+		t.Fatalf("F06 contacted the provider %d times", spy.submit)
 	}
-	for _, id := range spy.ids {
-		if id != "original-order" {
-			t.Fatal("queried a different order")
-		}
+	if len(s.Materials) != 1 || s.Materials[0].Kind != "avatar" {
+		t.Fatalf("missing reused material: %#v", s.Materials)
 	}
-	if s.Status != "running" || len(s.Events) == 0 {
-		t.Fatal("quality warning changed state")
+	copied, err := os.ReadFile(filepath.Join(w.dir(s.ID), s.Materials[0].Path))
+	if err != nil || string(copied) != "paid-footage" {
+		t.Fatalf("material is not the F04 footage: %v", err)
+	}
+	if s.Status != "running" {
+		t.Fatal("material reuse changed state")
 	}
 }
 
@@ -285,8 +309,18 @@ func TestAvatarWorkflowRevisionReusesUnchangedDependencies(t *testing.T) {
 	s.Status = "succeeded"
 	s.ScriptConfirmed = true
 	s.Script = "第一句。第二句。"
-	s.Segments = []avatar.Segment{{ID: "p1", Text: s.Script, Audio: "p1/audio.wav", Duration: 4, Fingerprint: "approved-audio"}}
+	s.Segments = []avatar.Segment{{ID: "p1", Text: s.Script, Audio: "p1/audio.wav", NativeVideo: "p1/native.mp4", Duration: 4}}
+	// Native speech derives the segment identity from its inputs, so the fixture
+	// must record the value inherit() will recompute rather than a literal.
+	s.Segments[0].Fingerprint = a.avatarWorkflow.nativeSpeechFingerprint(&s, s.Segments[0])
+	approved := s.Segments[0].Fingerprint
 	s.Needs = []avatar.MaterialNeed{{ID: "n1", SegmentID: "p1", Kind: "animation", Duration: 4, Template: "steps"}}
+	// Confirmed narration is only reusable when the files it names still exist.
+	for _, name := range []string{"audio.wav", "timestamps.json", "alignment-cache.json", "native.mp4"} {
+		path := filepath.Join(a.avatarWorkflow.dir(s.ID), "p1", name)
+		os.MkdirAll(filepath.Dir(path), 0700)
+		os.WriteFile(path, []byte("fixture"), 0600)
+	}
 	a.avatarWorkflow.save(&s)
 	var input = s.Input
 	input.Style = "line-art"
@@ -296,7 +330,7 @@ func TestAvatarWorkflowRevisionReusesUnchangedDependencies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !next.ScriptConfirmed || len(next.Needs) != 1 || a.avatarWorkflow.audioFingerprint(&next, next.Segments[0]) != "approved-audio" {
+	if !next.ScriptConfirmed || len(next.Needs) != 1 || a.avatarWorkflow.audioFingerprint(&next, next.Segments[0]) != approved {
 		t.Fatal("style change invalidated approved content or voice")
 	}
 	a.avatarWorkflow.stop(context.Background(), owner, next.ID)
@@ -306,7 +340,7 @@ func TestAvatarWorkflowRevisionReusesUnchangedDependencies(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if a.avatarWorkflow.audioFingerprint(&regen, regen.Segments[0]) == "approved-audio" {
+	if a.avatarWorkflow.audioFingerprint(&regen, regen.Segments[0]) == approved {
 		t.Fatal("explicit regeneration incorrectly reused audio")
 	}
 }
@@ -374,8 +408,9 @@ func TestAvatarWorkflowRenderOnlyRevisionReusesLockedAudioWithoutNewGate(t *test
 	previous.ScriptConfirmed = true
 	previous.AudioConfirmed = true
 	previous.Script = "第一句。第二句。"
-	previous.Segments = []avatar.Segment{{ID: "p1", Text: previous.Script, Audio: "p1/audio.wav", Fingerprint: "confirmed", Duration: 4}}
-	for _, name := range []string{"audio.wav", "timestamps.json", "alignment-cache.json"} {
+	previous.Segments = []avatar.Segment{{ID: "p1", Text: previous.Script, Audio: "p1/audio.wav", NativeVideo: "p1/native.mp4", Duration: 4}}
+	previous.Segments[0].Fingerprint = w.nativeSpeechFingerprint(&previous, previous.Segments[0])
+	for _, name := range []string{"audio.wav", "timestamps.json", "alignment-cache.json", "native.mp4"} {
 		p := filepath.Join(w.dir(previous.ID), "p1", name)
 		os.MkdirAll(filepath.Dir(p), 0700)
 		os.WriteFile(p, []byte("fixture"), 0600)

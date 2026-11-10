@@ -17,6 +17,8 @@ var SafeID = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_-]{0,63}$`)
 var WorkflowNodes = []string{"F01.2", "F01.4", "F01.6", "F02", "F03", "F04", "F05", "F06", "F07", "F08", "F09", "F10", "F11", "F11.1", "F11.2", "F12"}
 
 type WorkflowInput struct {
+	SpeechMode         string             `json:"speech_mode,omitempty"`
+	VoiceReference     string             `json:"voice_reference,omitempty"`
 	Revision           int                `json:"revision"`
 	Title              string             `json:"title"`
 	Topic              string             `json:"topic"`
@@ -57,6 +59,9 @@ type SourceDescription struct {
 	Coverage string  `json:"coverage"`
 }
 type Segment struct {
+	NativePrompt    string  `json:"native_prompt,omitempty"`
+	NativeRevision  string  `json:"native_revision,omitempty"`
+	NativeVideo     string  `json:"native_video,omitempty"`
 	DirectorSceneID string  `json:"director_scene_id,omitempty"`
 	ID              string  `json:"id"`
 	Chapter         string  `json:"chapter"`
@@ -287,6 +292,7 @@ func (s *WorkflowState) RefreshBilling() {
 
 // Edits create a new immutable run. They cannot redirect the fixed workflow.
 type WorkflowEdits struct {
+	NativePrompts      map[string]string   `json:"native_prompts,omitempty"`
 	MaterialOnly       string              `json:"material_only,omitempty"`
 	Director           *DirectorPlan       `json:"director,omitempty"`
 	RerunFrom          string              `json:"rerun_from,omitempty"`
@@ -395,6 +401,9 @@ func ValidateSegments(script string, segments []Segment) error {
 	return nil
 }
 func ValidateNeeds(in WorkflowInput, segs []Segment, needs []MaterialNeed) error {
+	if NativeSpeech(in) {
+		in.Angles = []string{"正面"}
+	}
 	ss := map[string]Segment{}
 	for _, s := range segs {
 		ss[s.ID] = s

@@ -32,15 +32,12 @@ type avatarWorkflowService struct {
 	app     *App
 	content func(context.Context, string, any, []string) (json.RawMessage, error)
 	media   func(context.Context, string, string) (json.RawMessage, error)
-	// talking selects the voice-driven avatar model for new F06 orders.
-	talking func() (avatarTalkingProvider, error)
 }
 
 func newAvatarWorkflow(a *App) *avatarWorkflowService {
 	w := &avatarWorkflowService{app: a}
 	w.content = a.openai.AvatarContent
 	w.media = w.runMedia
-	w.talking = w.defaultTalking
 	return w
 }
 func (w *avatarWorkflowService) root() string {
@@ -241,6 +238,10 @@ func (w *avatarWorkflowService) createToChecked(ctx context.Context, owner, proj
 		}
 		// Resolve legacy voice defaults before deciding which previous audio can
 		// be inherited into this new run.
+		defaultNative := in.SpeechMode == "" && len(editOptions) == 0
+		if defaultNative {
+			in.SpeechMode = avatar.NativeSpeechMode
+		}
 		if err := w.validateInput(&in, false); err != nil {
 			return err
 		}
@@ -249,6 +250,10 @@ func (w *avatarWorkflowService) createToChecked(ctx context.Context, owner, proj
 		s = avatar.WorkflowState{ID: id.String(), ProjectID: projectID.String(), Version: avatar.WorkflowVersion, Input: in, ConfigID: w.app.avatarMVP.options.VideoConfigID(), Script: in.Script, Status: "running", Stage: "F01", CreatedAt: now, UpdatedAt: now, Steps: []avatar.WorkflowStep{}, Events: []avatar.WorkflowEvent{}, Artifacts: []avatar.WorkflowArtifact{}, Segments: []avatar.Segment{}, Materials: []avatar.Material{}, Needs: []avatar.MaterialNeed{}, Shots: []avatar.WorkflowShot{}}
 		s.TargetNode = target
 		s.ConfigSnapshot = w.configSnapshot()
+		if avatar.NativeSpeech(in) {
+			s.ConfigSnapshot["avatar_footage"] = "native:" + avatar.NativeSpeechModel
+			delete(s.ConfigSnapshot, "portrait_policy")
+		}
 		s.ConfigID = workflowConfigID(s.ConfigSnapshot)
 		edits := avatar.WorkflowEdits{}
 		if len(editOptions) > 0 {
@@ -285,7 +290,7 @@ func (w *avatarWorkflowService) createToChecked(ctx context.Context, owner, proj
 		}
 		// Keep an accepted voice change in the draft as well as this run. The
 		// revision and run admission commit together, so retries cannot lose it.
-		if (edits.Voice != "" && (in.Voice != s.Input.Voice || in.VoiceModel != s.Input.VoiceModel)) || edits.VoiceSpeed != nil || edits.SegmentVoiceSpeeds != nil || edits.Presentation != nil || edits.Subtitles != nil || avatar.Digest(in.SubtitleEdits) != avatar.Digest(s.Input.SubtitleEdits) {
+		if defaultNative || (edits.Voice != "" && (in.Voice != s.Input.Voice || in.VoiceModel != s.Input.VoiceModel)) || edits.VoiceSpeed != nil || edits.SegmentVoiceSpeeds != nil || edits.Presentation != nil || edits.Subtitles != nil || avatar.Digest(in.SubtitleEdits) != avatar.Digest(s.Input.SubtitleEdits) {
 			in.Voice = s.Input.Voice
 			in.VoiceModel = s.Input.VoiceModel
 			in.VoiceSpeed = s.Input.VoiceSpeed
@@ -537,8 +542,24 @@ func (w *avatarWorkflowService) retryWithRequest(ctx context.Context, owner uuid
 }
 func (w *avatarWorkflowService) runMedia(ctx context.Context, stage, dir string) (json.RawMessage, error) {
 	o := w.app.avatarMVP.options
+	// Remotion/Chromium can copy the whole public task directory into /tmp.
+	// Isolate each command's temporary data outside that public directory and
+	// remove it after either success or failure. Crash leftovers are swept later.
+	scratchRoot, err := filepath.Abs(filepath.Join(o.DataRoot, ".scratch"))
+	if err != nil {
+		return nil, err
+	}
+	if err = os.MkdirAll(scratchRoot, 0700); err != nil {
+		return nil, err
+	}
+	scratch, err := os.MkdirTemp(scratchRoot, "media-")
+	if err != nil {
+		return nil, err
+	}
+	defer os.RemoveAll(scratch)
 	cmd := exec.CommandContext(ctx, o.Python, filepath.Join(o.RuntimeRoot, "workflow.py"), stage, "--task-dir", dir, "--ffmpeg", o.FFmpeg, "--ffprobe", o.FFprobe, "--node", o.Node, "--asr-backend", o.ASRBackend, "--asr-model-dir", o.ASRModelDir)
 	cmd.Dir = o.RuntimeRoot
+	cmd.Env = append(os.Environ(), "TMPDIR="+scratch, "TMP="+scratch, "TEMP="+scratch)
 	var tail workflowLogTail
 	cmd.Stdout = &tail
 	cmd.Stderr = &tail
@@ -606,6 +627,8 @@ func (a *App) workflowProjectCreate(c *gin.Context) {
 		return
 	}
 	in.Revision = 1
+	in.SpeechMode = avatar.NativeSpeechMode
+	in.VoiceReference = ""
 	in.Photo = ""
 	in.Assets = []avatar.SourceAsset{}
 	if err := a.avatarWorkflow.validateInput(&in, false); err != nil {
@@ -854,6 +877,8 @@ func (a *App) workflowUpload(c *gin.Context) {
 		fail(c, 404, "项目不存在")
 		return
 	}
+	unlock := lockPackageProject(id.String())
+	defer unlock()
 	_, _, err = a.avatarWorkflow.project(c.Request.Context(), getUser(c).ID, id)
 	if err != nil {
 		workflowError(c, err)
@@ -866,8 +891,11 @@ func (a *App) workflowUpload(c *gin.Context) {
 		return
 	}
 	defer file.Close()
+	if c.Request.MultipartForm != nil {
+		defer c.Request.MultipartForm.RemoveAll()
+	}
 	kind := c.Request.FormValue("kind")
-	if kind != "photo" && kind != "video" && kind != "image" && kind != "text" {
+	if kind != "photo" && kind != "video" && kind != "image" && kind != "text" && kind != "audio" {
 		fail(c, 400, "素材类型无效")
 		return
 	}
@@ -907,7 +935,7 @@ func (a *App) workflowUpload(c *gin.Context) {
 	avatar.WriteJSON(filepath.Join(probeDir, "probe-input.json"), map[string]any{"path": path, "kind": kind})
 	raw, err := a.avatarWorkflow.media(c.Request.Context(), "probe", probeDir)
 	if err != nil {
-		fail(c, 400, "文件无法解码或不符合图片/视频要求")
+		fail(c, 400, "文件无法解码或不符合素材要求；参考音色需为 2–30 秒且不超过 20MB 的有效音频")
 		return
 	}
 	var info struct {
@@ -934,6 +962,9 @@ func (a *App) workflowUpload(c *gin.Context) {
 		}
 		if kind == "photo" {
 			in.Photo = assetID
+		}
+		if kind == "audio" {
+			in.VoiceReference = assetID
 		}
 		in.Assets = append(in.Assets, source)
 		in.Revision++

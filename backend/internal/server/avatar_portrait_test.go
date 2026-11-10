@@ -61,39 +61,6 @@ func TestPortraitUnknownOrderIsNeverSubmittedTwice(t *testing.T) {
 	}
 }
 
-func TestF06InjectsSkillUsesPreparedReferenceAndReviewsVideo(t *testing.T) {
-	w, s, need, spy := talkingWorkflow(t)
-	s.ConfigSnapshot["portrait_policy"] = encodePortraitPolicy(currentPortraitPolicy())
-	w.save(s)
-	original := w.media
-	w.media = func(ctx context.Context, stage, dir string) (json.RawMessage, error) {
-		if stage == "portrait-frames" {
-			return json.RawMessage(`{"frames":["data:image/jpeg;base64,eA=="]}`), nil
-		}
-		return original(ctx, stage, dir)
-	}
-	calls := 0
-	w.content = func(context.Context, string, any, []string) (json.RawMessage, error) {
-		calls++
-		return json.RawMessage(`{"frontal":"pass","gaze":"pass","identity":"pass","detail":"pass","framing":"pass"}`), nil
-	}
-	need.Prompt = "面部略朝右。暖色光线"
-	if err := w.produceMaterial(context.Background(), s, need, "F06"); err != nil {
-		t.Fatal(err)
-	}
-	if calls != 2 || len(spy.requests) != 1 {
-		t.Fatalf("reviews=%d requests=%d", calls, len(spy.requests))
-	}
-	if !strings.Contains(spy.requests[0].Prompt, "毛孔") || strings.Contains(spy.requests[0].Prompt, "略朝右") {
-		t.Fatal(spy.requests[0].Prompt)
-	}
-	for _, step := range s.Steps {
-		if step.ID == "F06/n1-c1" && !strings.Contains(string(step.PromptInput), "skill_hash") {
-			t.Fatal("skill evidence absent")
-		}
-	}
-}
-
 func TestPortraitPolicyPinsSkillAndModelAndChangesFootageIdentity(t *testing.T) {
 	p := currentPortraitPolicy()
 	if !strings.Contains(p.SkillText, "毛孔") || p.SkillHash == "" || p.Model == "" {

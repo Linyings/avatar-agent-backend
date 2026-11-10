@@ -2,7 +2,7 @@
   "id": "avatar.avatar",
   "version": "1.0.0",
   "tool": "avatar_avatar",
-  "title": "数字人生成",
+  "title": "人物素材组装",
   "node": "F06",
   "entrypoint": "run",
   "dependencies": [
@@ -11,7 +11,7 @@
   "outputs": [
     "人物视频"
   ],
-  "description": "使用已上传人物照片、配音与用户指定机位生成口播视频。自动复用前置步骤，只运行到本节点；确认节点需由用户在界面确认。",
+  "description": "新任务复用 F04 已生成的 Seedance 原声人物视频，按素材计划组装，不再次调用可灵或其他口型模型。历史任务按原合同恢复。",
   "input_schema": {
     "type": "object",
     "properties": {

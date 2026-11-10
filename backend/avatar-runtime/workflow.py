@@ -158,8 +158,6 @@ def command_audio(args):
     data=mod.align([seg['text']],words)
     if args.inp.get('native_speech'):
         write(folder/'native-transcript.json',{'words':words,'alignment':data,'status':'measured-ASR-not-human-review'})
-        if not data.get('sentences') or not all(s.get('ok') for s in data['sentences']):
-            raise ValueError('Seedance 原声与确认文案存在识别差异，请检查漏读或改词；原视频和识别结果已保留，未替换为 TTS')
     if not data.get('sentences') or not data['sentences'][0].get('words'):raise ValueError('Alignment has no usable word mapping')
     if not all(s.get('ok') for s in data['sentences']):warnings.append(seg['id']+'：配音识别/字词对齐存在差异，请试听；继续制作')
     for s in data['sentences']:

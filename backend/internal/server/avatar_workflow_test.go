@@ -266,6 +266,18 @@ func TestAvatarWorkflowF06ReusesNativeFootageWithoutSubmitting(t *testing.T) {
 	s.Segments[0].Fingerprint = w.nativeSpeechFingerprint(&s, s.Segments[0])
 	w.save(&s)
 	w.media = func(_ context.Context, stage, dir string) (json.RawMessage, error) {
+		if stage == "chromakey" {
+			os.MkdirAll(filepath.Join(dir, "materials"), 0700)
+			var inp struct {
+				NeedID string `json:"need_id"`
+			}
+			if b, e := os.ReadFile(filepath.Join(dir, "media-input.json")); e == nil {
+				json.Unmarshal(b, &inp)
+			}
+			name := inp.NeedID + "-alpha.webm"
+			os.WriteFile(filepath.Join(dir, "materials", name), []byte("alpha"), 0600)
+			return json.RawMessage(`{"need_id":"` + inp.NeedID + `","path":"materials/` + name + `","kind":"real","duration":2,"has_alpha":true,"alpha_path":"materials/` + name + `"}`), nil
+		}
 		t.Fatalf("F06 must not render a second video: stage=%s", stage)
 		return nil, nil
 	}
@@ -285,9 +297,12 @@ func TestAvatarWorkflowF06ReusesNativeFootageWithoutSubmitting(t *testing.T) {
 	if len(s.Materials) != 1 || s.Materials[0].Kind != "avatar" {
 		t.Fatalf("missing reused material: %#v", s.Materials)
 	}
-	copied, err := os.ReadFile(filepath.Join(w.dir(s.ID), s.Materials[0].Path))
-	if err != nil || string(copied) != "paid-footage" {
-		t.Fatalf("material is not the F04 footage: %v", err)
+	// F06 runs chromakey after copying; material path now points to the alpha webm.
+	if !strings.HasSuffix(s.Materials[0].Path, "-alpha.webm") {
+		t.Fatalf("expected alpha webm path, got: %s", s.Materials[0].Path)
+	}
+	if _, err := os.Stat(filepath.Join(w.dir(s.ID), s.Materials[0].Path)); err != nil {
+		t.Fatalf("alpha webm not written: %v", err)
 	}
 	if s.Status != "running" {
 		t.Fatal("material reuse changed state")

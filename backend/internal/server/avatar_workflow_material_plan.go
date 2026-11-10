@@ -144,7 +144,7 @@ func (w *avatarWorkflowService) materialPlanningPrompt(s *avatar.WorkflowState) 
 	}
 	prompt += " 人物 avatar 的 prompt 只描述干净普通矩形口播素材的外观、背景、固定机位和自然表演，完整保留头顶与肩部，固定焦距和拍摄距离，不推进、不拉近、不变焦；不能要求人物生成模型制作圆窗、圆角、分屏、字幕、边框、重复小人像或其他合成图层。导演稿的窗口形状、方位与叠加动效只留给后期镜头规划和渲染。"
 	if avatar.NativeSpeech(s.Input) {
-		prompt += " 本项目人物已在 F04 由 Seedance 同时生成画面和原声；人物仅复用各段现有正面视频，不新建多角度或重新生成人物。根据其真实时长规划动效和实拍素材。"
+		prompt += " 本项目人物已在 F04 由 Seedance 以绿幕背景同时生成画面和原声。F06 会自动对人物视频做绿幕抠像，输出带 alpha 通道的透明人物素材。动效（animation）素材作为人物背景层，在分镜合成时人物叠在动效上方；animation 素材不需要为人物预留空间，全画幅铺满设计，由分镜决定两层的遮挡关系。根据各段真实时长规划 animation 和实拍素材。"
 	}
 	return prompt
 }

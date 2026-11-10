@@ -66,7 +66,7 @@ func NativeSpeechPieces(text string) []NativeSpeechPiece {
 }
 
 func NativeSpeechPrompt(text, direction string, voiceReference, avatar bool) string {
-	visual := "单人正脸中景口播，直视镜头，完整头肩，固定机位和焦距。参考图片只用于人物身份与外观。自然手势，嘴部清楚，保持真实皮肤与跨帧稳定性。"
+	visual := "纯绿色背景（色值 #00B140），人物在绿幕前单人正脸中景口播，直视镜头，完整头肩，固定机位和焦距，背景干净无任何图形、动效或特效。参考图片只用于人物身份与外观。自然手势，嘴部清楚，保持真实皮肤与跨帧稳定性。"
 	if !avatar {
 		visual = "生成简洁稳定的背景画面，用一位自然的中文讲述者说出下方台词。"
 	}

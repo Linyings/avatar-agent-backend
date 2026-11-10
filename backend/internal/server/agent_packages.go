@@ -257,22 +257,23 @@ func (h avatarPackageHost) chromakeyComposite(ctx context.Context, p models.Proj
 		return nil, fmt.Errorf("请提供 avatar_need_id，从 avatar_inspect 的 materials 中获取")
 	}
 	if background == "" {
-		background = "color"
+		background = "studio"
 	}
 	s, err := h.app.latestAgentRun(ctx, p.OwnerID, p.ID)
 	if err != nil {
 		return nil, fmt.Errorf("请先创建制作项目再做背景融合")
 	}
-	mat := func() *avatar.SourceAsset {
-		for _, m := range s.Input.Assets {
-			if m.ID == needID {
-				return &m
+	// Find the material by need_id in the already-produced materials list.
+	mat := func() *avatar.Material {
+		for i := range s.Materials {
+			if s.Materials[i].NeedID == needID {
+				return &s.Materials[i]
 			}
 		}
 		return nil
 	}()
 	if mat == nil {
-		return nil, fmt.Errorf("素材 %s 不存在，请用 avatar_inspect 确认 materials 列表", needID)
+		return nil, fmt.Errorf("素材 %s 不存在，请用 avatar_inspect 确认 materials 列表（F06 需已完成）", needID)
 	}
 	input := map[string]any{
 		"need_id":     "ck-" + needID,

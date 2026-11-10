@@ -257,6 +257,24 @@ func (w *avatarWorkflowService) useNativeMaterial(ctx context.Context, s *avatar
 		if err = copyWorkflowFile(source, filepath.Join(w.dir(s.ID), filepath.FromSlash(relative))); err != nil {
 			return err
 		}
+		// Run chromakey to remove the green-screen background and produce an
+		// alpha WebM. The compositor uses the alpha channel at render time to
+		// layer the presenter over animation/real materials.
+		ckInput := map[string]any{
+			"need_id":          need.ID,
+			"source_path":      relative,
+			"background":       "studio",
+			"chroma_color":     "0x00B140",
+			"similarity":       0.30,
+			"blend":            0.08,
+		}
+		var ckResult map[string]any
+		if err = w.mediaStep(ctx, s, "chromakey", ckInput, &ckResult); err != nil {
+			// Non-fatal: fall back to opaque video if chromakey fails
+			s.AddWarning("F06/"+need.ID, "quality", "绿幕抠像未完成，使用原始视频；合成时人物背景可能可见")
+		} else if alphaPath, ok := ckResult["alpha_path"].(string); ok && alphaPath != "" {
+			relative = alphaPath
+		}
 		m := avatar.Material{NeedID: need.ID, SegmentID: seg.ID, Kind: "avatar", Path: relative, Duration: seg.Duration, Fingerprint: seg.Fingerprint, BaseFingerprint: seg.Fingerprint}
 		replaced := false
 		for i := range s.Materials {

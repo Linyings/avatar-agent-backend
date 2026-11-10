@@ -38,6 +38,18 @@ func TestNativeSpeechGeneratesVideoWithoutTTSAndReusesItsSound(t *testing.T) {
 				os.WriteFile(filepath.Join(dir, "p1", name), []byte("test"), 0600)
 			}
 			return json.RawMessage(`{"duration":5.24,"video":"p1/native.mp4","audio":"p1/audio.wav"}`), nil
+		case "chromakey":
+			// Simulate chromakey extracting alpha webm from the green-screen video.
+			os.MkdirAll(filepath.Join(dir, "materials"), 0700)
+			var inp struct {
+				NeedID string `json:"need_id"`
+			}
+			if b, e := os.ReadFile(filepath.Join(dir, "media-input.json")); e == nil {
+				json.Unmarshal(b, &inp)
+			}
+			name := inp.NeedID + "-alpha.webm"
+			os.WriteFile(filepath.Join(dir, "materials", name), []byte("test-alpha"), 0600)
+			return json.RawMessage(`{"need_id":"` + inp.NeedID + `","path":"materials/` + name + `","kind":"real","duration":5.24,"has_alpha":true,"alpha_path":"materials/` + name + `"}`), nil
 		}
 		t.Fatalf("unexpected media stage %s", stage)
 		return nil, nil
@@ -64,7 +76,7 @@ func TestNativeSpeechGeneratesVideoWithoutTTSAndReusesItsSound(t *testing.T) {
 	if err := w.produceMaterial(context.Background(), s, need, "F06"); err != nil {
 		t.Fatal(err)
 	}
-	if len(spy.requests) != 1 || len(stages) != 1 || len(s.Materials) != 1 {
+	if len(spy.requests) != 1 || len(s.Materials) != 1 {
 		t.Fatal("F06 generated a second talking video")
 	}
 	s.TargetNode, s.ScriptConfirmed = "F06", true

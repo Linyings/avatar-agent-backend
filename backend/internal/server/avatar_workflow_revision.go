@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/google/uuid"
+	"github.com/narratoai/backend-go/internal/agent"
 	"github.com/narratoai/backend-go/internal/avatar"
 )
 
@@ -23,14 +24,35 @@ func (w *avatarWorkflowService) configSnapshot() map[string]string {
 	if os.Getenv("AVATAR_VISION_USE_FLASH") == "true" && !c.MovieVisionConfigured() {
 		visionModel, visionEndpoint = c.OpenAIFlashModel, c.OpenAIFlashAPIBaseURL
 	}
-	return map[string]string{"workflow": avatar.WorkflowVersion, "video": w.app.avatarMVP.options.VideoConfigID(), "tts_model": sTTSModel(w.app), "tts_language": c.TTSLanguage, "flash_model": c.OpenAIFlashModel, "flash_endpoint": c.OpenAIFlashAPIBaseURL, "vision_model": visionModel, "vision_endpoint": visionEndpoint, "vision_sampling": "1fps/batch20s", "style_version": avatar.MotionPlanVersion + "+legacy/2", "renderer": "talkcraft-workflow/4", "presentation_version": avatar.PresentationVersion}
+	snapshot := map[string]string{"workflow": avatar.WorkflowVersion, "video": w.app.avatarMVP.options.VideoConfigID(), "tts_model": sTTSModel(w.app), "tts_language": c.TTSLanguage, "flash_model": c.OpenAIFlashModel, "flash_endpoint": c.OpenAIFlashAPIBaseURL, "vision_model": visionModel, "vision_endpoint": visionEndpoint, "vision_sampling": "1fps/batch20s", "style_version": avatar.MotionPlanVersion + "+legacy/2", "renderer": "talkcraft-workflow/5-stable-crop", "presentation_version": avatar.PresentationVersion, "skills": agent.SkillsDigest(), "avatar_footage": w.avatarFootageConfig()}
+	if strings.HasPrefix(snapshot["avatar_footage"], "talking:") {
+		snapshot["portrait_policy"] = encodePortraitPolicy(currentPortraitPolicy())
+	}
+	return snapshot
+}
+
+// Audit-only snapshot keys: recorded on the run, but they neither restart
+// runs nor invalidate cached plans. avatar_footage is applied per run instead.
+var workflowAuditKeys = map[string]bool{"skills": true, "avatar_footage": true, "portrait_policy": true}
+
+// workflowConfigID keys cached planning and retry decisions. The skill digest
+// is an audit record only: editing guidance must not replan or restart runs.
+func workflowConfigID(snapshot map[string]string) string {
+	keyed := make(map[string]string, len(snapshot))
+	for key, value := range snapshot {
+		if !workflowAuditKeys[key] {
+			keyed[key] = value
+		}
+	}
+	return avatar.Digest(keyed)
 }
 
 func workflowProviderConfigCompatible(old, next map[string]string) bool {
 	withoutLocalDesign := func(in map[string]string) map[string]string {
 		out := map[string]string{}
 		for key, value := range in {
-			if key != "renderer" && key != "style_version" && key != "presentation_version" && key != "workflow" {
+			// Guidance and layout changes never invalidate paid provider footage.
+			if key != "renderer" && key != "style_version" && key != "presentation_version" && key != "workflow" && !workflowAuditKeys[key] {
 				out[key] = value
 			}
 		}
@@ -212,7 +234,7 @@ func (w *avatarWorkflowService) inherit(s *avatar.WorkflowState, previous avatar
 				s.Shots = append([]avatar.WorkflowShot(nil), previous.Shots...)
 			}
 		}
-		if s.Input.Voice == previous.Input.Voice && s.ConfigSnapshot["tts_model"] == previous.ConfigSnapshot["tts_model"] && s.ConfigSnapshot["tts_language"] == previous.ConfigSnapshot["tts_language"] {
+		if s.Input.Voice == previous.Input.Voice && s.Input.VoiceModel == previous.Input.VoiceModel && s.ConfigSnapshot["tts_model"] == previous.ConfigSnapshot["tts_model"] && s.ConfigSnapshot["tts_language"] == previous.ConfigSnapshot["tts_language"] {
 			for i, p := range s.Segments {
 				for _, old := range previous.Segments {
 					if old.ID == p.ID && old.Text == p.Text && avatar.EffectiveVoiceSpeed(s.Input, p.ID) == avatar.EffectiveVoiceSpeed(previous.Input, p.ID) {
@@ -386,7 +408,7 @@ func (w *avatarWorkflowService) inherit(s *avatar.WorkflowState, previous avatar
 func (w *avatarWorkflowService) audioFingerprint(s *avatar.WorkflowState, seg avatar.Segment) string {
 	audioInput := s.Input
 	audioInput.VoiceSpeed = avatar.EffectiveVoiceSpeed(s.Input, seg.ID)
-	values := []any{avatar.AudioFingerprint(audioInput, seg.Text), sTTSModel(w.app), w.app.cfg.TTSLanguage}
+	values := []any{avatar.AudioFingerprint(audioInput, seg.Text), w.voiceModel(s.Input), w.app.cfg.TTSLanguage}
 	if workflowRerunsNode(s, "F04") {
 		return avatar.Digest(append(values, s.ID))
 	}

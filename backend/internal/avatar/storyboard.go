@@ -114,9 +114,11 @@ func CleanAvatarDirection(value string) string {
 }
 
 func GenerationPrompt(s Shot) string {
-	framing := CleanAvatarDirection(s.Framing)
-	if framing == "" {
-		framing = "自然上半身中景"
+	// Postproduction crops this footage into square or round windows; a close-up
+	// leaves no room to fill them while keeping the head.
+	framing := strings.NewReplacer("特写", "", "近景", "").Replace(CleanAvatarDirection(s.Framing))
+	if strings.Trim(framing, "，,。 ") == "" {
+		framing = "自然上半身"
 	}
-	return fmt.Sprintf("以@图片1中的同一位人物为人物参考，保持脸部、发型、衣服、场景和光线一致。补充外观与环境要求：%s。素材交付要求：只生成一位主体人物的干净口播素材，普通矩形全画幅，背景完整连续；不在画面中嵌入额外人物视频、装饰或其他图层。相机位于人物%s，%s，完整保留头顶、头发、脸部、下巴和肩部，四周留有后期取景余量。固定焦距、固定机位、固定拍摄距离，整段人物大小稳定；全程无推拉摇移、无变焦、无自动重新取景、无镜头切换，仅轻微自然表情和动作。无字幕、无文字、无背景音乐。严格使用@音频1作为该人物的全部对白及口型驱动，保留原录音的音色、发音、停顿、语速和逐字时间轴，嘴部准确同步；不要添加或删改任何字句。台词：%s。", CleanAvatarDirection(s.Prompt), s.Angle, framing, s.Text)
+	return fmt.Sprintf("以@图片1中的同一位人物为人物参考，保持脸部、发型、衣服、场景和光线一致。补充外观与环境要求：%s。素材交付要求：只生成一位主体人物的干净口播素材，普通矩形全画幅，背景完整连续；不在画面中嵌入额外人物视频、装饰或其他图层。相机位于人物%s，%s，腰部以上中景，人物居中，脸部高度约占画面高度的五分之一，不要近景或特写；完整保留头顶、头发、脸部、下巴、肩部和上半身，头顶上方及左右留有后期取景余量。固定焦距、固定机位、固定拍摄距离，整段人物大小稳定；全程无推拉摇移、无变焦、无自动重新取景、无镜头切换，仅轻微自然表情和动作。无字幕、无文字、无背景音乐。严格使用@音频1作为该人物的全部对白及口型驱动，保留原录音的音色、发音、停顿、语速和逐字时间轴，嘴部准确同步；不要添加或删改任何字句。台词：%s。", CleanAvatarDirection(s.Prompt), s.Angle, framing, s.Text)
 }

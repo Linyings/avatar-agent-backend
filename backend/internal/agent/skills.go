@@ -2,7 +2,9 @@ package agent
 
 import (
 	"context"
+	"crypto/sha256"
 	"embed"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"slices"
@@ -40,6 +42,10 @@ func DefaultSkills() []SkillDefinition {
 		Description:    "分析参考视频、设计或审查口播与数字人分镜：按讲解目标切分场景，安排人物全屏/小窗/隐藏、图层构图、语义动效、时间对齐及转场。纯配音、只生成口播素材、格式转换和普通状态查询不适用。",
 		DefaultEnabled: true, AllowImplicitInvocation: true,
 		Resources: []string{"references/scene-design.md", "references/storyboard-format.md", "references/reference-cases.md", "references/project-integration.md"},
+	}, {
+		Name: "portrait-realism", Title: "正脸讲解与面部真实感",
+		Description:    "准备正脸参考图、生成写实口播人物，保持身份、真实皮肤细节、直视镜头和跨帧稳定性。F06 后端固定注入。",
+		DefaultEnabled: true, AllowImplicitInvocation: true, Resources: []string{},
 	}}
 }
 
@@ -64,6 +70,48 @@ func ReadSkill(name, resource string) (SkillDocument, error) {
 		return SkillDocument{Name: name, Resource: resource, Content: string(data), Resources: skill.Resources}, nil
 	}
 	return SkillDocument{}, fmt.Errorf("技能不存在或未启用")
+}
+
+var skillDigestFiles = func(name string) ([][]byte, error) {
+	for _, skill := range DefaultSkills() {
+		if skill.Name != name {
+			continue
+		}
+		files := [][]byte{}
+		for _, resource := range append([]string{"SKILL.md"}, skill.Resources...) {
+			data, err := skillDocuments.ReadFile("skills/" + name + "/" + resource)
+			if err != nil {
+				return nil, err
+			}
+			files = append(files, []byte(resource), data)
+		}
+		return files, nil
+	}
+	return nil, fmt.Errorf("技能不存在")
+}
+
+// SkillsDigest names the exact embedded skill text a run was produced with,
+// e.g. "talking-head-storyboard@3f2a9c1b04de", so results stay attributable
+// after the guidance changes.
+func SkillsDigest() string {
+	parts := []string{}
+	for _, skill := range DefaultSkills() {
+		if !skill.DefaultEnabled {
+			continue
+		}
+		files, err := skillDigestFiles(skill.Name)
+		if err != nil {
+			parts = append(parts, skill.Name+"@unavailable")
+			continue
+		}
+		h := sha256.New()
+		for _, f := range files {
+			_, _ = fmt.Fprintf(h, "%d:", len(f))
+			_, _ = h.Write(f)
+		}
+		parts = append(parts, skill.Name+"@"+hex.EncodeToString(h.Sum(nil))[:12])
+	}
+	return strings.Join(parts, ",")
 }
 
 func defaultSkillGuidance() string {

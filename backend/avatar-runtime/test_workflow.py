@@ -6,6 +6,25 @@ import workflow
 from types import SimpleNamespace
 
 class WorkflowTimelineTests(unittest.TestCase):
+    def test_portrait_review_rejects_files_outside_workflow_storage(self):
+        with tempfile.TemporaryDirectory() as d:
+            task=Path(d)/'workflow-v2'/'runs'/'r1';task.mkdir(parents=True)
+            args=SimpleNamespace(task=task,inp={'source':str(Path(d)/'outside.jpg')})
+            with self.assertRaisesRegex(ValueError,'outside workflow storage'):workflow.command_portrait_frames(args)
+
+    def test_portrait_review_samples_bounded_frames_and_does_not_claim_lipsync(self):
+        with tempfile.TemporaryDirectory() as d:
+            task=Path(d)/'workflow-v2'/'runs'/'r1';task.mkdir(parents=True)
+            source=task/'clip.mp4';source.write_bytes(b'fixture')
+            args=SimpleNamespace(task=task,inp={'source':str(source),'video':True},ffmpeg='ffmpeg')
+            calls=[]
+            def encode(argv,**kw):calls.append(argv);Path(argv[-1]).write_bytes(b'image')
+            with patch.object(workflow,'probe',return_value={'streams':[{'codec_type':'video','duration':'7.2'}]}),patch.object(workflow,'run',side_effect=encode):
+                result=workflow.command_portrait_frames(args)
+            self.assertEqual(len(result['frames']),8)
+            self.assertEqual(result['lip_sync'],'not_measured')
+            self.assertLess(max(result['times']),7.2)
+
     def test_avatar_material_uses_full_source_track_and_discards_legacy_last_piece_box(self):
         with tempfile.TemporaryDirectory() as d:
             folder=Path(d);(folder/'host.mp4').write_bytes(b'fixture')
@@ -23,6 +42,33 @@ class WorkflowTimelineTests(unittest.TestCase):
                 self.assertEqual(enriched['face_zone'],[])
                 self.assertNotIn('avatar_framing',enriched)
                 self.assertTrue(warnings)
+
+    def _avatar_args(self,folder,lip_sync,score):
+        (folder/'pieces').mkdir();(folder/'pieces'/'n1-c1.mp4').write_bytes(b'fixture');(folder/'pieces'/'n1-c1.wav').write_bytes(b'fixture')
+        need={'id':'n1','segment_id':'p1','kind':'avatar','duration':2.6}
+        piece={'id':'c1','start':0,'duration':2.6,'audio':'pieces/n1-c1.wav','lip_sync':lip_sync}
+        info={'streams':[{'codec_type':'video','width':1232,'height':1648,'duration':'2.667'},{'codec_type':'audio','duration':'2.667'}]}
+        return SimpleNamespace(task=folder,ffmpeg='ffmpeg',ffprobe='ffprobe',inp={'need':need,'segment':{'id':'p1'},'pieces':[piece]}),info
+    def test_talking_avatar_clip_is_blocked_when_it_was_not_driven_by_the_narration(self):
+        with tempfile.TemporaryDirectory() as d:
+            args,info=self._avatar_args(Path(d),'talking-avatar',.12)
+            with patch.object(workflow,'probe',return_value=info),patch.object(workflow,'run'),patch.object(workflow,'audio_diagnostic',return_value=.12):
+                with self.assertRaisesRegex(ValueError,'口型'):workflow.command_avatar(args)
+    def test_talking_avatar_clip_is_scaled_to_a_bounded_height_and_accepted_when_in_sync(self):
+        with tempfile.TemporaryDirectory() as d:
+            args,info=self._avatar_args(Path(d),'talking-avatar',.99)
+            calls=[]
+            with patch.object(workflow,'probe',return_value=info),patch.object(workflow,'run',side_effect=lambda argv,**k:calls.append([str(x) for x in argv])),patch.object(workflow,'audio_diagnostic',return_value=.99),patch.object(workflow,'enrich_avatar_material',return_value=({},[])):
+                result=workflow.command_avatar(args)
+            normal=next(c for c in calls if c[-1].endswith('n1-c1-normal.mp4'))
+            self.assertIn('fps=25,scale=-2:min(ih\\,1280)',normal[normal.index('-vf')+1])
+            self.assertFalse(any('音频包络' in w for w in result['warnings']))
+    def test_legacy_generated_voice_clip_only_warns(self):
+        with tempfile.TemporaryDirectory() as d:
+            args,info=self._avatar_args(Path(d),'generated-voice',.12)
+            with patch.object(workflow,'probe',return_value=info),patch.object(workflow,'run'),patch.object(workflow,'audio_diagnostic',return_value=.12),patch.object(workflow,'enrich_avatar_material',return_value=({},[])):
+                result=workflow.command_avatar(args)
+            self.assertTrue(any('口型可能与配音不同步' in w for w in result['warnings']))
 
     def test_review_preserves_render_when_optional_detector_fails(self):
         with tempfile.TemporaryDirectory() as d:

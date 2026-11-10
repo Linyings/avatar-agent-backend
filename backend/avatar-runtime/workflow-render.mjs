@@ -9,8 +9,7 @@ import {compileMotion} from './content-motion.mjs';
 import {buildCardCatalog} from './catalog-previews.mjs';
 import {renderDirectorMotion} from './director-motion.mjs';
 import {printMotionError} from './motion-checks.mjs';
-import {avatarFramingPlan,avatarWindowBox} from './src/avatar-framing.ts';
-import {resolveRecipe,shotLayout} from './src/film-design.ts';
+import {avatarFramingReport} from './src/framing-report.ts';
 const root=path.dirname(fileURLToPath(import.meta.url));
 const nativeStyles=JSON.parse(fs.readFileSync(path.join(root,'native-styles.json'),'utf8'));
 const [mode,taskArg,outArg]=process.argv.slice(2);const task=path.resolve(taskArg||root);
@@ -71,16 +70,7 @@ if(mode==='preview'){
  fs.mkdirSync(path.join(task,'preview'),{recursive:true});
  for(const shot of shots){execFileSync('ffmpeg',['-v','error','-y','-i',path.join(segDir,shot.id+'.mp4'),'-ss',String(shot.start),'-i',path.join(task,'voice.wav'),'-t',String(shot.end-shot.start),'-map','0:v:0','-map','1:a:0','-c:v','copy','-c:a','aac','-b:a','192k','-movflags','+faststart',path.join(task,'preview',shot.id+'.mp4')]);}
 }
-const framing=shots.flatMap(shot=>{
- const overlay=manifest.materials.find(m=>m.need_id===shot.overlay);if(overlay?.kind!=='avatar')return [];
- const segment=manifest.segments.find(s=>s.id===shot.segment_id),primary=manifest.materials.find(m=>m.need_id===shot.primary);
- const shape=shot.avatar_shape||'rounded',side=shot.avatar_position||manifest.input.avatar_position||'right';
- const recipe=primary.kind==='animation'?'visual-pip':resolveRecipe(shot,primary),layout=shotLayout(manifest.width,manifest.height,recipe,side);
- const box=recipe==='visual-pip'?avatarWindowBox(manifest.width,manifest.height,shape,side):layout.overlay||layout.panel;
- if(!box)return [];
- const start=shot.overlay_in??shot.start-segment.start;
- const height=avatarFramingPlan(box,overlay.avatar_framing,start,start+shot.end-shot.start,shape);
- return [{shot_id:shot.id,requested_shape:shape,actual_shape:height?shape:'rectangle',mode:height?'tracked':'full-source',face_height:height}];
-});
-fs.writeFileSync(path.join(task,'render-quality.json'),JSON.stringify({warnings:[...output.split('\n').filter(s=>s.includes('QUALITY:')),...framing.filter(r=>r.mode==='full-source').map(r=>`${r.shot_id}：定位不足或源片取景过近，无法同时填满人物窗口并保留头部，整镜保留完整矩形画面，请复核源素材`)],avatar_framing:framing}));
+const framing=avatarFramingReport(manifest,shots);
+const framingWarning=r=>r.mode==='tight'?`${r.shot_id}：源片取景较近，已按人脸裁切填满人物窗口，头顶或肩部可能被少量裁去`:`${r.shot_id}：人物定位不足，已按上半身居中裁切填满窗口，请复核取景`;
+fs.writeFileSync(path.join(task,'render-quality.json'),JSON.stringify({warnings:[...output.split('\n').filter(s=>s.includes('QUALITY:')),...framing.filter(r=>r.mode!=='tracked').map(framingWarning)],avatar_framing:framing}));
 for(const shot of shots){const local=path.join(segDir,shot.id+'.mp4');if(fs.existsSync(local)){const fp=fingerprints.get(shot.id);fs.copyFileSync(local,path.join(shared,fp+'.mp4'));fs.writeFileSync(path.join(segDir,shot.id+'.hash'),fp);}}

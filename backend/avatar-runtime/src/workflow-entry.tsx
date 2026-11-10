@@ -5,7 +5,7 @@ import {AnimationScene} from './workflow-animation';
 import {StylePreview} from './style-preview';
 import {SemanticGraphic} from './semantic-graphics';
 import {filmTheme,mediaPlacement,overlaps,resolveRecipe,semanticItems,shotLayout,captionPage,type Box} from './film-design';
-import {avatarFraming,avatarFramingPlan,avatarWindowBox,type AvatarTrack} from './avatar-framing';
+import {stableAvatarCrop,stableAvatarPlan,avatarWindowBox,type AvatarTrack} from './avatar-framing';
 
 type Word={text:string;start:number;end:number};
 type Animation={width:number;height:number;fps:number;duration:number;style:string;template:string;text:string;words:Word[]};
@@ -19,14 +19,15 @@ const position=(b:Box)=>({position:'absolute' as const,left:b.x,top:b.y,width:b.
 function Media({material:m,box,offset,theme,duration,avatarWindow=false,shape='rounded'}:{material:Material;box:Box;offset:number;theme:ReturnType<typeof filmTheme>;duration:number;avatarWindow?:boolean;shape?:string}){
  const {fps}=useVideoConfig();const frame=useCurrentFrame();const placement=mediaPlacement(box,m,m.kind);
  const framed=box.x>0||box.y>0;const video=staticFile(m.path);
- const faceHeight=React.useMemo(()=>avatarWindow&&m.kind==='avatar'?avatarFramingPlan(box,m.avatar_framing,offset,offset+duration,shape):null,[avatarWindow,m.kind,m.avatar_framing,box.w,box.h,offset,duration,shape]);
- const crop=faceHeight?avatarFraming(box,m.avatar_framing,offset+frame/fps,faceHeight):null;
+ // Every talking-head layer smaller than the frame is face-cropped to fill it.
+ const cropShape=avatarWindow?shape:'rectangle';
+ const decision=React.useMemo(()=>m.kind==='avatar'&&(avatarWindow||framed)?stableAvatarPlan(box,m.avatar_framing,offset,offset+duration,cropShape):null,[avatarWindow,framed,m.kind,m.avatar_framing,box.w,box.h,offset,duration,cropShape]);
+ const crop=decision?stableAvatarCrop(decision,offset+frame/fps):null;
  const cropStyle=crop?{position:'absolute' as const,width:crop.width,height:crop.height,left:crop.left,top:crop.top}:undefined;
- const radius=avatarWindow?(crop&&shape==='circle'?'50%':shape==='rectangle'||!crop?0:Math.min(box.w,box.h)*.09):framed?theme.radius:0;
+ const radius=avatarWindow?(shape==='circle'?'50%':shape==='rectangle'?0:Math.min(box.w,box.h)*.09):framed?theme.radius:0;
  return <div style={{...position(box),overflow:'hidden',borderRadius:radius,background:theme.surface,border:framed?`1px solid ${theme.line}`:undefined}}>
-  {!avatarWindow&&m.kind==='avatar'&&placement.fit==='contain'&&<OffthreadVideo src={video} muted trimBefore={Math.round(offset*fps)} style={{position:'absolute',width:'100%',height:'100%',objectFit:'cover',filter:'blur(32px) brightness(.55)',transform:'scale(1.12)'}}/>}
   <CameraRig path={[{t:0,scale:1},{t:duration,scale:m.kind==='real'?1.012:1}]} durationSec={duration}>
-   <OffthreadVideo src={video} muted trimBefore={Math.round(offset*fps)} style={cropStyle??{width:'100%',height:'100%',objectFit:avatarWindow?'contain':placement.fit}}/>
+   <OffthreadVideo src={video} muted trimBefore={Math.round(offset*fps)} style={cropStyle??{width:'100%',height:'100%',objectFit:placement.fit,objectPosition:placement.position}}/>
   </CameraRig>
  </div>;
 }

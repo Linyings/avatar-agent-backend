@@ -17,6 +17,9 @@ from avatar_framing import analyze_avatar
 
 ROOT=Path(__file__).resolve().parent
 PRESENTATION_VERSION='film-design/3'
+# Voice-driven clips return the driving narration as their soundtrack (lab
+# measurement: correlation 1.0 at zero offset). Re-voiced clips scored < .4.
+TALKING_SYNC_THRESHOLD=.9
 
 def read(p):return json.loads(Path(p).read_text(encoding='utf-8'))
 def write(p,v):
@@ -63,6 +66,23 @@ def default_shots(segments,materials):
     return result
 
 def dimensions(ratio):return {'9:16':(720,1280),'16:9':(1280,720),'1:1':(720,720)}[ratio]
+
+def command_portrait_frames(args):
+    # Source is resolved by the backend, never by a model. Bound frame count
+    # and image size; sampled vision is not a temporal lip-sync measurement.
+    source=Path(args.inp['source']).resolve()
+    allowed=(args.task.resolve(),args.task.resolve().parents[1]/'projects')
+    if not any(source.is_relative_to(root) for root in allowed):raise ValueError('Portrait source outside workflow storage')
+    info=probe(args,source);video=bool(args.inp.get('video'))
+    total=duration(info,'video') if video else 0
+    times=[min(i*total/7,max(0,total-.08)) for i in range(8)] if video else [0]
+    folder=args.task/'portrait'/'frames';folder.mkdir(parents=True,exist_ok=True)
+    frames=[]
+    for i,t in enumerate(times):
+        dest=folder/f'frame-{i}.jpg'
+        run([args.ffmpeg,'-y','-v','error','-ss',t,'-i',source,'-frames:v','1','-vf','scale=768:768:force_original_aspect_ratio=decrease','-q:v','3',dest])
+        frames.append('data:image/jpeg;base64,'+base64.b64encode(dest.read_bytes()).decode())
+    return {'frames':frames,'times':times,'scope':'sampled-visual-review','lip_sync':'not_measured'}
 
 def command_probe(args):
     inp=read(args.task/'probe-input.json');p=Path(inp['path'])
@@ -140,13 +160,23 @@ def command_avatar(args):
         qa=args.task/'qa'/f"{need['id']}-{piece['id']}";qa.mkdir(parents=True,exist_ok=True)
         for label,t in [('first',0),('middle',piece['duration']/2),('last',max(0,piece['duration']-.08))]:
             run([args.ffmpeg,'-y','-v','error','-ss',t,'-i',source,'-frames:v',1,qa/(label+'.jpg')])
+        talking=piece.get('lip_sync')=='talking-avatar'
+        score=None
         try:
             if any(x['codec_type']=='audio' for x in info['streams']):
                 score=audio_diagnostic(args,source,safe_file(args.task,piece['audio']),qa)
-                if score<.55:warnings.append(f"{need['id']}：音频包络相关度 {score:.4f}，仅作声音诊断，不代表嘴型评分；继续制作")
-        except Exception:warnings.append(need['id']+'：音频对比检查未完成，继续制作')
+        except Exception:
+            if talking:raise ValueError(need['id']+'：数字人口型片段的配音核对未完成，已停止组装；请重试或检查原订单')
+            warnings.append(need['id']+'：音频对比检查未完成，继续制作')
+        if talking:
+            # The clip's soundtrack must be the narration that drove the mouth;
+            # anything else means the lips follow different speech.
+            if score is None or score<TALKING_SYNC_THRESHOLD:raise ValueError(f"{need['id']}：数字人片段声音与配音不一致（相关度 {0 if score is None else score:.3f}），口型无法保证同步，已停止组装")
+        elif score is not None and score<.55:warnings.append(f"{need['id']}：音频包络相关度 {score:.4f}，口型可能与配音不同步；建议改用数字人口型模型重做")
         normal=folder/f"{need['id']}-{piece['id']}-normal.mp4"
-        run([args.ffmpeg,'-y','-v','error','-i',source,'-t',piece['duration'],'-an','-vf','fps=25,scale=trunc(iw/2)*2:trunc(ih/2)*2','-c:v','libx264','-preset','fast','-pix_fmt','yuv420p',normal]);normalised.append(normal)
+        # Talking-avatar output can exceed the frame size; bound it, keep its ratio.
+        scale='fps=25,scale=-2:min(ih\\,1280),scale=trunc(iw/2)*2:trunc(ih/2)*2' if talking else 'fps=25,scale=trunc(iw/2)*2:trunc(ih/2)*2'
+        run([args.ffmpeg,'-y','-v','error','-i',source,'-t',piece['duration'],'-an','-vf',scale,'-c:v','libx264','-preset','fast','-pix_fmt','yuv420p',normal]);normalised.append(normal)
     dest=args.task/'materials'/(need['id']+'.mp4');concat=args.task/'pieces'/(need['id']+'-concat.txt')
     concat.write_text(''.join("file '"+str(p).replace("'","'\\''")+"'\n" for p in normalised),encoding='utf-8')
     run([args.ffmpeg,'-y','-v','error','-f','concat','-safe','0','-i',concat,'-c','copy',dest])
@@ -431,7 +461,7 @@ def review_rendered_shots(args,preview=False):
     audio=read(args.task/'audio-quality.json').get('segments',[]) if (args.task/'audio-quality.json').exists() else []
     issues=quality_issues(args.state,audio);shots=[];items=[]
     rendered=read(args.task/'render-quality.json') if (args.task/'render-quality.json').exists() else {}
-    framing={row['shot_id']:row for row in rendered.get('avatar_framing',[])}
+    framing={row['shot_id']:row for row in sorted(rendered.get('avatar_framing',[]),key=lambda r:r.get('layer')=='overlay')}
     props=args.task/'workflow-props.json'
     if props.exists():
         manifest=read(props).get('manifest',{});reported=set()
@@ -453,7 +483,8 @@ def review_rendered_shots(args,preview=False):
     for shot in args.state['shots']:
         duration=shot['end']-shot['start'];margin=min(.15,duration/4)
         decision=framing.get(shot['id'],{})
-        if decision.get('mode')=='full-source':issues.append({'code':'avatar_full_source','severity':'review','shot_id':shot['id'],'time':shot['start'],'message':'定位不足或源片取景过近，已整镜保留完整矩形画面；需复核或重做干净人物素材'})
+        if decision.get('mode')=='tight':issues.append({'code':'avatar_tight_crop','severity':'review','shot_id':shot['id'],'time':shot['start'],'message':'源片取景较近，已按人脸裁切填满人物窗口，头顶或肩部可能被少量裁去；如需完整头肩请重做中景人物素材'})
+        elif decision.get('mode') in ('centered','full-source'):issues.append({'code':'avatar_centered_crop','severity':'review','shot_id':shot['id'],'time':shot['start'],'message':'人物定位不足，已按上半身居中裁切填满窗口，请复核取景'})
         times=[margin,duration/2,max(margin,duration-margin)];frames=[];face_sizes=[]
         for index,local in enumerate(times):
             relative=f"quality/{shot['id']}-{index+1}.jpg";dest=safe_file(args.task,relative);dest.parent.mkdir(exist_ok=True)
@@ -549,6 +580,7 @@ def command_motion_validate(args):
     return {'valid': True}
 
 COMMANDS={k[8:]:v for k,v in list(globals().items()) if k.startswith('command_')}
+COMMANDS['portrait-frames']=command_portrait_frames
 
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('stage',choices=COMMANDS);parser.add_argument('--task-dir',required=True);parser.add_argument('--ffmpeg',default='ffmpeg');parser.add_argument('--ffprobe',default='ffprobe');parser.add_argument('--node',default='node');parser.add_argument('--asr-backend',default='whisper');parser.add_argument('--asr-model-dir',default='')

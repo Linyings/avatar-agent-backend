@@ -914,7 +914,7 @@ func (w *avatarWorkflowService) produceAudio(ctx context.Context, s *avatar.Work
 				step.ErrorType = "provider"
 				step.CostStatus = "unknown"
 				if w.runningHubSpeech() {
-					result, err := w.speechClient().SubmitSpeech(ctx, avatar.SpeechRequest{Text: seg.Text, Model: w.app.cfg.TTSModel, Speaker: s.Input.Voice, Language: w.app.cfg.TTSLanguage, Format: "wav", Speed: avatar.EffectiveVoiceSpeed(s.Input, seg.ID)})
+					result, err := w.speechClient().SubmitSpeech(ctx, avatar.SpeechRequest{Text: seg.Text, Model: w.voiceModel(s.Input), Speaker: s.Input.Voice, Language: w.app.cfg.TTSLanguage, Format: "wav", Speed: avatar.EffectiveVoiceSpeed(s.Input, seg.ID)})
 					if err != nil {
 						step.Submission = "rejected"
 						if avatar.SubmissionUncertain(err) {
@@ -973,8 +973,8 @@ func (w *avatarWorkflowService) produceAudio(ctx context.Context, s *avatar.Work
 	}
 	os.MkdirAll(cache, 0700)
 	_ = copyWorkflowFile(voicePath, filepath.Join(cache, "audio.wav"))
-	if _, err := os.Stat(w.voiceSamplePath(s.Input.Voice)); os.IsNotExist(err) {
-		_ = copyWorkflowFile(voicePath, w.voiceSamplePath(s.Input.Voice))
+	if sample := w.voiceSamplePathFor(w.voiceModel(s.Input), s.Input.Voice); func() bool { _, err := os.Stat(sample); return os.IsNotExist(err) }() {
+		_ = copyWorkflowFile(voicePath, sample)
 	}
 	w.addArtifacts(s, []avatar.WorkflowArtifact{{ID: "audio-" + seg.ID, Name: seg.ID + ".wav", Path: relative, MediaType: "audio/wav"}})
 	return nil
@@ -1018,7 +1018,10 @@ func (w *avatarWorkflowService) produceMaterial(ctx context.Context, s *avatar.W
 	}
 	// Style changes must not invalidate talking footage.
 	if need.Kind == "avatar" {
-		fingerprint = avatar.Digest([]any{need, seg.Fingerprint, w.app.avatarMVP.options.VideoConfigID(), s.Input.Photo})
+		fingerprint = avatar.Digest([]any{need, seg.Fingerprint, w.runFootageConfig(s), s.Input.Photo})
+		if policy := w.avatarQualityFingerprint(s); policy != "" {
+			fingerprint = avatar.Digest([]any{fingerprint, policy, s.Input.Assets})
+		}
 	}
 	baseFingerprint := fingerprint
 	var retained *avatar.Material
@@ -1091,6 +1094,23 @@ func (w *avatarWorkflowService) produceMaterial(ctx context.Context, s *avatar.W
 			if err := w.save(s); err != nil {
 				return err
 			}
+			policy, err := runPortraitPolicy(s)
+			if err != nil {
+				return err
+			}
+			var reference string
+			for _, asset := range s.Input.Assets {
+				if asset.ID == s.Input.Photo {
+					reference = filepath.Join(w.projectDir(s.ProjectID), filepath.FromSlash(asset.Path))
+				}
+			}
+			if reference == "" {
+				return fmt.Errorf("人物照片丢失")
+			}
+			reference, err = w.preparePortrait(ctx, s, reference)
+			if err != nil {
+				return err
+			}
 			// Split on actual aligned word gaps; each suborder is separately persisted.
 			var pieces struct {
 				Pieces []struct {
@@ -1116,25 +1136,18 @@ func (w *avatarWorkflowService) produceMaterial(ctx context.Context, s *avatar.W
 						order.PreserveOrder()
 						order.ProviderTaskID = ""
 						order.Submission = ""
+						order.Model = ""
 					}
+					provider, modelID, err := w.avatarOrderProvider(s, order)
+					if err != nil {
+						return err
+					}
+					talking := modelID != w.app.avatarMVP.options.Model
 					if order.ProviderTaskID == "" {
 						if order.Submission == "submitting" || order.Submission == "unknown" {
 							return fmt.Errorf("人物提交状态待确认，禁止重复生成")
 						}
-						var photo string
-						for _, a := range s.Input.Assets {
-							if a.ID == s.Input.Photo {
-								photo = filepath.Join(w.projectDir(s.ProjectID), filepath.FromSlash(a.Path))
-							}
-						}
-						if photo == "" {
-							return fmt.Errorf("人物照片丢失")
-						}
-						provider := w.app.avatarMVP.provider
-						if w.app.avatarMVP.providerErr != nil {
-							return fmt.Errorf("人物视频服务配置错误")
-						}
-						imageURL, err := provider.Upload(ctx, photo)
+						imageURL, err := provider.Upload(ctx, reference)
 						if err != nil {
 							return fmt.Errorf("人物图片上传失败，尚未提交生成")
 						}
@@ -1160,11 +1173,23 @@ func (w *avatarWorkflowService) produceMaterial(ctx context.Context, s *avatar.W
 							text = seg.Text
 						}
 						prompt := avatar.GenerationPrompt(avatar.Shot{Text: text, Angle: angle, Framing: "上半身，头肩和嘴部完整清楚", Prompt: "保持参考人物年龄、原有肤色和识别特征。半哑光皮肤，鼻翼和邻近脸颊保留细微局部毛孔及受光细绒毛；额头、鼻梁和鼻尖仅有克制的局部反光，脸颊和眼下较哑光。遵循参考照片现有灯光，不增加斑点或衰老；肤色和细微纹理跨帧稳定，高光随动作连续变化，不出现塑料感、蜡感、过度磨皮或均匀油膜。" + need.Prompt}) + fmt.Sprintf(" 音频从第0秒说话，时长%.3f秒；多余尾部闭嘴静默，不延长配音。", piece.Duration)
+						if talking {
+							// The voice drives the mouth; only performance is described.
+							prompt = avatar.TalkingPrompt(need.Prompt)
+						}
+						if policy.Version != "" {
+							if !talking {
+								prompt = avatar.GenerationPrompt(avatar.Shot{Text: text, Angle: "正面", Framing: "上半身", Prompt: avatar.CleanTalkingDirection(need.Prompt)})
+							}
+							prompt += "\n面部真实感规范：\n" + policy.SkillText
+							order.PromptInput, _ = json.Marshal(map[string]any{"skill": policy.Skill, "skill_hash": policy.SkillHash, "reference": filepath.Base(reference), "policy": policy.Version, "pose": "frontal", "gaze": "camera", "camera": "locked"})
+						}
 						order.GenerationPrompt = prompt
+						order.Model = modelID
 						if err = w.save(s); err != nil {
 							return err
 						}
-						result, err := provider.Submit(ctx, avatar.GenerationRequest{Model: w.app.avatarMVP.options.Model, Prompt: prompt, ImageURLs: []string{imageURL}, AudioURLs: []string{audioURL}, Duration: strconv.Itoa(duration), Ratio: s.Input.Ratio, Resolution: w.app.avatarMVP.options.Resolution, GenerateAudio: true, RealPersonMode: true, OutputFormat: "mp4"})
+						result, err := provider.Submit(ctx, avatar.GenerationRequest{Model: modelID, Prompt: prompt, ImageURLs: []string{imageURL}, AudioURLs: []string{audioURL}, Duration: strconv.Itoa(duration), Ratio: s.Input.Ratio, Resolution: w.app.avatarMVP.options.Resolution, GenerateAudio: !talking, RealPersonMode: true, OutputFormat: "mp4"})
 						if err != nil {
 							order.Submission = "rejected"
 							if avatar.SubmissionUncertain(err) {
@@ -1179,7 +1204,7 @@ func (w *avatarWorkflowService) produceMaterial(ctx context.Context, s *avatar.W
 							return err
 						}
 					}
-					result, err := w.poll(ctx, s, order, w.app.avatarMVP.provider.Query)
+					result, err := w.poll(ctx, s, order, provider.Query)
 					if err != nil {
 						return err
 					}
@@ -1189,11 +1214,19 @@ func (w *avatarWorkflowService) produceMaterial(ctx context.Context, s *avatar.W
 					if err = os.MkdirAll(filepath.Dir(out), 0700); err != nil {
 						return err
 					}
-					if err = w.app.avatarMVP.provider.Download(ctx, result.VideoURL(), out); err != nil {
+					if err = provider.Download(ctx, result.VideoURL(), out); err != nil {
 						return fmt.Errorf("视频下载失败，恢复时继续查原单")
 					}
 					return nil
 				})
+				if err == nil && policy.Version != "" {
+					out := filepath.Join(w.dir(s.ID), "pieces", need.ID+"-"+piece.ID+".mp4")
+					var review portraitAssessment
+					review, err = w.assessPortrait(ctx, s, node+"/"+need.ID+"-"+piece.ID+"-portrait-review", out, reference, true)
+					if err == nil && !review.accepted() {
+						err = fmt.Errorf("人物片段未通过正脸、视线或质感验收：%s；原订单保留", review.Reason)
+					}
+				}
 				if err != nil {
 					if errors.Is(err, errWorkflowStopped) {
 						return err
@@ -1206,7 +1239,17 @@ func (w *avatarWorkflowService) produceMaterial(ctx context.Context, s *avatar.W
 			if allError != nil {
 				return allError
 			}
-			if err := w.mediaStep(ctx, s, "avatar", map[string]any{"segment": seg, "need": need, "pieces": pieces.Pieces}, &material); err != nil {
+			assembly := make([]map[string]any, len(pieces.Pieces))
+			for i, piece := range pieces.Pieces {
+				assembly[i] = map[string]any{"id": piece.ID, "start": piece.Start, "duration": piece.Duration, "audio": piece.Audio, "text": piece.Text, "lip_sync": "generated-voice"}
+				for _, step := range s.Steps {
+					if step.ID == node+"/"+need.ID+"-"+piece.ID && step.Model != "" && step.Model != w.app.avatarMVP.options.Model {
+						assembly[i]["lip_sync"] = "talking-avatar"
+						assembly[i]["model"] = step.Model
+					}
+				}
+			}
+			if err := w.mediaStep(ctx, s, "avatar", map[string]any{"segment": seg, "need": need, "pieces": assembly}, &material); err != nil {
 				return err
 			}
 		} else {

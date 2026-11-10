@@ -36,11 +36,14 @@ test('caption pagination preserves English words and does not jump back during p
  assert.equal(at,captionPage(chars,4.1,14).map(x=>x.ch).join(''));
 });
 
-test('face-safe fitting never crops the measured head and backgrounds preserve mismatched ratios',()=>{
+test('talking heads always fill their box and other media preserve mismatched ratios',()=>{
  const box={x:0,y:0,w:400,h:650};
- const fit=mediaPlacement(box,{width:1920,height:1080,face_zone:[0,0,400,500]},'avatar');
- assert.equal(fit.fit,'contain');
- assert.ok(fit.face.x>=box.x&&fit.face.x+fit.face.w<=box.x+box.w);
+ // Untracked host footage fills its box with a top-biased crop, never letterboxing.
+ for(const source of [{width:1920,height:1080,face_zone:[0,0,400,500]},{width:720,height:1280},{width:720,height:1280,face_zone:[154,0,379,782]}]){
+  const fit=mediaPlacement(box,source,'avatar');
+  assert.equal(fit.fit,'cover');
+  assert.equal(fit.position,'50% 28%');
+ }
  const cover=mediaPlacement(box,{width:1080,height:1920,face_zone:[400,200,250,400]},'avatar');
  assert.equal(cover.fit,'cover');
  assert.ok(cover.face.y>=0&&cover.face.y+cover.face.h<=650);

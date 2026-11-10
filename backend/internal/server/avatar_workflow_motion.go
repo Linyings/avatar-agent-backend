@@ -111,35 +111,14 @@ func (w *avatarWorkflowService) planMotion(ctx context.Context, s *avatar.Workfl
 		direction += "\n" + strings.Join(s.ProductionNotes, "\n")
 	}
 	input := map[string]any{"segment": seg, "narration_window": w.motionScope(s, need, seg), "topic": s.Input.Topic, "direction": direction, "style": s.Input.Style, "style_profile": style.Design, "style_reference": styleReference, "ratio": s.Input.Ratio, "visual_source": contextResult.Source, "avatar_ids": contextResult.AvatarIDs, "material_content": need.Content, "requested_layout": need.Template, "requested_items": need.Items}
-	prompt := motionDesignPrompt
+	// All paths use two-phase generation (design → per-scene code) so each
+	// model call has a bounded maximum output and is never truncated by a
+	// token ceiling regardless of scene count or segment length.
 	if avatar.DirectorWorkflow(s) {
 		input["director"] = motionDirectorScenes(s, seg)
 		input["material_design"] = need.Prompt
-		return w.planMotionPhases(ctx, s, step.ID, input, contextResult.Frames, need, seg, fingerprint, file)
 	}
-	step.GenerationPrompt = prompt
-	step.ProductionPhase = "AI 设计专用动效"
-	step.PromptInput, _ = json.Marshal(input)
-	if err := w.save(s); err != nil {
-		return plan, err
-	}
-	if err := w.model(ctx, s, step, prompt, input, contextResult.Frames, &plan); err != nil {
-		return plan, err
-	}
-	avatar.GroundMotionTitles(&plan)
-	if err := avatar.ValidateMotionPlan(plan, seg.Text); err != nil {
-		return plan, err
-	}
-	if avatar.DirectorWorkflow(s) {
-		if err := avatar.NormalizeMotionCode(&plan); err != nil {
-			return plan, err
-		}
-	}
-	cached.Fingerprint, cached.Plan = fingerprint, plan
-	if err := avatar.WriteJSON(file, cached); err != nil {
-		return plan, err
-	}
-	return plan, nil
+	return w.planMotionPhases(ctx, s, step.ID, input, contextResult.Frames, need, seg, fingerprint, file)
 }
 
 const directorMotionPrompt = `

@@ -66,12 +66,16 @@ export function shotLayout(width:number,height:number,recipe:string,side='right'
  }
  return {primary,overlay,panel,caption};
 }
+// Vertical crop position for talking heads: keeps the head and upper body
+// when a tall source is cut down to a squarer window.
+export const AVATAR_COVER_POSITION='50% 28%';
 export function mediaPlacement(box:Box,source:{width?:number;height?:number;face_zone?:number[]},kind:string){
  const sw=source.width||box.w,sh=source.height||box.h;
  const face=source.face_zone?.length===4?source.face_zone:[sw*.25,sh*.08,sw*.5,sh*.55];
- let scale=Math.max(box.w/sw,box.h/sh);let dx=(box.w-sw*scale)/2,dy=(box.h-sh*scale)/2;
- const safe=face[0]*scale+dx>=0&&face[1]*scale+dy>=0&&(face[0]+face[2])*scale+dx<=box.w&&(face[1]+face[3])*scale+dy<=box.h;
- const fit=kind==='avatar'&&source.face_zone?.length===4&&safe?'cover':'contain';
- if(fit==='contain'){scale=Math.min(box.w/sw,box.h/sh);dx=(box.w-sw*scale)/2;dy=(box.h-sh*scale)/2;}
- return {fit:fit as 'cover'|'contain',face:{x:box.x+face[0]*scale+dx,y:box.y+face[1]*scale+dy,w:face[2]*scale,h:face[3]*scale}};
+ // A talking head always fills its window; letterboxing a 9:16 host into a
+ // square panel leaves empty bars on both sides.
+ const fit=kind==='avatar'?'cover':'contain';
+ let scale=fit==='cover'?Math.max(box.w/sw,box.h/sh):Math.min(box.w/sw,box.h/sh);
+ const dx=(box.w-sw*scale)/2,dy=fit==='cover'?(box.h-sh*scale)*.28:(box.h-sh*scale)/2;
+ return {fit:fit as 'cover'|'contain',position:fit==='cover'?AVATAR_COVER_POSITION:'50% 50%',face:{x:box.x+face[0]*scale+dx,y:box.y+face[1]*scale+dy,w:face[2]*scale,h:face[3]*scale}};
 }

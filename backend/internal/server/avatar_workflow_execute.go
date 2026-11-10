@@ -1028,8 +1028,7 @@ func (w *avatarWorkflowService) produceMaterial(ctx context.Context, s *avatar.W
 						break
 					}
 				}
-				if need.Kind == "animation" && (avatar.DirectorWorkflow(s) || strings.HasPrefix(s.Input.Style, "mg-") || strings.HasPrefix(s.Input.Style, "explain-")) {
-					plan, err := w.planMotion(ctx, s, step, need, seg, fingerprint)
+				if need.Kind == "animation" && (avatar.DirectorWorkflow(s) || strings.HasPrefix(s.Input.Style, "mg-") || strings.HasPrefix(s.Input.Style, "explain-")) {					plan, err := w.planMotion(ctx, s, step, need, seg, fingerprint)
 					if err != nil {
 						return err
 					}
@@ -1049,7 +1048,7 @@ func (w *avatarWorkflowService) produceMaterial(ctx context.Context, s *avatar.W
 					return err
 				}
 				if err := w.mediaStep(ctx, s, "material", input, &material); err != nil {
-					if need.Kind == "animation" && avatar.DirectorWorkflow(s) {
+					if need.Kind == "animation" {
 						again, failure := w.repairRenderedMotion(s, node+"/"+need.ID, err)
 						if again {
 							continue

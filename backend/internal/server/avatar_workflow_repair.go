@@ -72,6 +72,12 @@ func repairStrategy(message string) string {
 			return "根据本场实际 duration、elements.local_at 和 enter_at 修正出场时间；数字和单位原样保留，允许分开排版，关键内容须在结束前完整展示并留出阅读时间。"
 		}
 		return "根据当前输入的真实时长、可用素材区间和起止时间修复时间映射，保留已经完成的内容。"
+	case strings.Contains(message, "渲染"), strings.Contains(message, "render"), strings.Contains(message, "Remotion"):
+		return "渲染失败通常由无效属性或超出范围的值引起；检查动效代码中的数值范围、类型匹配和 Remotion API 用法，不要改变内容意图。"
+	case strings.Contains(message, "语法"), strings.Contains(message, "SyntaxError"), strings.Contains(message, "parse"):
+		return "修复代码语法错误；确保括号、引号、逗号配对，返回合法的 JavaScript 表达式，不要截断输出。"
+	case strings.Contains(message, "超时"), strings.Contains(message, "timeout"), strings.Contains(message, "TIMEOUT"):
+		return "简化本场景的复杂度：减少元素数量，缩短动画计算，避免深层嵌套；保留核心内容和视觉意图。"
 	default:
 		return "根据上次后台错误检查当前步骤的输入与输出，仅修复失败部分；保留已经成功的内容，不能原样返回失败结果。"
 	}

@@ -77,7 +77,7 @@ func (w *avatarWorkflowService) retryRun(ctx context.Context, owner uuid.UUID, i
 		if e != nil {
 			return s, e
 		}
-		restart := input.Revision != s.Input.Revision || s.ConfigID != avatar.Digest(w.configSnapshot())
+		restart := input.Revision != s.Input.Revision || s.ConfigID != workflowConfigID(w.configSnapshot())
 		for _, step := range s.Steps {
 			restart = restart || unknownWithoutTask(step)
 		}

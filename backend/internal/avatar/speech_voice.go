@@ -30,30 +30,47 @@ var miniMaxSystemVoices = []SpeechVoice{
 	{"Exuberant_Girl", "元气少女 · Exuberant Girl"},
 }
 
-// SystemSpeechVoices returns the provider's built-in voices for a model family.
+// SystemSpeechVoices returns the provider's built-in voices for a registered model.
 func SystemSpeechVoices(model string) []SpeechVoice {
-	if strings.HasPrefix(model, "minimax/") {
-		return append([]SpeechVoice(nil), miniMaxSystemVoices...)
+	if m, ok := FindSpeechModel(model); ok {
+		return m.Voices
 	}
 	return nil
 }
 
-// DefaultSpeechVoice keeps the default paired with the selected model family.
+// DefaultSpeechVoice keeps the default paired with the selected model.
 // RunningHub's MiniMax speech-2.8-hd schema defaults voice_id to Wise_Woman.
 func DefaultSpeechVoice(model string) string {
-	switch {
-	case strings.HasPrefix(model, "minimax/"):
-		return "Wise_Woman"
-	case strings.HasPrefix(model, "doubao-") || strings.HasPrefix(model, "bytedance/doubao-"):
-		return "zh_male_shaonianzixin_uranus_bigtts"
-	default:
-		return "Cherry"
+	if m, ok := FindSpeechModel(model); ok {
+		return m.DefaultVoice
 	}
+	if strings.HasPrefix(model, "minimax/") {
+		return "Wise_Woman"
+	}
+	return "Cherry"
 }
 
-// SpeechVoiceIncompatible recognizes old Doubao IDs left in MiniMax configs.
-// Other custom IDs are still checked by the configured catalog and provider;
-// this is not a complete provider voice registry.
+// SpeechVoiceKnown reports whether any registered model offers the voice, or it
+// is a legacy Doubao ID; only such voices may be migrated to another model.
+func SpeechVoiceKnown(voice string) bool {
+	voice = strings.TrimSpace(voice)
+	if strings.HasSuffix(strings.ToLower(voice), "_bigtts") {
+		return true
+	}
+	for _, m := range speechModels {
+		if m.HasVoice(voice) {
+			return true
+		}
+	}
+	return false
+}
+
+// SpeechVoiceIncompatible rejects a voice that the registered model does not
+// offer. Unregistered models (custom gateways) keep the old Doubao-ID guard.
 func SpeechVoiceIncompatible(model, voice string) bool {
-	return strings.HasPrefix(model, "minimax/") && strings.HasSuffix(strings.ToLower(strings.TrimSpace(voice)), "_bigtts")
+	voice = strings.TrimSpace(voice)
+	if m, ok := FindSpeechModel(model); ok {
+		return voice != "" && !m.HasVoice(voice)
+	}
+	return strings.HasPrefix(model, "minimax/") && strings.HasSuffix(strings.ToLower(voice), "_bigtts")
 }

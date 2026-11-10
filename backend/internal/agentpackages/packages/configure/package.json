@@ -47,6 +47,11 @@
         "description": "服务端音色 ID",
         "maxLength": 10000
       },
+      "voice_model": {
+        "type": "string",
+        "description": "配音模型 ID（RunningHub 标准语音合成模型，如 minimax/speech-2.8-hd、doubao-seed-tts-2.0、alibaba/qwen3-tts-flash、kling-lip-sync/tts）；先用 avatar_inspect 读取 voice_models，音色必须属于该模型",
+        "maxLength": 200
+      },
       "ratio": {
         "type": "string",
         "enum": [

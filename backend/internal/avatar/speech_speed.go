@@ -27,6 +27,9 @@ func (e WorkflowEdits) ApplyVoice(in *WorkflowInput) {
 	if e.Voice != "" {
 		in.Voice = e.Voice
 	}
+	if e.VoiceModel != "" {
+		in.VoiceModel = e.VoiceModel
+	}
 	if e.VoiceSpeed != nil {
 		in.VoiceSpeed = *e.VoiceSpeed
 	}

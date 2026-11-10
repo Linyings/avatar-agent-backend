@@ -32,12 +32,15 @@ type avatarWorkflowService struct {
 	app     *App
 	content func(context.Context, string, any, []string) (json.RawMessage, error)
 	media   func(context.Context, string, string) (json.RawMessage, error)
+	// talking selects the voice-driven avatar model for new F06 orders.
+	talking func() (avatarTalkingProvider, error)
 }
 
 func newAvatarWorkflow(a *App) *avatarWorkflowService {
 	w := &avatarWorkflowService{app: a}
 	w.content = a.openai.AvatarContent
 	w.media = w.runMedia
+	w.talking = w.defaultTalking
 	return w
 }
 func (w *avatarWorkflowService) root() string {
@@ -246,7 +249,7 @@ func (w *avatarWorkflowService) createToChecked(ctx context.Context, owner, proj
 		s = avatar.WorkflowState{ID: id.String(), ProjectID: projectID.String(), Version: avatar.WorkflowVersion, Input: in, ConfigID: w.app.avatarMVP.options.VideoConfigID(), Script: in.Script, Status: "running", Stage: "F01", CreatedAt: now, UpdatedAt: now, Steps: []avatar.WorkflowStep{}, Events: []avatar.WorkflowEvent{}, Artifacts: []avatar.WorkflowArtifact{}, Segments: []avatar.Segment{}, Materials: []avatar.Material{}, Needs: []avatar.MaterialNeed{}, Shots: []avatar.WorkflowShot{}}
 		s.TargetNode = target
 		s.ConfigSnapshot = w.configSnapshot()
-		s.ConfigID = avatar.Digest(s.ConfigSnapshot)
+		s.ConfigID = workflowConfigID(s.ConfigSnapshot)
 		edits := avatar.WorkflowEdits{}
 		if len(editOptions) > 0 {
 			edits = editOptions[0]
@@ -282,8 +285,9 @@ func (w *avatarWorkflowService) createToChecked(ctx context.Context, owner, proj
 		}
 		// Keep an accepted voice change in the draft as well as this run. The
 		// revision and run admission commit together, so retries cannot lose it.
-		if (edits.Voice != "" && in.Voice != s.Input.Voice) || edits.VoiceSpeed != nil || edits.SegmentVoiceSpeeds != nil || edits.Presentation != nil || edits.Subtitles != nil || avatar.Digest(in.SubtitleEdits) != avatar.Digest(s.Input.SubtitleEdits) {
+		if (edits.Voice != "" && (in.Voice != s.Input.Voice || in.VoiceModel != s.Input.VoiceModel)) || edits.VoiceSpeed != nil || edits.SegmentVoiceSpeeds != nil || edits.Presentation != nil || edits.Subtitles != nil || avatar.Digest(in.SubtitleEdits) != avatar.Digest(s.Input.SubtitleEdits) {
 			in.Voice = s.Input.Voice
+			in.VoiceModel = s.Input.VoiceModel
 			in.VoiceSpeed = s.Input.VoiceSpeed
 			in.SegmentVoiceSpeeds = s.Input.SegmentVoiceSpeeds
 			edits.ApplyPresentation(&in)
@@ -482,7 +486,7 @@ func (w *avatarWorkflowService) retryWithRequest(ctx context.Context, owner uuid
 		if s.Status != "failed" && s.Status != "interrupted" && s.Status != "submission_unknown" {
 			return fmt.Errorf("当前任务不能重试；停止的任务请另建运行")
 		}
-		if s.ConfigID != avatar.Digest(w.configSnapshot()) && !workflowProviderConfigCompatible(s.ConfigSnapshot, w.configSnapshot()) {
+		if s.ConfigID != workflowConfigID(w.configSnapshot()) && !workflowProviderConfigCompatible(s.ConfigSnapshot, w.configSnapshot()) {
 			return fmt.Errorf("供应商配置已变更，请恢复原配置后查单")
 		}
 		if err := w.app.avatarMVP.ensureIdle(tx); err != nil {

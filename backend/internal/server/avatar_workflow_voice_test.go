@@ -47,6 +47,132 @@ func TestWorkflowMiniMaxVoiceCatalogFiltersLegacyAndKeepsDefault(t *testing.T) {
 	}
 }
 
+func TestWorkflowVoiceModelIsPerProjectAndScopesVoices(t *testing.T) {
+	a := newTestApp(t)
+	a.avatarMVP.options.DataRoot = t.TempDir()
+	a.cfg.TTSModel = "minimax/speech-2.8-hd"
+	t.Setenv("AVATAR_TTS_VOICES", "")
+
+	legacy := avatar.WorkflowInput{Ratio: "9:16", Voice: "Calm_Woman"}
+	if err := a.avatarWorkflow.validateInput(&legacy, false); err != nil && strings.Contains(err.Error(), "音色") {
+		t.Fatalf("legacy project lost its MiniMax voice: %v", err)
+	}
+	if legacy.VoiceModel != "" || a.avatarWorkflow.voiceModel(legacy) != "minimax/speech-2.8-hd" {
+		t.Fatal("projects without a model must keep the deployment model")
+	}
+
+	qwen := avatar.WorkflowInput{Ratio: "9:16", VoiceModel: "alibaba/qwen3-tts-flash"}
+	if err := a.avatarWorkflow.validateInput(&qwen, false); err != nil && strings.Contains(err.Error(), "音色") {
+		t.Fatal(err)
+	}
+	if qwen.Voice != "Cherry" {
+		t.Fatalf("empty voice must take the chosen model default, got %q", qwen.Voice)
+	}
+	mixed := avatar.WorkflowInput{Ratio: "9:16", VoiceModel: "kling-lip-sync/tts", Voice: "Wise_Woman"}
+	if err := a.avatarWorkflow.validateInput(&mixed, false); err == nil || !strings.Contains(err.Error(), "音色") {
+		t.Fatalf("voice from another model must be rejected, got %v", err)
+	}
+	unknown := avatar.WorkflowInput{Ratio: "9:16", VoiceModel: "fish-audio/s2"}
+	if err := a.avatarWorkflow.validateInput(&unknown, false); err == nil || !strings.Contains(err.Error(), "配音模型") {
+		t.Fatalf("unregistered model must be rejected, got %v", err)
+	}
+	speed := avatar.WorkflowInput{Ratio: "9:16", VoiceModel: "alibaba/qwen3-tts-flash", Voice: "Cherry", VoiceSpeed: 1.1}
+	if err := a.avatarWorkflow.validateInput(&speed, false); err == nil || !strings.Contains(err.Error(), "语速") {
+		t.Fatalf("Qwen speed must be rejected before paying, got %v", err)
+	}
+
+	kling := a.avatarWorkflow.voicesFor("kling-lip-sync/tts")
+	if len(kling) != 35 || kling[0].Model != "kling-lip-sync/tts" {
+		t.Fatalf("model-scoped catalog wrong: %d", len(kling))
+	}
+	if a.avatarWorkflow.voiceSamplePathFor("kling-lip-sync/tts", "genshin_vindi2") == a.avatarWorkflow.voiceSamplePathFor("minimax/speech-2.8-hd", "genshin_vindi2") {
+		t.Fatal("samples of different models must not share a cache file")
+	}
+	if a.avatarWorkflow.audioFingerprint(&avatar.WorkflowState{Input: qwen}, avatar.Segment{ID: "p1", Text: "x"}) ==
+		a.avatarWorkflow.audioFingerprint(&avatar.WorkflowState{Input: avatar.WorkflowInput{Voice: "Cherry"}}, avatar.Segment{ID: "p1", Text: "x"}) {
+		t.Fatal("audio cache must be keyed by the project's model")
+	}
+}
+
+func TestWorkflowCatalogListsEveryModelWithSampleRoute(t *testing.T) {
+	a := newTestApp(t)
+	a.avatarMVP.options.DataRoot = t.TempDir()
+	a.cfg.TTSModel = "minimax/speech-2.8-hd"
+	sample := a.avatarWorkflow.voiceSamplePathFor("alibaba/qwen3-tts-flash", "Cherry")
+	if err := os.MkdirAll(filepath.Dir(sample), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(sample, append([]byte("RIFF\x00\x00\x00\x00WAVE"), make([]byte, 32)...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	models := a.avatarWorkflow.voiceModels()
+	if len(models) != len(avatar.SpeechModels()) || models[0].ID != "minimax/speech-2.8-hd" {
+		t.Fatalf("deployment model must lead the list: %#v", models[0])
+	}
+	var qwen workflowVoiceModel
+	for _, m := range models {
+		if m.ID == "alibaba/qwen3-tts-flash" {
+			qwen = m
+		}
+	}
+	if qwen.DefaultVoice != "Cherry" || len(qwen.Voices) != 48 || qwen.Voices[0].Sample != "/api/v1/avatar-mvp/catalog/voices/Cherry/sample?model=alibaba%2Fqwen3-tts-flash" || qwen.SupportsSpeed {
+		t.Fatalf("qwen catalog wrong: %#v", qwen.Voices[0])
+	}
+
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "voice", Value: "Cherry"}}
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/avatar-mvp/catalog/voices/Cherry/sample?model=alibaba%2Fqwen3-tts-flash", nil)
+	a.workflowVoiceSample(c)
+	if w.Code != http.StatusOK || w.Header().Get("Content-Type") != "audio/wav" {
+		t.Fatalf("model-scoped sample: %d %s", w.Code, w.Header().Get("Content-Type"))
+	}
+	w = httptest.NewRecorder()
+	c, _ = gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "voice", Value: "Cherry"}}
+	c.Request = httptest.NewRequest(http.MethodGet, "/api/v1/avatar-mvp/catalog/voices/Cherry/sample?model=kling-lip-sync%2Ftts", nil)
+	a.workflowVoiceSample(c)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("voice outside the model must 404, got %d", w.Code)
+	}
+}
+
+func TestWorkflowVoiceSamplesAreSharedWithinAModelFamily(t *testing.T) {
+	a := newTestApp(t)
+	a.avatarMVP.options.DataRoot = t.TempDir()
+	a.cfg.TTSModel = "minimax/speech-2.8-hd"
+	shared := a.avatarWorkflow.voiceSamplePathFor("alibaba/qwen3-tts-flash", "Neil")
+	if err := os.MkdirAll(filepath.Dir(shared), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(shared, append([]byte("ID3\x04\x00\x00\x00\x00\x00\x00"), make([]byte, 32)...), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	var instructNeil workflowVoice
+	for _, v := range a.avatarWorkflow.voicesFor("alibaba/qwen3-tts-instruct-flash") {
+		if v.ID == "Neil" {
+			instructNeil = v
+		}
+	}
+	if instructNeil.Sample == "" {
+		t.Fatal("Instruct must reuse the Flash sample of the same preset voice")
+	}
+	w := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(w)
+	c.Params = gin.Params{{Key: "voice", Value: "Neil"}}
+	c.Request = httptest.NewRequest(http.MethodGet, instructNeil.Sample, nil)
+	a.workflowVoiceSample(c)
+	if w.Code != http.StatusOK || w.Header().Get("Content-Type") != "audio/mpeg" {
+		t.Fatalf("shared sample not served: %d", w.Code)
+	}
+	// Different providers never share, even if an ID collided.
+	for _, v := range a.avatarWorkflow.voicesFor("kling-lip-sync/tts") {
+		if v.Sample != "" {
+			t.Fatalf("kling borrowed a sample: %#v", v)
+		}
+	}
+}
+
 func TestWorkflowMiniMaxCatalogOffersAllSystemVoicesWithSamples(t *testing.T) {
 	a := newTestApp(t)
 	a.avatarMVP.options.DataRoot = t.TempDir()
@@ -96,7 +222,7 @@ func TestWorkflowMiniMaxDraftRepairsLegacyVoiceWithoutChangingUnknownOrder(t *te
 	t.Setenv("AVATAR_TTS_VOICES", "")
 	run.Input.Voice = a.cfg.TTSSpeaker
 	run.ConfigSnapshot = a.avatarWorkflow.configSnapshot()
-	run.ConfigID = avatar.Digest(run.ConfigSnapshot)
+	run.ConfigID = workflowConfigID(run.ConfigSnapshot)
 	run.Status = "submission_unknown"
 	run.Steps = []avatar.WorkflowStep{{ID: "F04/p1", Status: "failed", Submission: "unknown", Attempt: 1}}
 	if err := a.avatarWorkflow.save(&run); err != nil {

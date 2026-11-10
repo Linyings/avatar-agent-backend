@@ -51,6 +51,7 @@ type mailer interface {
 type App struct {
 	avatarMVP      *avatarMVPService
 	avatarWorkflow *avatarWorkflowService
+	modelLab       *modelLabService
 	cfg            config.Config
 	db             *gorm.DB
 	r              *gin.Engine
@@ -129,6 +130,7 @@ func New(cfg config.Config, db *gorm.DB) *App {
 	app.r = r
 	app.avatarMVP = newAvatarMVP(app)
 	app.avatarWorkflow = newAvatarWorkflow(app)
+	app.modelLab = newModelLab(app)
 	app.routes()
 	return app
 }
@@ -403,6 +405,7 @@ func (a *App) routes() {
 	dubbing.GET("/separation/query/:task_id", a.queryDubbingSeparation)
 
 	admin := v1.Group("/admin", a.authRequired(), a.adminRequired())
+	a.registerModelLab(admin, v1.Group("/avatar-mvp", a.authRequired()))
 	admin.GET("/tts/qwen/voices", a.adminQwenVoices)
 	admin.PUT("/tts/qwen/voices", a.adminSaveQwenVoices)
 	admin.POST("/tts/qwen/preview", a.adminPreviewQwenVoice)

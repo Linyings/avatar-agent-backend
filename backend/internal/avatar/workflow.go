@@ -24,6 +24,7 @@ type WorkflowInput struct {
 	Direction          string             `json:"direction"`
 	Style              string             `json:"style"`
 	Voice              string             `json:"voice"`
+	VoiceModel         string             `json:"voice_model,omitempty"` // RunningHub TTS model; empty = deployment TTS_MODEL
 	VoiceSpeed         float64            `json:"voice_speed,omitempty"`
 	SegmentVoiceSpeeds map[string]float64 `json:"segment_voice_speeds,omitempty"`
 	Ratio              string             `json:"ratio"`
@@ -135,26 +136,29 @@ type WorkflowEvent struct {
 	Read      bool      `json:"read"`
 }
 type WorkflowStep struct {
-	Retry            *WorkflowRetry    `json:"retry,omitempty"`
-	ProductionPhase  string            `json:"production_phase,omitempty"`
-	GenerationPrompt string            `json:"generation_prompt,omitempty"`
-	PromptInput      json.RawMessage   `json:"prompt_input,omitempty"`
-	ID               string            `json:"id"`
-	Status           string            `json:"status"`
-	Attempt          int               `json:"attempt"`
-	StartedAt        *time.Time        `json:"started_at,omitempty"`
-	CompletedAt      *time.Time        `json:"completed_at,omitempty"`
-	Seconds          float64           `json:"seconds"`
-	InputHash        string            `json:"input_hash"`
-	Submission       string            `json:"submission,omitempty"`
-	LocalRecovery    string            `json:"local_recovery,omitempty"`
-	ProviderTaskID   string            `json:"provider_task_id,omitempty"`
-	Error            string            `json:"error,omitempty"`
-	ErrorType        string            `json:"error_type,omitempty"`
-	Usage            json.RawMessage   `json:"usage,omitempty"`
-	CostStatus       string            `json:"cost_status"`
-	Orders           []WorkflowOrder   `json:"orders,omitempty"`
-	Attempts         []WorkflowAttempt `json:"attempts,omitempty"`
+	Retry            *WorkflowRetry `json:"retry,omitempty"`
+	ProductionPhase  string         `json:"production_phase,omitempty"`
+	GenerationPrompt string         `json:"generation_prompt,omitempty"`
+	// Model is the provider model the order was placed on; recovery queries
+	// the same model's API even after the default changes.
+	Model          string            `json:"model,omitempty"`
+	PromptInput    json.RawMessage   `json:"prompt_input,omitempty"`
+	ID             string            `json:"id"`
+	Status         string            `json:"status"`
+	Attempt        int               `json:"attempt"`
+	StartedAt      *time.Time        `json:"started_at,omitempty"`
+	CompletedAt    *time.Time        `json:"completed_at,omitempty"`
+	Seconds        float64           `json:"seconds"`
+	InputHash      string            `json:"input_hash"`
+	Submission     string            `json:"submission,omitempty"`
+	LocalRecovery  string            `json:"local_recovery,omitempty"`
+	ProviderTaskID string            `json:"provider_task_id,omitempty"`
+	Error          string            `json:"error,omitempty"`
+	ErrorType      string            `json:"error_type,omitempty"`
+	Usage          json.RawMessage   `json:"usage,omitempty"`
+	CostStatus     string            `json:"cost_status"`
+	Orders         []WorkflowOrder   `json:"orders,omitempty"`
+	Attempts       []WorkflowAttempt `json:"attempts,omitempty"`
 }
 type WorkflowAttempt struct {
 	Error       string          `json:"error,omitempty"`
@@ -290,6 +294,7 @@ type WorkflowEdits struct {
 	Presentation       *PresentationEdits  `json:"presentation,omitempty"`
 	Subtitles          map[string]string   `json:"subtitles,omitempty"`
 	Voice              string              `json:"voice,omitempty"`
+	VoiceModel         string              `json:"voice_model,omitempty"`
 	VoiceSpeed         *float64            `json:"voice_speed,omitempty"`
 	SegmentVoiceSpeeds map[string]float64  `json:"segment_voice_speeds,omitempty"`
 	BaseRunID          string              `json:"base_run_id,omitempty"`

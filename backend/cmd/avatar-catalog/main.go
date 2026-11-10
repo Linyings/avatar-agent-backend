@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/narratoai/backend-go/internal/avatar"
@@ -29,29 +28,43 @@ type receipt struct {
 func main() {
 	paid := flag.Bool("paid", false, "explicitly allow paid catalog generation")
 	voice := flag.String("voice", "", "configured provider voice ID")
-	system := flag.Bool("system", false, "generate every built-in voice of the configured model")
+	system := flag.Bool("system", false, "generate every built-in voice of the model")
+	model := flag.String("model", "", "RunningHub TTS model; defaults to TTS_MODEL, \"all\" for every registered model")
 	flag.Parse()
 	if !*paid || (*voice == "") == !*system {
 		fmt.Fprintln(os.Stderr, "需要 --paid，以及 --voice 或 --system 其一；此操作只生成目录试听，不启动制作任务")
 		os.Exit(2)
 	}
-	voices := []string{*voice}
-	if *system {
-		voices = nil
-		for _, v := range avatar.SystemSpeechVoices(config.Load().TTSModel) {
-			voices = append(voices, v.ID)
-		}
-		if len(voices) == 0 {
-			fmt.Fprintln(os.Stderr, "当前配音模型没有登记系统音色")
-			os.Exit(2)
+	models := []string{*model}
+	if *model == "" {
+		models = []string{config.Load().TTSModel}
+	}
+	if *model == "all" {
+		models = nil
+		for _, m := range avatar.SpeechModels() {
+			models = append(models, m.ID)
 		}
 	}
 	failed := 0
-	for _, id := range voices {
-		fmt.Printf("[%s] ", id)
-		if err := execute(id); err != nil {
-			fmt.Fprintln(os.Stderr, id+": "+err.Error())
-			failed++
+	for _, m := range models {
+		voices := []string{*voice}
+		if *system {
+			voices = nil
+			for _, v := range avatar.SystemSpeechVoices(m) {
+				voices = append(voices, v.ID)
+			}
+			if len(voices) == 0 {
+				fmt.Fprintln(os.Stderr, m+": 配音模型没有登记系统音色")
+				failed++
+				continue
+			}
+		}
+		for _, id := range voices {
+			fmt.Printf("[%s %s] ", m, id)
+			if err := execute(m, id); err != nil {
+				fmt.Fprintln(os.Stderr, m+" "+id+": "+err.Error())
+				failed++
+			}
 		}
 	}
 	if failed > 0 {
@@ -59,13 +72,13 @@ func main() {
 	}
 }
 
-func execute(voice string) (err error) {
+func execute(model, voice string) (err error) {
 	cfg := config.Load()
-	if cfg.TTSModel != "doubao-seed-tts-2.0" && !strings.HasPrefix(cfg.TTSModel, "minimax/") {
-		return fmt.Errorf("此目录预生成命令仅适用于 RunningHub 异步 TTS（豆包 / MiniMax）；不自动切换模型")
+	if _, ok := avatar.FindSpeechModel(model); !ok {
+		return fmt.Errorf("此目录预生成命令仅适用于已登记的 RunningHub 标准语音合成模型")
 	}
-	if avatar.SpeechVoiceIncompatible(cfg.TTSModel, voice) {
-		return fmt.Errorf("音色与当前配音模型不匹配")
+	if avatar.SpeechVoiceIncompatible(model, voice) {
+		return fmt.Errorf("音色与配音模型不匹配")
 	}
 	key := os.Getenv("RUNNINGHUB_API_KEY")
 	if key == "" {
@@ -75,6 +88,9 @@ func execute(voice string) (err error) {
 		return fmt.Errorf("服务端未配置配音密钥")
 	}
 	base := os.Getenv("RUNNINGHUB_BASE_URL")
+	if base == "" && cfg.Avatar.Protocol == "runninghub" {
+		base = cfg.Avatar.BaseURL
+	}
 	if base == "" {
 		base = "https://www.runninghub.cn"
 	}
@@ -86,11 +102,18 @@ func execute(voice string) (err error) {
 	if err := os.MkdirAll(root, 0700); err != nil {
 		return err
 	}
-	id := avatar.Digest([]string{cfg.TTSModel, voice})
+	id := avatar.Digest([]string{model, voice})
 	sample := filepath.Join(root, id+".wav")
-	if _, err := os.Stat(sample); err == nil {
-		fmt.Println("已有真实试听，复用，不提交新订单")
-		return nil
+	// The server shares a preview across versions of one family; do not pay
+	// again for a voice that a sibling version already recorded.
+	for _, sibling := range avatar.SpeechModelFamily(model) {
+		if m, ok := avatar.FindSpeechModel(sibling); ok && !m.HasVoice(voice) {
+			continue
+		}
+		if _, err := os.Stat(filepath.Join(root, avatar.Digest([]string{sibling, voice})+".wav")); err == nil {
+			fmt.Println("已有真实试听（" + sibling + "），复用，不提交新订单")
+			return nil
+		}
 	}
 	lock, err := os.OpenFile(filepath.Join(root, ".voice-generator.lock"), os.O_CREATE|os.O_EXCL|os.O_WRONLY, 0600)
 	if err != nil {
@@ -99,7 +122,7 @@ func execute(voice string) (err error) {
 	lock.Close()
 	defer os.Remove(lock.Name())
 	statePath := filepath.Join(root, id+"-order.json")
-	state := receipt{Voice: voice, Model: cfg.TTSModel, Started: time.Now().UTC()}
+	state := receipt{Voice: voice, Model: model, Started: time.Now().UTC()}
 	if data, err := os.ReadFile(statePath); err == nil {
 		if json.Unmarshal(data, &state) != nil {
 			return fmt.Errorf("原试听订单记录不可读")
@@ -119,7 +142,7 @@ func execute(voice string) (err error) {
 		if err := avatar.WriteJSON(statePath, state); err != nil {
 			return err
 		}
-		result, err := client.SubmitSpeech(ctx, avatar.SpeechRequest{Model: cfg.TTSModel, Speaker: voice, Language: cfg.TTSLanguage, Format: "wav", Text: "你好，我会用这个声音，为你讲解视频里的重点内容。"})
+		result, err := client.SubmitSpeech(ctx, avatar.SpeechRequest{Model: model, Speaker: voice, Language: cfg.TTSLanguage, Format: "wav", Text: "你好，我会用这个声音，为你讲解视频里的重点内容。"})
 		if err != nil {
 			state.Submission = "unknown"
 			_ = avatar.WriteJSON(statePath, state)

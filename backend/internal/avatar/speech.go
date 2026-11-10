@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"strings"
 	"time"
@@ -122,6 +123,36 @@ func (c *RunningHub) fetchAudio(ctx context.Context, raw string) ([]byte, error)
 	return os.ReadFile(path)
 }
 
+// speechRequestBody maps one request onto the RunningHub schema of its model.
+func speechRequestBody(in SpeechRequest, speed float64) (string, map[string]any) {
+	model := strings.TrimPrefix(in.Model, "bytedance/")
+	switch {
+	case strings.HasPrefix(model, "minimax/"):
+		return "/openapi/v2/rhart-audio/text-to-audio/" + strings.TrimPrefix(model, "minimax/"),
+			map[string]any{"text": in.Text, "voice_id": in.Speaker, "speed": speed, "volume": 1, "pitch": 0, "english_normalization": false, "enable_base64_output": false}
+	case strings.HasPrefix(model, "alibaba/qwen3-tts"):
+		return "/openapi/v2/" + model, map[string]any{"text": in.Text, "voice": in.Speaker, "languageType": "Auto"}
+	case model == "kling-lip-sync/tts":
+		// Kling accepts one decimal place in 0.8–2.0.
+		return "/openapi/v2/kling-lip-sync/tts", map[string]any{"text": in.Text, "voiceId": in.Speaker, "voiceLanguage": "zh", "voiceSpeed": math.Round(speed*10) / 10}
+	case strings.HasPrefix(model, "doubao-"):
+		params := map[string]any{
+			"text": in.Text, "speaker": in.Speaker, "format": in.Format,
+			"sample_rate": "24000", "explicit_language": in.Language, "enable_subtitle": false,
+		}
+		// speech_rate is a percentage offset in [-50,100]; 0 keeps the native pace.
+		if rate := int(math.Round((speed - 1) * 100)); rate != 0 {
+			params["speech_rate"] = rate
+		}
+		return "/openapi/v2/bytedance/" + model, params
+	default:
+		return "/openapi/v2/" + model, map[string]any{
+			"text": in.Text, "speaker": in.Speaker, "format": in.Format,
+			"sample_rate": "24000", "explicit_language": in.Language, "enable_subtitle": false,
+		}
+	}
+}
+
 // SubmitSpeech lets the workflow persist the paid order before polling.
 func (c *RunningHub) SubmitSpeech(ctx context.Context, in SpeechRequest) (ProviderResult, error) {
 	if strings.TrimSpace(in.Text) == "" {
@@ -137,42 +168,23 @@ func (c *RunningHub) SubmitSpeech(ctx context.Context, in SpeechRequest) (Provid
 	// Do not silently change the voice of a frozen run at the paid boundary.
 	// Draft validation handles migration before fingerprints and orders exist.
 	if SpeechVoiceIncompatible(in.Model, in.Speaker) {
-		return ProviderResult{}, fmt.Errorf("音色与当前配音模型不匹配，请在项目中改用当前模型音色")
+		return ProviderResult{}, fmt.Errorf("音色与所选配音模型不匹配，请在项目中改用该模型的音色")
 	}
 	if in.Language == "" {
 		in.Language = "zh-cn"
 	}
 
-	// 构建 API 路径：使用模型名称作为路径的一部分
-	// 例如：/openapi/v2/bytedance/doubao-seed-tts-2.0 或 /openapi/v2/minimax/speech-2.8-hd
-	apiPath := "/openapi/v2/"
-
-	// 根据模型名称判断提供商
-	if strings.HasPrefix(in.Model, "minimax/") {
-		apiPath += "rhart-audio/text-to-audio/" + strings.TrimPrefix(in.Model, "minimax/")
-	} else if strings.HasPrefix(in.Model, "doubao-") || strings.HasPrefix(in.Model, "bytedance/") {
-		// doubao 和 bytedance 模型使用 bytedance 路径
-		modelName := strings.TrimPrefix(in.Model, "bytedance/")
-		apiPath += "bytedance/" + modelName
-	} else {
-		// 默认使用模型名称作为路径
-		apiPath += in.Model
+	speed := in.Speed
+	if speed == 0 {
+		speed = 1
 	}
-
-	params := map[string]any{
-		"text": in.Text, "speaker": in.Speaker, "format": in.Format,
-		"sample_rate": "24000", "explicit_language": in.Language, "enable_subtitle": false,
+	if err := ValidateVoiceSpeed(speed); err != nil {
+		return ProviderResult{}, err
 	}
-	if strings.HasPrefix(in.Model, "minimax/") {
-		speed := in.Speed
-		if speed == 0 {
-			speed = 1
-		}
-		if err := ValidateVoiceSpeed(speed); err != nil {
-			return ProviderResult{}, err
-		}
-		params = map[string]any{"text": in.Text, "voice_id": in.Speaker, "speed": speed, "volume": 1, "pitch": 0, "english_normalization": false, "enable_base64_output": false}
+	if m, ok := FindSpeechModel(in.Model); ok && !m.SupportsSpeed && speed != 1 {
+		return ProviderResult{}, fmt.Errorf("当前配音模型不支持调整语速，请使用原速")
 	}
+	apiPath, params := speechRequestBody(in, speed)
 	body, err := json.Marshal(params)
 	if err != nil {
 		return ProviderResult{}, err

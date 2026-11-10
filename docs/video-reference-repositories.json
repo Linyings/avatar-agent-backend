@@ -1,9 +1,35 @@
 {
-  "recorded_at": "2026-11-09",
+  "recorded_at": "2026-11-10",
   "purpose": "Independent local references for architecture and future video Agent development; no application source imported by this record.",
   "workspace": "D:\\pro\\ai_cat",
   "analysis": "docs/opus-video-reference-analysis.md",
   "repositories": [
+    {
+      "name": "rea-video",
+      "repository": "https://github.com/JuneYaooo/rea-video.git",
+      "local_directory": "D:\\pro\\ai_cat\\参考\\rea-video",
+      "branch": "main",
+      "commit": "356815c0d61291811551a2b8813b2b571d9b3238",
+      "recorded_at": "2026-11-10",
+      "analysis": "docs/rea-video-analysis.md",
+      "role": "Agent-oriented Python CLI for shot-level video production analysis, packaging and audio analysis, evidence fusion and remake planning; optional capsule-cinema generation and FFmpeg assembly",
+      "entrypoints": [
+        "i18n/README_zh.md",
+        "docs/cli.md",
+        "docs/what-it-detects.md",
+        "skills/rea-video/SKILL.md",
+        "rea_video/pipeline.py",
+        "rea_video/classify.py",
+        "rea_video/packaging.py",
+        "rea_video/production.py",
+        "rea_video/capabilities/README.md",
+        "rea_video/integrations/capsule_cinema.py",
+        "rea_video/remake.py"
+      ],
+      "license_note": "Repository code declares Apache-2.0 with NOTICE. README identifies some third-party originals and comparison media as comparison-only; do not infer reuse rights for all bundled media from the code license.",
+      "verification": "Full non-shallow clone with 411 tracked files and clean worktree; local HEAD matched remote main. On WSL2 Ubuntu-24.04, parsed all 70 Python files using ast and passed upstream capability validation: 43 primitives, 16 metrics, 76 model/tool records (75 non-shutdown), 21 visual routes, 5 audio routes. Did not install CLI/skill, run pytest, analyze media, call VLM, generate video or deploy a service.",
+      "integration_note": "Use as an isolated Python analysis worker under existing WSL2 Docker deployment if adopted. Code-render routes output specifications rather than Remotion projects. Automatic generation delegates to capsule-cinema per shot; assembly may retain original footage and original audio. Model catalog entries are planning metadata, not verified working integrations."
+    },
     {
       "name": "pdoom-video",
       "repository": "https://github.com/mexicat/pdoom-video.git",

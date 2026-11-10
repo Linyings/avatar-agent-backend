@@ -20,6 +20,88 @@ type workflowVoice struct {
 	Sample string `json:"sample,omitempty"`
 }
 
+type workflowVoiceModel struct {
+	ID            string          `json:"id"`
+	Name          string          `json:"name"`
+	DefaultVoice  string          `json:"default_voice"`
+	SupportsSpeed bool            `json:"supports_speed"`
+	Voices        []workflowVoice `json:"voices"`
+}
+
+// voiceModel is the TTS model a project is synthesized with.
+func (w *avatarWorkflowService) voiceModel(in avatar.WorkflowInput) string {
+	if in.VoiceModel != "" {
+		return in.VoiceModel
+	}
+	return sTTSModel(w.app)
+}
+
+// voiceModels lists every selectable RunningHub model, deployment model first.
+// Selection needs the RunningHub speech key, so other providers offer only theirs.
+func (w *avatarWorkflowService) voiceModels() []workflowVoiceModel {
+	current := sTTSModel(w.app)
+	out := []workflowVoiceModel{}
+	add := func(m avatar.SpeechModel) {
+		out = append(out, workflowVoiceModel{ID: m.ID, Name: m.Name, DefaultVoice: m.DefaultVoice, SupportsSpeed: m.SupportsSpeed, Voices: w.voicesFor(m.ID)})
+	}
+	if m, ok := avatar.FindSpeechModel(current); ok {
+		add(m)
+	} else {
+		out = append(out, workflowVoiceModel{ID: current, Name: current, DefaultVoice: sVoice(w.app), Voices: w.voices()})
+	}
+	if !w.runningHubSpeech() {
+		return out
+	}
+	for _, m := range avatar.SpeechModels() {
+		if m.ID != out[0].ID {
+			add(m)
+		}
+	}
+	return out
+}
+
+// voicesFor lists one model's voices; the deployment model keeps its legacy list.
+func (w *avatarWorkflowService) voicesFor(model string) []workflowVoice {
+	if model == "" || model == sTTSModel(w.app) {
+		return w.voices()
+	}
+	m, ok := avatar.FindSpeechModel(model)
+	if !ok {
+		return nil
+	}
+	out := make([]workflowVoice, 0, len(m.Voices))
+	for _, v := range m.Voices {
+		item := workflowVoice{ID: v.ID, Name: v.Name, Model: m.ID}
+		if w.existingVoiceSample(m.ID, v.ID) != "" {
+			item.Sample = "/api/v1/avatar-mvp/catalog/voices/" + url.PathEscape(v.ID) + "/sample?model=" + url.QueryEscape(m.ID)
+		}
+		out = append(out, item)
+	}
+	return out
+}
+
+func (w *avatarWorkflowService) voiceSamplePathFor(model, id string) string {
+	return filepath.Join(w.root(), "catalog", avatar.Digest([]string{model, id})+".wav")
+}
+
+// existingVoiceSample finds a recorded preview of the voice, falling back to a
+// sibling version of the same model family that offers the same preset voice.
+func (w *avatarWorkflowService) existingVoiceSample(model, id string) string {
+	candidates := avatar.SpeechModelFamily(model)
+	if len(candidates) == 0 {
+		candidates = []string{model}
+	}
+	for _, m := range candidates {
+		if found, ok := avatar.FindSpeechModel(m); ok && m != model && !found.HasVoice(id) {
+			continue
+		}
+		if path := w.voiceSamplePathFor(m, id); func() bool { _, err := os.Stat(path); return err == nil }() {
+			return path
+		}
+	}
+	return ""
+}
+
 func (w *avatarWorkflowService) voices() []workflowVoice {
 	model := sTTSModel(w.app)
 	system := avatar.SystemSpeechVoices(model)
@@ -50,14 +132,8 @@ func (w *avatarWorkflowService) voices() []workflowVoice {
 			if name := names[id]; name != "" {
 				v.Name = name
 			}
-			if id == "zh_male_shaonianzixin_uranus_bigtts" {
-				v.Name = "少年自信 · 男声"
-			}
-			if id == "zh_female_vv_uranus_bigtts" {
-				v.Name = "Vivi 2.0 · 女声"
-			}
-			if _, err := os.Stat(w.voiceSamplePath(id)); err == nil {
-				v.Sample = "/api/v1/avatar-mvp/catalog/voices/" + id + "/sample"
+			if w.existingVoiceSample(model, id) != "" {
+				v.Sample = "/api/v1/avatar-mvp/catalog/voices/" + url.PathEscape(id) + "/sample"
 			}
 			out = append(out, v)
 			seen[id] = true
@@ -66,12 +142,16 @@ func (w *avatarWorkflowService) voices() []workflowVoice {
 	return out
 }
 func (w *avatarWorkflowService) voiceSamplePath(id string) string {
-	return filepath.Join(w.root(), "catalog", avatar.Digest([]string{sTTSModel(w.app), id})+".wav")
+	return w.voiceSamplePathFor(sTTSModel(w.app), id)
 }
 func (a *App) workflowVoiceSample(c *gin.Context) {
 	voice := c.Param("voice")
+	model := c.Query("model")
+	if model == "" {
+		model = sTTSModel(a)
+	}
 	found := false
-	for _, v := range a.avatarWorkflow.voices() {
+	for _, v := range a.avatarWorkflow.voicesFor(model) {
 		if v.ID == voice {
 			found = true
 		}
@@ -80,7 +160,11 @@ func (a *App) workflowVoiceSample(c *gin.Context) {
 		fail(c, 404, "音色不存在")
 		return
 	}
-	f, err := os.Open(a.avatarWorkflow.voiceSamplePath(voice))
+	path := a.avatarWorkflow.existingVoiceSample(model, voice)
+	if path == "" {
+		path = a.avatarWorkflow.voiceSamplePathFor(model, voice)
+	}
+	f, err := os.Open(path)
 	if err != nil {
 		fail(c, 404, "尚无该音色的真实试听，首次分段配音成功后可用")
 		return
@@ -122,7 +206,22 @@ func (w *avatarWorkflowService) validateInput(in *avatar.WorkflowInput, run bool
 			return err
 		}
 	}
-	if w.runningHubSpeech() && !strings.HasPrefix(w.app.cfg.TTSModel, "minimax/") {
+	in.VoiceModel = strings.TrimSpace(in.VoiceModel)
+	if in.VoiceModel == sTTSModel(w.app) {
+		// The deployment model is the implicit default; keep drafts portable.
+		in.VoiceModel = ""
+	}
+	if in.VoiceModel != "" {
+		if _, ok := avatar.FindSpeechModel(in.VoiceModel); !ok || !w.runningHubSpeech() {
+			return fmt.Errorf("配音模型不在服务端可用清单")
+		}
+	}
+	model := w.voiceModel(*in)
+	speedSupported := strings.HasPrefix(model, "minimax/")
+	if m, ok := avatar.FindSpeechModel(model); ok {
+		speedSupported = m.SupportsSpeed
+	}
+	if w.runningHubSpeech() && !speedSupported {
 		if avatar.EffectiveVoiceSpeed(*in, "") != 1 {
 			return fmt.Errorf("当前配音模型尚未接入语速参数，请使用原速或选择支持语速的模型")
 		}
@@ -178,8 +277,14 @@ func (w *avatarWorkflowService) validateInput(in *avatar.WorkflowInput, run bool
 		in.Ratio = "9:16"
 	}
 	in.Voice = strings.TrimSpace(in.Voice)
-	if in.Voice == "" || avatar.SpeechVoiceIncompatible(sTTSModel(w.app), in.Voice) {
-		in.Voice = sVoice(w.app)
+	if in.VoiceModel == "" {
+		// Legacy repair: drafts saved for another deployment model fall back.
+		// Unknown IDs are not guessed; they fail the catalog check below.
+		if in.Voice == "" || (avatar.SpeechVoiceIncompatible(model, in.Voice) && avatar.SpeechVoiceKnown(in.Voice)) {
+			in.Voice = sVoice(w.app)
+		}
+	} else if in.Voice == "" {
+		in.Voice = avatar.DefaultSpeechVoice(model)
 	}
 	if len([]rune(in.Script)) > 10000 || len([]rune(in.Topic)) > 2000 || len([]rune(in.Title)) > 100 || len([]rune(in.Direction)) > 2000 {
 		return fmt.Errorf("输入过长")
@@ -195,13 +300,13 @@ func (w *avatarWorkflowService) validateInput(in *avatar.WorkflowInput, run bool
 		return fmt.Errorf("不支持的画面比例")
 	}
 	found := false
-	for _, v := range w.voices() {
+	for _, v := range w.voicesFor(model) {
 		if v.ID == in.Voice {
 			found = true
 		}
 	}
 	if !found {
-		return fmt.Errorf("音色不在服务端可用清单")
+		return fmt.Errorf("音色不在所选配音模型的可用清单")
 	}
 	for _, angle := range in.Angles {
 		if angle != "正面" && angle != "左前方20度" && angle != "右前方20度" {
@@ -226,7 +331,7 @@ func (a *App) workflowCatalog(c *gin.Context) {
 		fail(c, 503, "动效风格目录不可用")
 		return
 	}
-	ok(c, gin.H{"version": avatar.WorkflowVersion, "styles": styles, "voices": a.avatarWorkflow.voices(), "ratios": []string{"9:16", "16:9", "1:1"}, "video_understanding": a.avatarWorkflow.visionConfigured(), "video_provider": a.avatarMVP.options.Provider, "video_model": a.avatarMVP.options.Model, "default_voice": sVoice(a)})
+	ok(c, gin.H{"version": avatar.WorkflowVersion, "styles": styles, "voices": a.avatarWorkflow.voices(), "ratios": []string{"9:16", "16:9", "1:1"}, "video_understanding": a.avatarWorkflow.visionConfigured(), "video_provider": a.avatarMVP.options.Provider, "video_model": a.avatarMVP.options.Model, "default_voice": sVoice(a), "voice_models": a.avatarWorkflow.voiceModels(), "default_voice_model": sTTSModel(a)})
 }
 func (a *App) workflowStylePreview(c *gin.Context) {
 	style := c.Param("style")

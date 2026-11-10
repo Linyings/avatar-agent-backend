@@ -1,5 +1,5 @@
-// Verify the home composer voice picker on the real WSL deployment.
-// Creates one temporary draft (no runs, no model calls) and deletes it afterwards.
+// Verify the home composer voice model + voice picker on the real WSL deployment.
+// Creates temporary drafts (no runs, no model calls) and deletes them afterwards.
 const {execFileSync}=require('node:child_process');
 const {mkdirSync,writeFileSync}=require('node:fs');
 const {resolve}=require('node:path');
@@ -22,8 +22,8 @@ const unwrap=x=>x.data??x;
  const output=resolve(__dirname,'../../backend/data/wsl-deployment/home-voice',new URL(base).hostname)
  mkdirSync(output,{recursive:true})
  const browser=await chromium.launch({headless:true,executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',args:['--autoplay-policy=no-user-gesture-required']})
- const report={url:base+'/',errors:[],modelTasksStarted:0}
- let headers,draft,page
+ const report={url:base+'/',errors:[],modelTasksStarted:0,drafts:[]}
+ let headers,page
  try{
   const context=await browser.newContext({viewport:{width:1440,height:1000}})
   page=await context.newPage()
@@ -42,58 +42,57 @@ const unwrap=x=>x.data??x;
   assert.ok(headers,'No valid saved deployment account')
   await expect(page.getByRole('heading',{name:/你的专属AI视频Agent/})).toBeVisible()
   const catalog=unwrap(await (await context.request.get(base+'/api/v1/avatar-mvp/catalog',{headers})).json())
-  report.catalogVoices=catalog.voices.length
-  report.catalogSamples=catalog.voices.filter(v=>v.sample).length
-  assert.equal(report.catalogVoices,17,'All 17 MiniMax system voices must be listed')
-  assert.equal(report.catalogSamples,17,'Every system voice must have a preview')
+  report.models=catalog.voice_models.map(m=>({id:m.id,voices:m.voices.length,samples:m.voices.filter(v=>v.sample).length}))
+  assert.ok(catalog.voice_models.length>=10,'All RunningHub TTS models must be listed')
 
-  // Composer row: style, ratio and voice sit together under the prompt box.
   const trigger=page.getByRole('button',{name:/^配音音色：/})
-  await expect(trigger).toBeVisible()
   await expect(trigger).toHaveAccessibleName('配音音色：睿智女声 · Wise Woman')
   const style=page.getByRole('button',{name:/^动效风格：/}),ratio=page.getByRole('combobox',{name:'画幅'})
   const [sb,rb,vb]=await Promise.all([style.boundingBox(),ratio.boundingBox(),trigger.boundingBox()])
-  report.composerRow={style:sb,ratio:rb,voice:vb}
   assert.ok(Math.abs(vb.y-sb.y)<8&&vb.x>rb.x,'Voice picker must sit beside the style and ratio controls')
-  await page.screenshot({path:resolve(output,'home-composer.png')})
 
   await trigger.click()
-  const list=page.getByRole('listbox',{name:'可选音色'})
-  await expect(list).toBeVisible()
-  await expect(list.getByRole('option')).toHaveCount(17)
-  await page.screenshot({path:resolve(output,'voice-list.png')})
+  const tabs=page.getByRole('tab')
+  await expect(tabs).toHaveCount(catalog.voice_models.length)
+  await page.screenshot({path:resolve(output,'voice-models.png')})
 
-  // Preview: fetched with auth, actually decoded and played by the browser.
-  const sample=page.waitForResponse(r=>r.url().includes('/catalog/voices/Calm_Woman/sample'))
-  await page.getByRole('button',{name:'试听沉稳女声 · Calm Woman'}).click()
-  const response=await sample
-  report.preview={status:response.status(),type:response.headers()['content-type']}
-  assert.equal(response.status(),200)
-  await expect(page.getByRole('button',{name:'停止试听沉稳女声 · Calm Woman'})).toBeVisible()
-  await page.getByRole('button',{name:'停止试听沉稳女声 · Calm Woman'}).click()
-  await expect(page.getByRole('button',{name:'试听沉稳女声 · Calm Woman'})).toBeVisible()
+  // Switch model → list shows only that model's voices; preview plays; select.
+  for(const target of [{model:'千问 Qwen3-TTS Flash',voice:'阿闻 · 新闻主播男声',id:'Neil',modelId:'alibaba/qwen3-tts-flash'},{model:'可灵 Kling TTS',voice:'东北老铁',id:'dongbeilaotie_speech02',modelId:'kling-lip-sync/tts'}]){
+   if(!(await page.getByRole('listbox',{name:'可选音色'}).isVisible()))await trigger.click()
+   await page.getByRole('tab',{name:target.model}).click()
+   const list=page.getByRole('listbox',{name:'可选音色'})
+   const want=catalog.voice_models.find(m=>m.id===target.modelId).voices.length
+   await expect(list.getByRole('option')).toHaveCount(want)
+   const sample=page.waitForResponse(r=>r.url().includes('/catalog/voices/'+encodeURIComponent(target.id)+'/sample'))
+   await page.getByRole('button',{name:'试听'+target.voice,exact:true}).click()
+   const response=await sample
+   assert.equal(response.status(),200,target.model+' preview')
+   await expect(page.getByRole('button',{name:'停止试听'+target.voice})).toBeVisible()
+   await page.screenshot({path:resolve(output,target.modelId.replace(/\W+/g,'-')+'.png')})
+   await page.getByRole('button',{name:'停止试听'+target.voice}).click()
+   await list.getByRole('option',{name:target.voice}).click()
+   await expect(trigger).toHaveAccessibleName('配音音色：'+target.model+' · '+target.voice)
 
-  await list.getByRole('option',{name:/沉稳女声/}).click()
-  await expect(list).toBeHidden()
-  await expect(trigger).toHaveAccessibleName('配音音色：沉稳女声 · Calm Woman')
-
-  const created=page.waitForResponse(r=>r.request().method()==='POST'&&/\/api\/v1\/avatar-mvp\/projects$/.test(r.url()))
-  await page.getByRole('textbox',{name:'描述视频创意'}).fill('音色选择验收（临时草稿，不生成）')
-  await page.getByRole('button',{name:'发送创意'}).click()
-  const body=unwrap(await (await created).json())
-  draft=body.id
-  report.createdVoice=body.input.voice
-  assert.equal(body.input.voice,'Calm_Woman','Draft must keep the chosen voice')
-  const snapshot=unwrap(await (await context.request.get(base+'/api/v1/agent/project/'+draft,{headers})).json())
-  report.savedVoice=snapshot.project.input.voice
-  assert.equal(snapshot.project.input.voice,'Calm_Woman')
-  assert.equal(snapshot.run,null,'No run may start from the home composer')
+   const created=page.waitForResponse(r=>r.request().method()==='POST'&&/\/api\/v1\/avatar-mvp\/projects$/.test(r.url()))
+   await page.getByRole('textbox',{name:'描述视频创意'}).fill('音色模型验收（临时草稿，不生成）')
+   await page.getByRole('button',{name:'发送创意'}).click()
+   const body=unwrap(await (await created).json())
+   report.drafts.push(body.id)
+   const snapshot=unwrap(await (await context.request.get(base+'/api/v1/agent/project/'+body.id,{headers})).json())
+   assert.equal(snapshot.project.input.voice_model,target.modelId)
+   assert.equal(snapshot.project.input.voice,target.id)
+   assert.equal(snapshot.run,null,'No run may start from the home composer')
+   assert.ok(snapshot.voices.every(v=>v.model===target.modelId),'Workspace voices must follow the project model')
+   report[target.modelId]={voice:snapshot.project.input.voice,model:snapshot.project.input.voice_model,preview:response.headers()['content-type']}
+   await page.goto(base+'/',{waitUntil:'domcontentloaded'})
+   await expect(page.getByRole('heading',{name:/你的专属AI视频Agent/})).toBeVisible()
+  }
   assert.deepEqual(report.errors,[])
   assert.equal(report.modelTasksStarted,0)
  }finally{
-  if(draft&&headers){
-   const deleted=await page.context().request.delete(base+'/api/v1/projects/'+draft,{headers})
-   report.temporaryDraftDeleted=deleted.ok()
+  for(const id of report.drafts){
+   const deleted=await page.context().request.delete(base+'/api/v1/projects/'+id,{headers})
+   report.temporaryDraftsDeleted=(report.temporaryDraftsDeleted??true)&&deleted.ok()
   }
   await browser.close()
  }

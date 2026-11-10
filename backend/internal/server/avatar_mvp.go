@@ -634,6 +634,7 @@ func (a *App) StartAvatarMVP(ctx context.Context) {
 	if err := a.avatarMVP.recoverInterrupted(ctx); err != nil {
 		log.Printf("avatar recovery failed")
 	}
+	a.modelLab.resume()
 	go func() {
 		ticker := time.NewTicker(30 * time.Second)
 		defer ticker.Stop()

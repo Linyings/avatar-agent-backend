@@ -22,3 +22,16 @@ func TestAvatarGenerationSeparatesFootageFromComposition(t *testing.T) {
 		t.Fatal("historical prompt was modified")
 	}
 }
+
+// A close-up host cannot be face-cropped into a square window without losing
+// the head, so the source must be a medium shot with a bounded face size.
+func TestAvatarGenerationRequestsMediumShotWithCropHeadroom(t *testing.T) {
+	for _, framing := range []string{"", "近景", "上半身，头肩和嘴部完整清楚"} {
+		prompt := GenerationPrompt(Shot{Text: "你好", Angle: "正面", Framing: framing})
+		for _, required := range []string{"腰部以上中景", "脸部高度约占画面高度的五分之一", "不要近景或特写"} {
+			if !strings.Contains(prompt, required) {
+				t.Fatalf("framing %q missing %q", framing, required)
+			}
+		}
+	}
+}

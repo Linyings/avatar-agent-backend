@@ -32,6 +32,8 @@ import (
 
 func newTestApp(t *testing.T) *App {
 	t.Helper()
+	// Never reach a real paid talking-avatar API from tests; opt in per test.
+	t.Setenv("AVATAR_TALKING_MODEL", "off")
 	cfg := config.Config{
 		Debug:             true,
 		Environment:       "testing",

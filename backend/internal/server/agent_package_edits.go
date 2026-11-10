@@ -82,6 +82,12 @@ func (h avatarPackageHost) draft(ctx context.Context, p models.Project, in avata
 			edits.RegenerateSegments = append(edits.RegenerateSegments, x)
 		}
 		voice, _ := args["voice"].(string)
+		voiceModel, _ := args["voice_model"].(string)
+		if voiceModel != "" && voice == "" {
+			if m, ok := avatar.FindSpeechModel(voiceModel); ok {
+				voice = m.DefaultVoice
+			}
+		}
 		if speed, ok := args["speed"].(float64); ok {
 			if speed == 0 {
 				return nil, fmt.Errorf("请提供 0.8–1.3 倍的配音语速")
@@ -96,16 +102,18 @@ func (h avatarPackageHost) draft(ctx context.Context, p models.Project, in avata
 			details = append(details, fmt.Sprintf("所选段落语速：%.2f 倍；同步更新口型视频、字幕及镜头时间轴", speed))
 		}
 		if voice != "" {
-			found := false
-			for _, v := range h.app.avatarWorkflow.voices() {
-				if v.ID == voice {
-					found = true
-				}
+			next := s.Input
+			next.Voice = voice
+			if voiceModel != "" {
+				next.VoiceModel = voiceModel
 			}
-			if !found {
-				return nil, fmt.Errorf("音色不在可用清单")
+			if err := h.app.avatarWorkflow.validateInput(&next, false); err != nil {
+				return nil, err
 			}
-			edits.Voice = voice
+			edits.Voice = next.Voice
+			// Always record the target model so a voice switch is never applied to
+			// the wrong provider, including a return to the deployment default.
+			edits.VoiceModel = h.app.avatarWorkflow.voiceModel(next)
 			edits.RegenerateSegments = nil
 			for _, seg := range s.Segments {
 				edits.RegenerateSegments = append(edits.RegenerateSegments, seg.ID)
@@ -113,7 +121,7 @@ func (h avatarPackageHost) draft(ctx context.Context, p models.Project, in avata
 		}
 		details = append(details, "重新配音："+strings.Join(edits.RegenerateSegments, "、"))
 		if voice != "" {
-			details = append(details, "音色："+voice)
+			details = append(details, "配音模型："+edits.VoiceModel+"；音色："+edits.Voice)
 		}
 	case "edit_material":
 		edits.Needs, err = mergePackageRows(s.Needs, args["needs"])

@@ -105,7 +105,7 @@ func (h avatarPackageHost) snapshot(ctx context.Context, owner, project string) 
 	if err != nil {
 		return nil, err
 	}
-	return gin.H{"project": gin.H{"id": p.ID, "name": p.Name, "input": in}, "run": run, "material_drafts": visibleMaterialDrafts(p, state), "audio_timing": workflowAudioTiming(state), "testing_mode": workflowTestingMode(), "workflow_plan": avatar.PlanWorkflow(in, planRun), "agent_activity": agent.ProjectActivity(project), "proposal": proposalOf(p), "styles": styles, "voices": h.app.avatarWorkflow.voices(), "packages": h.catalog(), "skills": agent.DefaultSkills(), "agent_configured": h.app.cfg.AgentConfigured() || h.app.cfg.OpenAIProConfigured() || h.app.cfg.OpenAIFlashConfigured()}, nil
+	return gin.H{"project": gin.H{"id": p.ID, "name": p.Name, "input": in}, "run": run, "material_drafts": visibleMaterialDrafts(p, state), "audio_timing": workflowAudioTiming(state), "testing_mode": workflowTestingMode(), "workflow_plan": avatar.PlanWorkflow(in, planRun), "agent_activity": agent.ProjectActivity(project), "proposal": proposalOf(p), "styles": styles, "voices": h.app.avatarWorkflow.voicesFor(h.app.avatarWorkflow.voiceModel(in)), "voice_models": h.app.avatarWorkflow.voiceModels(), "packages": h.catalog(), "skills": agent.DefaultSkills(), "agent_configured": h.app.cfg.AgentConfigured() || h.app.cfg.OpenAIProConfigured() || h.app.cfg.OpenAIFlashConfigured()}, nil
 }
 func (h avatarPackageHost) catalog() []map[string]any {
 	manifests, _ := agentpackages.Load()

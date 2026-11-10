@@ -21,7 +21,9 @@ func TestMiniMaxSystemVoicesMatchRunningHubSchema(t *testing.T) {
 	if voices[0].ID != DefaultSpeechVoice("minimax/speech-2.8-hd") {
 		t.Fatal("default voice must lead the system catalog")
 	}
-	if len(SystemSpeechVoices("doubao-seed-tts-2.0")) != 0 {
-		t.Fatal("MiniMax voices must not be offered for another model family")
+	for _, other := range []string{"doubao-seed-tts-2.0", "alibaba/qwen3-tts-flash", "kling-lip-sync/tts"} {
+		if !SpeechVoiceIncompatible(other, "Wise_Woman") {
+			t.Fatalf("MiniMax voices must not be offered for %s", other)
+		}
 	}
 }

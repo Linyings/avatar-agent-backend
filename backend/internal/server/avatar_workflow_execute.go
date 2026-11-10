@@ -721,22 +721,8 @@ func (w *avatarWorkflowService) produceWorkflow(ctx context.Context, s *avatar.W
 	if err := w.save(s); err != nil {
 		return err
 	}
-	for _, kind := range []string{"avatar", "animation", "real"} {
-		node := map[string]string{"avatar": "F06", "animation": "F07", "real": "F08"}[kind]
-		for _, need := range s.Needs {
-			if need.Kind != kind {
-				continue
-			}
-			err := w.produceMaterial(ctx, s, need, node)
-			if err != nil {
-				if errors.Is(err, errWorkflowStopped) {
-					return err
-				}
-				if materialErr == nil {
-					materialErr = err
-				}
-			}
-		}
+	if err := w.pipelineMaterialProduction(ctx, s); err != nil {
+		materialErr = err
 	}
 	if materialErr != nil {
 		return materialErr

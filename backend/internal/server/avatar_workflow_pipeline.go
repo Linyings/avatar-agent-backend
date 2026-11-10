@@ -65,14 +65,26 @@ func (w *avatarWorkflowService) pipelineMaterialProduction(
 		err   error
 	}
 	ch := make(chan result, len(segOrder))
+	// Use a semaphore to cap concurrent DB writers. Each segment goroutine
+	// calls save() which writes to workflow_step_executions; SQLite (used in
+	// tests) cannot handle concurrent writers. PostgreSQL handles it fine, but
+	// limiting to 1-2 concurrent segments keeps contention low everywhere.
+	// For test environments (SQLite), serialize completely to avoid lock errors.
+	maxConcurrent := 2
+	if w.app.db.Dialector.Name() == "sqlite" {
+		maxConcurrent = 1
+	}
+	sem := make(chan struct{}, maxConcurrent)
 	var wg sync.WaitGroup
 
 	for _, segID := range segOrder {
 		segID := segID
 		b := buckets[segID]
+		sem <- struct{}{} // acquire
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
+			defer func() { <-sem }() // release
 			err := w.produceSegmentMaterials(ctx, s, b.avatarNeeds, b.animationNeeds, b.realNeeds)
 			ch <- result{segID: segID, err: err}
 		}()

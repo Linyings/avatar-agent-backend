@@ -399,6 +399,13 @@ func (w *avatarWorkflowService) model(ctx context.Context, s *avatar.WorkflowSta
 }
 func (w *avatarWorkflowService) mediaStep(ctx context.Context, s *avatar.WorkflowState, stage string, input any, out any) error {
 	dir := w.dir(s.ID)
+	// Every media stage communicates with the Python runtime through one fixed
+	// set of files in the run directory. Two concurrent stages would overwrite
+	// each other's input and read back each other's result, which produced
+	// missing, duplicated and cross-linked material records. Serialise per run;
+	// unrelated projects still render in parallel.
+	unlock := w.mediaLocks.lock(s.ID)
+	defer unlock()
 	if err := avatar.WriteJSON(filepath.Join(dir, "workflow.json"), s); err != nil {
 		return err
 	}
@@ -725,6 +732,9 @@ func (w *avatarWorkflowService) produceWorkflow(ctx context.Context, s *avatar.W
 		return err
 	}
 	var materialErr error
+	// Repair records corrupted by earlier concurrent media stages before
+	// timing is bound and production decides what is already done.
+	w.sanitizeMaterials(s)
 	if err := w.bindMotionWindows(s); err != nil {
 		return err
 	}

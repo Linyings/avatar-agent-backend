@@ -365,6 +365,9 @@ func (w *avatarWorkflowService) recoverMaterialFromCache(s *avatar.WorkflowState
 		}
 		relative := "materials/" + name
 		material := avatar.Material{NeedID: need.ID, SegmentID: need.SegmentID, Kind: need.Kind, Path: relative, Duration: need.Duration}
+		if need.Kind == "animation" {
+			material.NarrationStart = need.NarrationStart
+		}
 		w.withState(func() {
 			for i := range s.Materials {
 				if s.Materials[i].NeedID == need.ID {

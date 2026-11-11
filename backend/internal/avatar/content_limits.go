@@ -9,15 +9,25 @@ import (
 )
 
 type shotPlanningContextKey struct{}
+type longFormContextKey struct{}
 
 func WithShotPlanning(ctx context.Context) context.Context {
 	return context.WithValue(ctx, shotPlanningContextKey{}, true)
+}
+
+// WithLongForm marks whole-film outputs (director plan, full script) whose JSON
+// scales with film length and overflows the general 6000-token budget.
+func WithLongForm(ctx context.Context) context.Context {
+	return context.WithValue(ctx, longFormContextKey{}, true)
 }
 
 // These are application budgets, not claims about a provider's context window.
 // The server cap should be set to the limit supported by the configured endpoint.
 func ContentMaxTokens(ctx context.Context) int {
 	n := 6000
+	if enabled, _ := ctx.Value(longFormContextKey{}).(bool); enabled {
+		n = contentLimitEnv("AVATAR_LONGFORM_MAX_TOKENS", 16000, 4096, 32768)
+	}
 	if MotionCodeEnabled(ctx) {
 		n = contentLimitEnv("AVATAR_MOTION_MAX_TOKENS", 12000, 4096, 32768)
 	}

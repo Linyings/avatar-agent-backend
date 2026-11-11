@@ -3,7 +3,7 @@
 import styles from '../native-styles.json' with {type:'json'};
 import explainerStyles from '../explainer-styles.json' with {type:'json'};
 export const PRESENTATION_VERSION='film-design/3';
-export const RECIPES=['host-hero','host-explain','visual-hero','visual-pip','compare','steps','evidence','summary','opener','chromakey-composite'] as const;
+export const RECIPES=['host-hero','host-explain','visual-hero','visual-pip','visual-split','compare','steps','evidence','summary','opener','chromakey-composite'] as const;
 export type Recipe=typeof RECIPES[number];
 export type Box={x:number;y:number;w:number;h:number};
 export type FilmTheme={canvas:string;surface:string;ink:string;muted:string;accent:string;line:string;radius:number;paper:boolean;motion:number};
@@ -54,6 +54,30 @@ export function resolveRecipe(shot:{recipe?:string;layout?:string;card?:string},
  if(shot.card==='data')return 'evidence';
  return shot.layout==='split'?'host-explain':'host-hero';
 }
+export type ShotSpec={primary:string;overlay?:string;primary_in?:number;overlay_in?:number;recipe?:string;layout?:string;card:string};
+export type Composition={recipe:Recipe;primary:string;overlay?:string;primaryIn?:number;overlayIn?:number};
+// One place decides what a shot renders, shared by the renderer and the framing
+// report. Whenever a presenter shares the frame with motion or footage, the
+// visual leads and the presenter is the smaller layer: planners that put the
+// presenter first ("host-explain" split) are swapped rather than rendered with
+// the motion squeezed into a side column.
+export function resolveComposition(shot:ShotSpec,kindOf:(id:string)=>string|undefined,style:string):Composition{
+ const pk=kindOf(shot.primary),ok=shot.overlay?kindOf(shot.overlay):undefined;
+ let out:Composition={recipe:resolveRecipe(shot,{kind:pk||'avatar'}),primary:shot.primary,overlay:ok?shot.overlay:undefined,primaryIn:shot.primary_in,overlayIn:shot.overlay_in};
+ if(pk==='avatar'&&ok&&ok!=='avatar'){
+  out={recipe:out.recipe,primary:shot.overlay!,overlay:shot.primary,primaryIn:shot.overlay_in,overlayIn:shot.primary_in};
+  out.recipe=shot.layout==='pip'||shot.recipe==='visual-pip'?'visual-pip':'visual-split';
+  return out;
+ }
+ if(pk!=='avatar'){
+  if(!out.overlay)out.recipe=out.recipe==='evidence'?'evidence':'visual-hero';
+  else out.recipe=shot.recipe==='visual-split'||shot.layout==='split'?'visual-split':'visual-pip';
+  return out;
+ }
+ // Content-animation styles keep a host-only shot clean.
+ if(/^(mg-|explain-)/.test(style)&&!out.overlay)out.recipe='host-hero';
+ return out;
+}
 export function shotLayout(width:number,height:number,recipe:string,side='right'){
  const wide=width>height,margin=width*.045,gap=width*.025;
  const caption:Box={x:margin,y:height*.91,w:width-2*margin,h:height*.08};
@@ -64,6 +88,14 @@ export function shotLayout(width:number,height:number,recipe:string,side='right'
  }else if(recipe==='visual-pip'){
   if(wide){primary={x:margin,y:height*.06,w:width*.665,h:height*.79};overlay={x:side==='left'?margin:width*.755,y:height*.30,w:width*.20,h:height*.49};if(side==='left')primary.x=width*.29;}
   else{primary={x:margin,y:height*.035,w:width-2*margin,h:height*.57};overlay={x:side==='left'?margin:width*.555,y:height*.64,w:width*.40,h:height*.245};}
+ }else if(recipe==='visual-split'){
+  // Motion is the subject; the presenter is a narrow column beside it.
+  const left=side.includes('left');
+  if(wide){const hw=width*.24,top=height*.045,bottom=height*.88;
+   overlay={x:left?margin:width-margin-hw,y:top,w:hw,h:bottom-top};
+   primary={x:left?margin+hw+gap:margin,y:top,w:width-2*margin-hw-gap,h:bottom-top};}
+  else{primary={x:margin,y:height*.025,w:width-2*margin,h:height*.58};
+   overlay={x:margin,y:height*.62,w:width-2*margin,h:height*.27};}
  }
  return {primary,overlay,panel,caption};
 }

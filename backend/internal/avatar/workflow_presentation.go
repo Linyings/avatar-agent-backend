@@ -10,7 +10,7 @@ import (
 
 const PresentationVersion = "film-design/3"
 
-var PresentationRecipes = []string{"host-hero", "host-explain", "visual-hero", "visual-pip", "compare", "steps", "evidence", "summary"}
+var PresentationRecipes = []string{"host-hero", "host-explain", "visual-hero", "visual-pip", "visual-split", "compare", "steps", "evidence", "summary"}
 
 func ValidPresentationRecipe(value string) bool {
 	for _, recipe := range PresentationRecipes {
@@ -104,7 +104,7 @@ func PresentationCandidates(segments []Segment, materials []Material, needs []Ma
 			choices = []string{"host-hero", "host-explain", "compare", "steps", "evidence", "summary"}
 		}
 		if visual && host {
-			choices = append(choices, "visual-hero", "visual-pip")
+			choices = append(choices, "visual-hero", "visual-pip", "visual-split")
 		}
 		if real && !host {
 			choices = append(choices, "evidence")
@@ -141,17 +141,23 @@ func EnrichShotPresentation(shots []WorkflowShot, segments []Segment, materials 
 				s.Recipe = "visual-hero"
 				if s.Overlay != "" {
 					s.Recipe = "visual-pip"
+					if s.Layout == "split" {
+						s.Recipe = "visual-split"
+					}
 				}
 			}
 		}
-		if kind != "avatar" && s.Recipe != "visual-pip" {
+		if kind != "avatar" && s.Recipe != "visual-pip" && s.Recipe != "visual-split" {
 			if s.Recipe != "evidence" {
 				s.Recipe = "visual-hero"
 			}
 			s.Card = "none"
 		}
-		if s.Recipe == "visual-pip" && s.Overlay == "" {
+		if (s.Recipe == "visual-pip" || s.Recipe == "visual-split") && s.Overlay == "" {
 			s.Recipe = "visual-hero"
+		}
+		if s.Recipe == "visual-split" {
+			s.Layout, s.Card = "split", "none"
 		}
 		if len(s.Semantic) == 0 {
 			s.Semantic = []string{c.Semantic}
@@ -264,6 +270,9 @@ func NormalizeShotPresentation(shots []WorkflowShot) bool {
 		}
 		if s.Overlay != "" && s.Layout == "full" {
 			s.Layout = "pip"
+			if s.Recipe == "visual-split" {
+				s.Layout = "split"
+			}
 		}
 	}
 	return changed

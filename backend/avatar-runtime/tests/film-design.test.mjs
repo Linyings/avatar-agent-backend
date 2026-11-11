@@ -1,6 +1,34 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {filmTheme,shotLayout,overlaps,mediaPlacement,semanticItems,resolveRecipe,captionPage} from '../src/film-design.ts';
+import {filmTheme,shotLayout,overlaps,mediaPlacement,semanticItems,resolveRecipe,captionPage,resolveComposition} from '../src/film-design.ts';
+
+const kindsOf=map=>id=>map[id];
+test('side-by-side puts the motion in the large box and the presenter in a narrow column',()=>{
+ for(const side of ['right','left']){
+  const l=shotLayout(1280,720,'visual-split',side);
+  assert.ok(l.primary.w>=1280*.62,`motion too narrow: ${l.primary.w}`);
+  assert.ok(l.overlay.w<=1280*.28,`presenter too wide: ${l.overlay.w}`);
+  assert.ok(!overlaps(l.primary,l.overlay));assert.ok(!overlaps(l.caption,l.primary));assert.ok(!overlaps(l.caption,l.overlay));
+  assert.equal(l.overlay.x>l.primary.x,side==='right');
+ }
+ const p=shotLayout(720,1280,'visual-split','right');
+ assert.ok(p.primary.h>p.overlay.h*1.8,'portrait: motion leads vertically');
+ assert.ok(!overlaps(p.primary,p.overlay)&&!overlaps(p.caption,p.overlay));
+});
+test('a host shot with motion beside it is rendered motion-first',()=>{
+ const kinds=kindsOf({host:'avatar',anim:'animation',real:'real'});
+ // The planner's old split: presenter primary, motion in the side panel.
+ const c=resolveComposition({primary:'host',overlay:'anim',primary_in:2,overlay_in:.5,recipe:'host-explain',layout:'split',card:'none'},kinds,'explain-podcast');
+ assert.equal(c.recipe,'visual-split');assert.equal(c.primary,'anim');assert.equal(c.overlay,'host');
+ assert.equal(c.primaryIn,.5);assert.equal(c.overlayIn,2);
+ assert.equal(resolveComposition({primary:'host',overlay:'real',layout:'pip',card:'none'},kinds,'x').recipe,'visual-pip');
+ assert.equal(resolveComposition({primary:'anim',overlay:'host',recipe:'visual-split',card:'none'},kinds,'x').recipe,'visual-split');
+ assert.equal(resolveComposition({primary:'anim',overlay:'host',recipe:'visual-pip',card:'none'},kinds,'x').recipe,'visual-pip');
+ // Motion alone, narration only: no presenter at all.
+ const solo=resolveComposition({primary:'anim',recipe:'visual-hero',card:'none'},kinds,'explain-podcast');
+ assert.equal(solo.recipe,'visual-hero');assert.equal(solo.overlay,undefined);
+ assert.equal(resolveComposition({primary:'host',card:'none'},kinds,'explain-podcast').recipe,'host-hero');
+});
 
 test('captions keep decimal amounts, units and Chinese words on the same page',()=>{
  const text='这轮融资目前还没有完全关闭，投后估值来到1.25万亿美元。';
@@ -13,8 +41,8 @@ test('captions keep decimal amounts, units and Chinese words on the same page',(
  }
 });
 
-test('all eight recipes have usable non-overlapping content and caption regions in three ratios',()=>{
- for(const [w,h] of [[1280,720],[720,1280],[720,720]])for(const recipe of ['host-hero','host-explain','visual-hero','visual-pip','compare','steps','evidence','summary']){
+test('all recipes have usable non-overlapping content and caption regions in three ratios',()=>{
+ for(const [w,h] of [[1280,720],[720,1280],[720,720]])for(const recipe of ['host-hero','host-explain','visual-hero','visual-pip','visual-split','compare','steps','evidence','summary']){
   const l=shotLayout(w,h,recipe,'right');
   for(const box of [l.primary,l.overlay,l.panel,l.caption].filter(Boolean)){
    assert.ok(box.x>=0&&box.y>=0&&box.w>0&&box.h>0,JSON.stringify({recipe,box}));

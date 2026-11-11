@@ -4,7 +4,7 @@ import {CameraRig} from './talkcraft/camera';
 import {AnimationScene} from './workflow-animation';
 import {StylePreview} from './style-preview';
 import {SemanticGraphic} from './semantic-graphics';
-import {filmTheme,mediaPlacement,overlaps,resolveRecipe,semanticItems,shotLayout,captionPage,type Box} from './film-design';
+import {filmTheme,mediaPlacement,overlaps,resolveComposition,semanticItems,shotLayout,captionPage,type Box} from './film-design';
 import {stableAvatarCrop,stableAvatarPlan,avatarWindowBox,type AvatarTrack} from './avatar-framing';
 
 type Word={text:string;start:number;end:number};
@@ -35,13 +35,10 @@ function Media({material:m,box,offset,theme,duration,avatarWindow=false,shape='r
 function FilmShot({shot,manifest:m}:{shot:Shot;manifest:Manifest}){
  const {width,height,fps}=useVideoConfig();const local=useCurrentFrame()/fps;
  const segment=m.segments.find(s=>s.id===shot.segment_id)!;
- const primary=m.materials.find(s=>s.need_id===shot.primary)!;const overlay=m.materials.find(s=>s.need_id===shot.overlay);
- let recipe=resolveRecipe(shot,primary);
- if(primary.kind==='animation')recipe=overlay?'visual-pip':'visual-hero';
- if(recipe==='visual-pip'&&!overlay)recipe='visual-hero';
- // Content animations already carry their own visual hierarchy. Host-only
- // shots keep the talking footage clear instead of adding an unrelated card.
- if(/^(mg-|explain-)/.test(m.input.style)&&!overlay&&primary.kind!=='animation')recipe=primary.kind==='avatar'?'host-hero':'visual-hero';
+ const kindOf=(id:string)=>m.materials.find(s=>s.need_id===id)?.kind;
+ const comp=resolveComposition(shot,kindOf,m.input.style);
+ const primary=m.materials.find(s=>s.need_id===comp.primary)!;const overlay=comp.overlay?m.materials.find(s=>s.need_id===comp.overlay):undefined;
+ const recipe=comp.recipe;
  const side=shot.avatar_position||m.input.avatar_position||'right';
  const layout=shotLayout(width,height,recipe,side),theme=filmTheme(m.input.style);
  if(recipe==='visual-pip'&&overlay?.kind==='avatar'&&layout.overlay){layout.primary={x:0,y:0,w:width,h:height};layout.overlay=avatarWindowBox(width,height,shot.avatar_shape||'rounded',side);}
@@ -51,15 +48,15 @@ function FilmShot({shot,manifest:m}:{shot:Shot;manifest:Manifest}){
  const words=scene?.chars.map(c=>({text:c.ch,start:c.t-shot.start,end:c.e-shot.start}))||[];
  const title=shot.keyword||segment.chapter||'';
  const panel=layout.panel&&primary.kind!=='animation'?layout.panel:undefined;
- const primaryOffset=shot.primary_in??(primary.kind==='avatar'?offset:0);
+ const primaryOffset=comp.primaryIn??(primary.kind==='avatar'?offset:0);
  const face=primary.kind==='avatar'?mediaPlacement(layout.primary,primary,'avatar').face:undefined;
  const keywordBox={x:width*.055,y:height*.06,w:width*.42,h:height*.15};
  const showKeyword=!panel&&primary.kind==='avatar'&&['keyword','impact-open-title','highlighter-sweep'].includes(shot.card)&&title&&(!face||!overlaps(keywordBox,face));
  return <AbsoluteFill style={{background:theme.canvas,color:theme.ink}}>
   {theme.paper&&<AbsoluteFill style={{backgroundImage:`radial-gradient(${theme.line} 0.6px, transparent 0.6px)`,backgroundSize:'8px 8px',opacity:.22}}/>}
   <Media material={primary} box={layout.primary} offset={primaryOffset} theme={theme} duration={duration}/>
-  {overlay&&layout.overlay&&<Media material={overlay} box={layout.overlay} offset={shot.overlay_in??(overlay.kind==='avatar'?offset:0)} theme={theme} duration={duration} avatarWindow={overlay.kind==='avatar'} shape={shot.avatar_shape||'rounded'}/>}
-  {overlay&&panel&&<Media material={overlay} box={panel} offset={shot.overlay_in??(overlay.kind==='avatar'?offset:0)} theme={theme} duration={duration} avatarWindow={overlay.kind==='avatar'} shape={shot.avatar_shape||'rounded'}/>}
+  {overlay&&layout.overlay&&<Media material={overlay} box={layout.overlay} offset={comp.overlayIn??(overlay.kind==='avatar'?offset:0)} theme={theme} duration={duration} avatarWindow={overlay.kind==='avatar'} shape={recipe==='visual-split'?'rounded':shot.avatar_shape||'rounded'}/>}
+  {overlay&&panel&&<Media material={overlay} box={panel} offset={comp.overlayIn??(overlay.kind==='avatar'?offset:0)} theme={theme} duration={duration} avatarWindow={overlay.kind==='avatar'} shape={shot.avatar_shape||'rounded'}/>}
   {panel&&!overlay&&<div style={position(panel)}><SemanticGraphic width={panel.w} height={panel.h} style={m.input.style} template={panelTemplate} text={segment.text} title={title} items={shot.items||semanticItems(segment.text)} time={local} duration={duration} words={words} chrome={false}/></div>}
   {showKeyword&&<div style={{...position(keywordBox),height:'auto',maxHeight:keywordBox.h,background:theme.surface,borderLeft:`5px solid ${theme.accent}`,padding:'12px 18px',boxSizing:'border-box',borderRadius:theme.radius,fontSize:Math.min(width,height)*.048,fontWeight:800,opacity:Math.min(1,Math.max(0,(local-(shot.anchor_frame||0)/fps)*5)),overflow:'hidden',overflowWrap:'anywhere'}}>{title}</div>}
  </AbsoluteFill>;

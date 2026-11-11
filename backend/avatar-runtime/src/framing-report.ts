@@ -1,4 +1,4 @@
-import {resolveRecipe,shotLayout,type Box} from './film-design.ts';
+import {resolveComposition,shotLayout,type Box} from './film-design.ts';
 import {avatarFramingDecision,stableAvatarPlan,avatarWindowBox,type AvatarTrack} from './avatar-framing.ts';
 
 type Material={need_id:string;kind:string;avatar_framing?:AvatarTrack};
@@ -10,21 +10,19 @@ export type AvatarLayer={role:'primary'|'overlay';box:Box;window:boolean;shape:s
 // The talking-head layers a shot renders, with the exact boxes FilmShot uses.
 export function avatarLayers(m:Manifest,shot:Shot):AvatarLayer[]{
  const segment=m.segments.find(s=>s.id===shot.segment_id);
- const primary=m.materials.find(s=>s.need_id===shot.primary),overlay=m.materials.find(s=>s.need_id===shot.overlay);
+ const comp=resolveComposition(shot,id=>m.materials.find(s=>s.need_id===id)?.kind,m.input.style);
+ const primary=m.materials.find(s=>s.need_id===comp.primary),overlay=comp.overlay?m.materials.find(s=>s.need_id===comp.overlay):undefined;
  if(!segment||!primary)return [];
- let recipe:string=resolveRecipe(shot,primary);
- if(primary.kind==='animation')recipe=overlay?'visual-pip':'visual-hero';
- if(recipe==='visual-pip'&&!overlay)recipe='visual-hero';
- if(/^(mg-|explain-)/.test(m.input.style)&&!overlay&&primary.kind!=='animation')recipe=primary.kind==='avatar'?'host-hero':'visual-hero';
- const side=shot.avatar_position||m.input.avatar_position||'right',shape=shot.avatar_shape||'rounded';
+ const recipe:string=comp.recipe;
+ const side=shot.avatar_position||m.input.avatar_position||'right',shape=recipe==='visual-split'?'rounded':shot.avatar_shape||'rounded';
  const layout=shotLayout(m.width,m.height,recipe,side);
  if(recipe==='visual-pip'&&overlay?.kind==='avatar'&&layout.overlay){layout.primary={x:0,y:0,w:m.width,h:m.height};layout.overlay=avatarWindowBox(m.width,m.height,shape,side);}
  const offset=shot.start-segment.start,out:AvatarLayer[]=[];
  const framed=(b:Box)=>b.x>0||b.y>0;
- if(primary.kind==='avatar'&&framed(layout.primary))out.push({role:'primary',box:layout.primary,window:false,shape:'rectangle',material:primary,start:shot.primary_in??offset});
+ if(primary.kind==='avatar'&&framed(layout.primary))out.push({role:'primary',box:layout.primary,window:false,shape:'rectangle',material:primary,start:comp.primaryIn??offset});
  const panel=layout.panel&&primary.kind!=='animation'?layout.panel:undefined;
  const overlayBox=layout.overlay||panel;
- if(overlay?.kind==='avatar'&&overlayBox)out.push({role:'overlay',box:overlayBox,window:true,shape,material:overlay,start:shot.overlay_in??offset});
+ if(overlay?.kind==='avatar'&&overlayBox)out.push({role:'overlay',box:overlayBox,window:true,shape,material:overlay,start:comp.overlayIn??offset});
  return out;
 }
 

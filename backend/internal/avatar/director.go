@@ -102,7 +102,7 @@ func ValidateDirector(p DirectorPlan) error {
 		if !SafeID.MatchString(sc.ID) || ids[sc.ID] || strings.TrimSpace(sc.Purpose) == "" || strings.TrimSpace(sc.Visual) == "" || math.IsNaN(sc.EstimatedDuration) || math.IsInf(sc.EstimatedDuration, 0) || sc.EstimatedDuration <= 0 || sc.EstimatedDuration > 90 {
 			return fmt.Errorf("导演稿镜头编号、内容或预计时长无效")
 		}
-		if !slices.Contains([]string{"host-hero", "host-explain", "visual-hero", "visual-pip", "compare", "steps", "evidence", "summary"}, sc.Composition) {
+		if !slices.Contains([]string{"host-hero", "host-explain", "visual-hero", "visual-pip", "visual-split", "compare", "steps", "evidence", "summary"}, sc.Composition) {
 			return fmt.Errorf("导演稿包含当前无法渲染的构图")
 		}
 		if sc.AvatarPosition != "" && !slices.Contains([]string{"left", "right", "top-left", "top-right", "bottom-left", "bottom-right"}, sc.AvatarPosition) {

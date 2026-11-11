@@ -569,7 +569,7 @@ func (w *avatarWorkflowService) produceWorkflow(ctx context.Context, s *avatar.W
 			Title  string `json:"title"`
 			Script string `json:"script"`
 		}
-		if err := w.model(ctx, s, step, `按用户主题、导演稿的信息结构和参考素材事实写中文口播稿，篇幅遵循用户要求和内容需要，不限制整片时长，不为压缩时长删减必要内容。自然口语，句子便于朗读，停顿合理，少空话、重复和模板式总结；保留事实和确定程度，不虚构统计/出处。涉及估值、金额增长、百分比或倍数时先统一单位并核对算术关系；增长近五成不能写成翻近一倍，没有可核实基数不编造增长率。包含开场、解释和收束。输出 {"title":"标题","script":"纯朗读正文"}。拍摄要求不进入正文。`, map[string]any{"topic": s.Input.Topic, "descriptions": s.Descriptions, "director": s.Director, "references": s.References, "requirements": s.Requirements}, nil, &out); err != nil {
+		if err := w.model(ctx, s, step, `按用户主题、导演稿的信息结构和参考素材事实写中文口播稿。`+scriptLengthRule(s.Requirements, s.Input.Topic)+`自然口语，句子便于朗读，停顿合理，少空话、重复和模板式总结；保留事实和确定程度，不虚构统计/出处。参考资料中有核实过的具体型号、数字、日期时直接使用并点名；不要用"以官方为准"之类的免责句代替内容。涉及估值、金额增长、百分比或倍数时先统一单位并核对算术关系；增长近五成不能写成翻近一倍，没有可核实基数不编造增长率。包含开场、解释和收束。输出 {"title":"标题","script":"纯朗读正文"}。拍摄要求不进入正文。`, map[string]any{"topic": s.Input.Topic, "descriptions": s.Descriptions, "director": s.Director, "references": s.References, "requirements": s.Requirements}, nil, &out); err != nil {
 			return err
 		}
 		if strings.TrimSpace(out.Script) == "" {

@@ -243,6 +243,11 @@ func (w *avatarWorkflowService) createToChecked(ctx context.Context, owner, proj
 	if len(request) < 4 || len(request) > 100 {
 		return s, fmt.Errorf("需要有效的幂等请求ID")
 	}
+	// Query (never resubmit) orders left open by stopped runs, outside the
+	// admission lock, so a stop during polling no longer blocks the project.
+	if err := w.settleStoppedOrders(ctx, owner, projectID); err != nil {
+		return s, err
+	}
 	w.app.avatarMVP.mu.Lock()
 	defer w.app.avatarMVP.mu.Unlock()
 	err := w.app.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

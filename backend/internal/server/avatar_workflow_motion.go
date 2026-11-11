@@ -13,7 +13,7 @@ import (
 
 const motionDesignPrompt = `你是当前口播的动效导演。仅把风格参考中的配色、材质、线条、运动语法用于当前内容，不能复制参考片的品牌、固定故事、人物、数字或成片。
 观察传入的本段真实数字人画面，简述背景明暗、人物位置与配色，在 tone 选择 warm/cool/neutral 使动效与人物协调。人物素材由后续分镜分层合成，不在动效里重新绘制人物；保持图形完整、边缘留白并为字幕预留空间。没有人物画面时明确说明。
-根据当前 segment.text 重新设计 1 到 5 个按口播顺序展开的场景。narration_window 指定此素材负责的台词区间；有 quote 时仅设计并完整覆盖该引用，没有 quote 时按窗口内 words 选择对应完整语句，不重复整段其他素材内容。用内容适配的图形表达信息，不把整段文字搬上画面。每场选 1 到 4 个短标签，数字和单位必须原样保留，不画虚构的趋势或比例。
+根据当前 segment.text 重新设计 1 到 5 个按口播顺序展开的场景。narration_window 指定此素材负责的台词区间；有 quote 时仅设计并完整覆盖该引用，没有 quote 时按窗口内 words 选择对应完整语句，不重复整段其他素材内容。用内容适配的图形表达信息，不把整段文字搬上画面。每场选 1 到 4 个短标签，数字和单位必须原样保留，不画虚构的趋势或比例。每场构思一个占据画面主体、与内容含义对应的主视觉动作（如数据增长、流程点亮、结构拆解、对比消长），相邻场景的主视觉与 layout 不重复，让整段像一组有冲击力的解说镜头，而不是逐行出现的文字。
 输出 JSON：{"version":"content-motion/1","tone":"warm|cool|neutral","visual_context":"观察到的本段人物画面与搭配理由","scenes":[{"quote":"本场在当前段落中连续出现的原文，按顺序且不重叠","title":"quote中的主题短语，优先12字以内，最多24字符含英文","layout":"highlight|data|compare|steps|relationship|summary","elements":[{"label":"quote中的连续短语，最多60字","kind":"coin|chart|chip|cloud|people|document|shield|globe|clock|code|spark|box|leaf|link"}]}]}。
 title 选简短的主体或主题，不复制完整句子或罗列多个数值；数值在 elements 中强调。配色判断以 style_profile.palette 为准，不要求风格配置之外的颜色。
 quote 覆盖要表达的口播内容，title 和 label 必须逐字摘自同场 quote；icon 仅为示意，不是事实证据。kind 根据本段含义选取，layout 决定真实构图；不输出代码、素材URL、演示视频或模型估计的秒数。时间由已有配音字词对齐自动计算。优先使用简洁、可视化的实体和关系。`

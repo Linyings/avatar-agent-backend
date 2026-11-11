@@ -276,16 +276,19 @@ func (w *avatarWorkflowService) useNativeMaterial(ctx context.Context, s *avatar
 			relative = alphaPath
 		}
 		m := avatar.Material{NeedID: need.ID, SegmentID: seg.ID, Kind: "avatar", Path: relative, Duration: seg.Duration, Fingerprint: seg.Fingerprint, BaseFingerprint: seg.Fingerprint}
-		replaced := false
-		for i := range s.Materials {
-			if s.Materials[i].NeedID == need.ID {
-				s.Materials[i] = m
-				replaced = true
+		// Avatar needs from different segments may be produced concurrently.
+		w.withState(func() {
+			replaced := false
+			for i := range s.Materials {
+				if s.Materials[i].NeedID == need.ID {
+					s.Materials[i] = m
+					replaced = true
+				}
 			}
-		}
-		if !replaced {
-			s.Materials = append(s.Materials, m)
-		}
+			if !replaced {
+				s.Materials = append(s.Materials, m)
+			}
+		})
 		step.CostStatus, step.ProductionPhase = "reused", "复用 Seedance 原声人物画面"
 		w.addArtifacts(s, []avatar.WorkflowArtifact{{ID: "material-" + need.ID, Name: need.ID + " 人物素材.mp4", Path: relative, MediaType: "video/mp4"}})
 		return nil

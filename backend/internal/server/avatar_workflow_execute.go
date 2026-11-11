@@ -193,17 +193,20 @@ func (w *avatarWorkflowService) step(ctx context.Context, s *avatar.WorkflowStat
 		return errWorkflowPaused
 	}
 	hash := avatar.Digest(input)
+	// Steps are appended from several segment goroutines during concurrent
+	// material production; take an index under the state lock so two goroutines
+	// cannot claim the same slot.
 	idx := -1
-	for i := range s.Steps {
-		if s.Steps[i].ID == id {
-			idx = i
-			break
+	w.withState(func() {
+		for i := range s.Steps {
+			if s.Steps[i].ID == id {
+				idx = i
+				return
+			}
 		}
-	}
-	if idx < 0 {
 		s.Steps = append(s.Steps, avatar.WorkflowStep{ID: id, InputHash: hash, CostStatus: "local_compute"})
 		idx = len(s.Steps) - 1
-	}
+	})
 	step := &s.Steps[idx]
 	if step.Status == "succeeded" && step.InputHash == hash {
 		return nil
@@ -818,18 +821,20 @@ func (w *avatarWorkflowService) produceWorkflow(ctx context.Context, s *avatar.W
 	})
 }
 func (w *avatarWorkflowService) addArtifacts(s *avatar.WorkflowState, items []avatar.WorkflowArtifact) {
-	for _, item := range items {
-		found := false
-		for i := range s.Artifacts {
-			if s.Artifacts[i].ID == item.ID {
-				s.Artifacts[i] = item
-				found = true
+	w.withState(func() {
+		for _, item := range items {
+			found := false
+			for i := range s.Artifacts {
+				if s.Artifacts[i].ID == item.ID {
+					s.Artifacts[i] = item
+					found = true
+				}
+			}
+			if !found {
+				s.Artifacts = append(s.Artifacts, item)
 			}
 		}
-		if !found {
-			s.Artifacts = append(s.Artifacts, item)
-		}
-	}
+	})
 }
 func (w *avatarWorkflowService) speechClient() *avatar.RunningHub {
 	base := os.Getenv("RUNNINGHUB_BASE_URL")
@@ -1066,16 +1071,20 @@ func (w *avatarWorkflowService) produceMaterial(ctx context.Context, s *avatar.W
 				s.Steps[i].ProductionPhase = "视频已就绪"
 			}
 		}
-		found := false
-		for i := range s.Materials {
-			if s.Materials[i].NeedID == need.ID {
-				s.Materials[i] = material
-				found = true
+		// Concurrent segments append to the same slices; serialise the mutation
+		// or one segment's material overwrites another's slot.
+		w.withState(func() {
+			found := false
+			for i := range s.Materials {
+				if s.Materials[i].NeedID == need.ID {
+					s.Materials[i] = material
+					found = true
+				}
 			}
-		}
-		if !found {
-			s.Materials = append(s.Materials, material)
-		}
+			if !found {
+				s.Materials = append(s.Materials, material)
+			}
+		})
 		os.MkdirAll(filepath.Dir(cache), 0700)
 		_ = copyWorkflowFile(dest, cache)
 		_ = avatar.WriteJSON(cache+".json", material)

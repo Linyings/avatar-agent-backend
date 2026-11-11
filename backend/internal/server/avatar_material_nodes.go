@@ -318,9 +318,10 @@ func (w *avatarWorkflowService) validateMaterialAssembly(s *avatar.WorkflowState
 		return fmt.Errorf("尚未规划视频节点，不能汇总素材")
 	}
 	for _, need := range s.Needs {
+		nodeID := materialNodeID(need)
 		ready := false
 		for _, step := range s.Steps {
-			if step.ID == materialNodeID(need) && step.Status == "succeeded" {
+			if step.ID == nodeID && step.Status == "succeeded" {
 				ready = true
 			}
 		}
@@ -336,10 +337,55 @@ func (w *avatarWorkflowService) validateMaterialAssembly(s *avatar.WorkflowState
 			}
 		}
 		if !ready || !found {
+			// A completed production step normally implies a usable material.
+			// When the record was lost (older concurrent runs), rebuild it from
+			// the cache instead of blocking assembly on the whole segment.
+			if ready && !found {
+				if w.recoverMaterialFromCache(s, need) == nil {
+					continue
+				}
+			}
 			return fmt.Errorf("视频节点 %s 尚未完成或文件不可用，待全部视频就绪后再汇总", need.ID)
 		}
 	}
 	return nil
+}
+
+// recoverMaterialFromCache restores a material record whose production step
+// succeeded but whose entry is missing from the state. Older runs lost entries
+// to a concurrent append race; the rendered file is still in the project cache.
+func (w *avatarWorkflowService) recoverMaterialFromCache(s *avatar.WorkflowState, need avatar.MaterialNeed) error {
+	dir := w.dir(s.ID)
+	materialsDir := filepath.Join(dir, "materials")
+	for _, name := range materialFileCandidates(need) {
+		source := filepath.Join(materialsDir, name)
+		info, err := os.Stat(source)
+		if err != nil || !info.Mode().IsRegular() || info.Size() == 0 {
+			continue
+		}
+		relative := "materials/" + name
+		material := avatar.Material{NeedID: need.ID, SegmentID: need.SegmentID, Kind: need.Kind, Path: relative, Duration: need.Duration}
+		w.withState(func() {
+			for i := range s.Materials {
+				if s.Materials[i].NeedID == need.ID {
+					s.Materials[i] = material
+					return
+				}
+			}
+			s.Materials = append(s.Materials, material)
+		})
+		return nil
+	}
+	return fmt.Errorf("素材 %s 的输出文件已不在任务目录", need.ID)
+}
+
+// materialFileCandidates lists the file names a need may have been written as.
+func materialFileCandidates(need avatar.MaterialNeed) []string {
+	names := []string{need.ID + ".mp4"}
+	if need.Kind == "avatar" {
+		names = append([]string{need.ID + "-alpha.webm"}, names...)
+	}
+	return names
 }
 
 func (a *App) registerMaterialNodeRoutes(r *gin.RouterGroup) {

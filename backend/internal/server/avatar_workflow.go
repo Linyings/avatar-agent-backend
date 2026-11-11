@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -32,6 +33,19 @@ type avatarWorkflowService struct {
 	app     *App
 	content func(context.Context, string, any, []string) (json.RawMessage, error)
 	media   func(context.Context, string, string) (json.RawMessage, error)
+	// stateMu guards the in-memory WorkflowState when material production runs
+	// concurrently across segments. Steps, Materials and Artifacts are appended
+	// from several goroutines; without it entries are lost, duplicated or point
+	// at another need's file. Zero value is ready to use.
+	stateMu sync.Mutex
+}
+
+// withState runs fn while holding the state lock. Every mutation of the shared
+// WorkflowState during concurrent material production must go through it.
+func (w *avatarWorkflowService) withState(fn func()) {
+	w.stateMu.Lock()
+	defer w.stateMu.Unlock()
+	fn()
 }
 
 func newAvatarWorkflow(a *App) *avatarWorkflowService {

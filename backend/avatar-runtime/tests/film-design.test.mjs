@@ -7,13 +7,22 @@ test('side-by-side puts the motion in the large box and the presenter in a narro
  for(const side of ['right','left']){
   const l=shotLayout(1280,720,'visual-split',side);
   assert.ok(l.primary.w>=1280*.62,`motion too narrow: ${l.primary.w}`);
-  assert.ok(l.overlay.w<=1280*.28,`presenter too wide: ${l.overlay.w}`);
+  assert.ok(l.overlay.w<=1280*.26,`presenter too wide: ${l.overlay.w}`);
+  // A 16:9 motion must fill its box exactly: no letterbox bars.
+  assert.ok(Math.abs(l.primary.w/l.primary.h-16/9)<.01,`motion box not 16:9: ${l.primary.w/l.primary.h}`);
+  assert.ok(l.overlay.h<=l.primary.h+.01,'presenter column taller than the motion');
   assert.ok(!overlaps(l.primary,l.overlay));assert.ok(!overlaps(l.caption,l.primary));assert.ok(!overlaps(l.caption,l.overlay));
   assert.equal(l.overlay.x>l.primary.x,side==='right');
  }
  const p=shotLayout(720,1280,'visual-split','right');
  assert.ok(p.primary.h>p.overlay.h*1.8,'portrait: motion leads vertically');
  assert.ok(!overlaps(p.primary,p.overlay)&&!overlaps(p.caption,p.overlay));
+});
+test('full-screen motion fills the frame; it already leaves caption room itself',()=>{
+ for(const [w,h] of [[1280,720],[720,1280]]){
+  const l=shotLayout(w,h,'visual-hero','right');
+  assert.deepEqual(l.primary,{x:0,y:0,w,h});
+ }
 });
 test('a host shot with motion beside it is rendered motion-first',()=>{
  const kinds=kindsOf({host:'avatar',anim:'animation',real:'real'});
@@ -49,7 +58,8 @@ test('all recipes have usable non-overlapping content and caption regions in thr
    assert.ok(box.x+box.w<=w+.01&&box.y+box.h<=h+.01);
   }
   if(l.panel)assert.ok(!overlaps(l.panel,l.primary));
-  assert.ok(!overlaps(l.caption,l.primary));
+  // Full-screen motion reserves its own caption band; captions sit on top.
+  if(recipe!=='visual-hero')assert.ok(!overlaps(l.caption,l.primary));
   if(l.overlay)assert.ok(!overlaps(l.caption,l.overlay));
  }
  const hero=shotLayout(1280,720,'host-hero','right');

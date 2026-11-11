@@ -81,7 +81,7 @@ export function resolveComposition(shot:ShotSpec,kindOf:(id:string)=>string|unde
 export function shotLayout(width:number,height:number,recipe:string,side='right'){
  const wide=width>height,margin=width*.045,gap=width*.025;
  const caption:Box={x:margin,y:height*.91,w:width-2*margin,h:height*.08};
- let primary:Box={x:0,y:0,w:width,h:height*.90};let overlay:Box|undefined;let panel:Box|undefined;
+ let primary:Box={x:0,y:0,w:width,h:recipe==='visual-hero'?height:height*.90};let overlay:Box|undefined;let panel:Box|undefined;
  if(['host-explain','compare','steps','summary','evidence'].includes(recipe)){
   if(wide){const pw=width*.52;primary={x:side==='left'?margin:width-margin-pw,y:height*.045,w:pw,h:height*.82};panel={x:side==='left'?margin+pw+gap:margin,y:height*.075,w:width-2*margin-pw-gap,h:height*.76};}
   else {primary={x:margin,y:height*.025,w:width-2*margin,h:height*.43};panel={x:margin,y:height*.48,w:width-2*margin,h:height*.40};}
@@ -91,9 +91,12 @@ export function shotLayout(width:number,height:number,recipe:string,side='right'
  }else if(recipe==='visual-split'){
   // Motion is the subject; the presenter is a narrow column beside it.
   const left=side.includes('left');
-  if(wide){const hw=width*.24,top=height*.045,bottom=height*.88;
-   overlay={x:left?margin:width-margin-hw,y:top,w:hw,h:bottom-top};
-   primary={x:left?margin+hw+gap:margin,y:top,w:width-2*margin-hw-gap,h:bottom-top};}
+  if(wide){
+   // The motion keeps the frame's own aspect so it fills its box with no
+   // letterbox bars; the presenter column matches its height.
+   const pw=width*.68,ph=pw*height/width,top=Math.max(height*.03,(height*.885-ph)/2),hw=width-2*margin-pw-gap;
+   primary={x:left?margin+hw+gap:margin,y:top,w:pw,h:ph};
+   overlay={x:left?margin:margin+pw+gap,y:top,w:hw,h:ph};}
   else{primary={x:margin,y:height*.025,w:width-2*margin,h:height*.58};
    overlay={x:margin,y:height*.62,w:width-2*margin,h:height*.27};}
  }

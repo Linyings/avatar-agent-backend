@@ -1,6 +1,7 @@
 package avatar
 
 import (
+	"cmp"
 	"context"
 	"fmt"
 	"math"
@@ -93,6 +94,41 @@ func ReviewFingerprint(s WorkflowState, kind string) string {
 	}
 	return Digest([]any{kind, s.Shots, s.Materials, s.Segments, s.Input.SubtitleColor, s.Input.SubtitleScale, s.Input.SubtitleEdits, s.Input.AvatarPosition, artifacts})
 }
+// NormalizeDirector repairs presentation-only fields the model fills loosely.
+// Windowless compositions (full-screen presenter, motion only, cards) have no
+// avatar window, so values like "center" or "none" are cleared rather than
+// failing the whole plan; a windowed composition gets a valid default.
+func NormalizeDirector(p *DirectorPlan) {
+	positions := []string{"left", "right", "top-left", "top-right", "bottom-left", "bottom-right"}
+	sideOf := func(v string) string {
+		v = strings.ToLower(strings.TrimSpace(v))
+		switch {
+		case strings.Contains(v, "left") || strings.Contains(v, "左"):
+			return "left"
+		case strings.Contains(v, "right") || strings.Contains(v, "右"):
+			return "right"
+		}
+		return ""
+	}
+	for i := range p.Scenes {
+		sc := &p.Scenes[i]
+		switch sc.Composition {
+		case "visual-pip":
+			if !slices.Contains(positions, sc.AvatarPosition) {
+				sc.AvatarPosition = "bottom-" + cmp.Or(sideOf(sc.AvatarPosition), "right")
+			}
+			if !slices.Contains([]string{"circle", "rounded", "rectangle"}, sc.AvatarShape) {
+				sc.AvatarShape = "rounded"
+			}
+		case "visual-split":
+			// A side column: only left/right matter, the shape is fixed.
+			sc.AvatarPosition, sc.AvatarShape = cmp.Or(sideOf(sc.AvatarPosition), "right"), ""
+		default:
+			sc.AvatarPosition, sc.AvatarShape = "", ""
+		}
+	}
+}
+
 func ValidateDirector(p DirectorPlan) error {
 	if strings.TrimSpace(p.Summary) == "" || len(p.Scenes) == 0 || len(p.Scenes) > 40 {
 		return fmt.Errorf("导演稿缺少全片结构或分镜")

@@ -62,6 +62,7 @@ func (h avatarPackageHost) draftNode(ctx context.Context, p models.Project, in a
 			if err := json.Unmarshal(raw, &plan); err != nil {
 				return nil, err
 			}
+			avatar.NormalizeDirector(&plan)
 			if err := avatar.ValidateDirector(plan); err != nil {
 				return nil, err
 			}

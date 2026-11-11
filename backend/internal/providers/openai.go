@@ -12,6 +12,8 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"os"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -57,8 +59,9 @@ func (e *providerHTTPError) ProviderDiagnosticFields() map[string]any {
 func newOpenAIHTTPError(status int, body []byte) error {
 	var payload struct {
 		Error struct {
-			Code any    `json:"code"`
-			Type string `json:"type"`
+			Code    any    `json:"code"`
+			Type    string `json:"type"`
+			Message string `json:"message"`
 		} `json:"error"`
 	}
 	_ = json.Unmarshal(body, &payload)
@@ -67,23 +70,52 @@ func newOpenAIHTTPError(status int, body []byte) error {
 		code = fmt.Sprint(payload.Error.Code)
 	}
 	code = strings.ToLower(code)
+	recognized := ""
 	switch code {
 	case "1113", "insufficient_quota", "insufficient_balance", "arrearage":
+		recognized = code
 	case "data_inspection_failed", "datainspectionfailed", "inputdatainspectionfailed", "outputdatainspectionfailed", "content_blocked":
-		code = "content_blocked"
-	default:
-		code = "" // Do not copy arbitrary upstream strings into diagnostics.
+		recognized = "content_blocked"
 	}
+
 	message := fmt.Sprintf("OpenAI compatible request failed: HTTP %d", status)
-	if code == "content_blocked" {
+	switch {
+	case recognized == "content_blocked":
 		message = ProviderContentReviewMessage
-	} else if code != "" || status == http.StatusPaymentRequired {
+	case recognized != "" || status == http.StatusPaymentRequired:
 		message = "模型调用失败，请联系客服"
 	}
-	return &providerHTTPError{
-		status: status, message: message,
-		diagnostics: map[string]any{"provider_code": code, "body_length": len(body), "body_sha256": fmt.Sprintf("%x", sha256.Sum256(body))},
+
+	// Unrecognized 4xx bodies stay out of the message (they can contain arbitrary
+	// upstream text). When an operator is debugging a rejected request they can
+	// opt in with PROVIDER_DEBUG_ERRORS=true to see the provider's own wording.
+	diagnostics := map[string]any{"provider_code": recognized, "body_length": len(body), "body_sha256": fmt.Sprintf("%x", sha256.Sum256(body))}
+	if recognized == "" && status >= 400 && status < 500 && providerDebugErrors() {
+		detail := repairSecretText(strings.TrimSpace(payload.Error.Message))
+		if detail == "" {
+			detail = repairSecretText(strings.TrimSpace(string(body)))
+		}
+		if runes := []rune(detail); len(runes) > 400 {
+			detail = string(runes[:400])
+		}
+		if detail != "" {
+			diagnostics["provider_message"] = detail
+			message += "：" + detail
+		}
 	}
+	return &providerHTTPError{status: status, message: message, diagnostics: diagnostics}
+}
+
+var repairSecretPattern = regexp.MustCompile(`(?i)(api[_ -]?key|authorization|access_token|token|secret|password|sk-)[=:\s]*["']?[A-Za-z0-9_\-]{8,}`)
+
+// repairSecretText removes credentials that a provider might echo back.
+func repairSecretText(text string) string {
+	return repairSecretPattern.ReplaceAllString(text, "[已隐藏]")
+}
+
+func providerDebugErrors() bool {
+	v := strings.ToLower(strings.TrimSpace(os.Getenv("PROVIDER_DEBUG_ERRORS")))
+	return v == "true" || v == "1" || v == "yes"
 }
 
 type openAIProfileName string

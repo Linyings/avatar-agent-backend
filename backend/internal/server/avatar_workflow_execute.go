@@ -358,7 +358,14 @@ func (w *avatarWorkflowService) model(ctx context.Context, s *avatar.WorkflowSta
 				step.ErrorType = "transient_provider"
 			}
 			_ = w.save(s)
-			return fmt.Errorf("模型服务调用失败（HTTP %d），请检查该服务的鉴权、额度及运行状态", e.ProviderHTTPStatus())
+			// Include provider message if available to aid diagnosis
+			detail := ""
+			if d, ok := err.(interface{ ProviderDiagnosticFields() map[string]any }); ok {
+				if msg, _ := d.ProviderDiagnosticFields()["provider_message"].(string); msg != "" {
+					detail = "：" + msg
+				}
+			}
+			return fmt.Errorf("模型服务调用失败（HTTP %d）%s，请检查该服务的鉴权、额度及运行状态", e.ProviderHTTPStatus(), detail)
 		}
 		_ = w.save(s)
 		if diagnostic, ok := err.(interface{ ProviderDiagnosticFields() map[string]string }); ok {

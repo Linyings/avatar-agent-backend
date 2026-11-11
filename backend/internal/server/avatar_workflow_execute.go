@@ -909,6 +909,50 @@ func (w *avatarWorkflowService) produceAudio(ctx context.Context, s *avatar.Work
 	return w.produceNativeSpeech(ctx, s, seg, step)
 }
 
+// reopenStepWhenProductMissing clears a succeeded step whose product file is
+// absent, so the renderer runs again. Existing rendered work is never touched;
+// only a genuinely missing file reopens its step.
+func (w *avatarWorkflowService) reopenStepWhenProductMissing(s *avatar.WorkflowState, id string, need avatar.MaterialNeed) {
+	w.withState(func() {
+		idx := -1
+		for i := range s.Steps {
+			if s.Steps[i].ID == id {
+				idx = i
+				break
+			}
+		}
+		if idx < 0 || s.Steps[idx].Status != "succeeded" {
+			return
+		}
+		// Already recorded with a usable file? Leave it alone.
+		for _, material := range s.Materials {
+			if material.NeedID != need.ID {
+				continue
+			}
+			if path, err := safeWorkflowFile(w.dir(s.ID), material.Path); err == nil {
+				if info, err := os.Stat(path); err == nil && info.Mode().IsRegular() && info.Size() > 0 {
+					return
+				}
+			}
+		}
+		// No material record with a usable file. Check whether the render landed
+		// under its conventional name before deciding to redo the step.
+		materialsDir := filepath.Join(w.dir(s.ID), "materials")
+		for _, name := range materialFileCandidates(need) {
+			if info, err := os.Stat(filepath.Join(materialsDir, name)); err == nil && info.Mode().IsRegular() && info.Size() > 0 {
+				// File exists; only the record is missing. Recovery in assembly
+				// handles that case, so keep the step closed.
+				return
+			}
+		}
+		step := &s.Steps[idx]
+		step.Status = "pending"
+		step.Error = ""
+		step.ProductionPhase = "产物缺失，重新渲染"
+		s.AddWarning(id, "repair", "已完成的动效产物文件缺失，重新渲染；已生成方案和代码会直接复用")
+	})
+}
+
 func copyWorkflowFile(from, to string) error {
 	b, err := os.ReadFile(from)
 	if err != nil {
@@ -975,6 +1019,11 @@ func (w *avatarWorkflowService) produceMaterial(ctx context.Context, s *avatar.W
 			fingerprint = legacy
 		}
 	}
+	// A step can be recorded succeeded while its rendered product never landed
+	// (an earlier concurrent write lost the entry). step() short-circuits on
+	// success, so the product would never be produced again. Reopen it only when
+	// the file is genuinely absent; existing work is never re-rendered.
+	w.reopenStepWhenProductMissing(s, node+"/"+need.ID, need)
 	return w.step(ctx, s, node+"/"+need.ID, fingerprint, func(ctx context.Context, step *avatar.WorkflowStep) error {
 		step.ProductionPhase = "准备输入素材"
 		if err := w.save(s); err != nil {

@@ -1077,6 +1077,7 @@ func (w *avatarWorkflowService) produceMaterial(ctx context.Context, s *avatar.W
 		} else {
 			input := map[string]any{"segment": seg, "need": need}
 			var motion *avatar.MotionPlan
+			reusedPhase := false
 			for {
 				// A targeted render repair can grow Steps while preserving siblings.
 				for i := range s.Steps {
@@ -1091,6 +1092,7 @@ func (w *avatarWorkflowService) produceMaterial(ctx context.Context, s *avatar.W
 					}
 					motion = &plan
 					input["motion_plan"] = plan
+					reusedPhase = step.ProductionPhase == "复用动效设计并重新校准时间"
 				}
 				// Nested motion phases may reallocate the Steps slice.
 				for i := range s.Steps {
@@ -1106,6 +1108,19 @@ func (w *avatarWorkflowService) produceMaterial(ctx context.Context, s *avatar.W
 				}
 				if err := w.mediaStep(ctx, s, "material", input, &material); err != nil {
 					if need.Kind == "animation" {
+						// A design carried over from an earlier run was timed for
+						// that run's speech. Rendering it again yields the same
+						// failure, so reject the reuse and design fresh once.
+						if reusedPhase {
+							var media *workflowMediaError
+							if errors.As(err, &media) && !w.motionReuseRejected(s, need, seg) {
+								if e := w.rejectMotionReuse(s, need, seg, media.Message); e != nil {
+									return e
+								}
+								reusedPhase = false
+								continue
+							}
+						}
 						again, failure := w.repairRenderedMotion(s, node+"/"+need.ID, err)
 						if again {
 							continue

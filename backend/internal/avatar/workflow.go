@@ -233,6 +233,9 @@ type WorkflowState struct {
 	ErrorType           string                `json:"error_type,omitempty"`
 	ErrorStepID         string                `json:"error_step_id,omitempty"`
 	ReusedFrom          string                `json:"reused_from,omitempty"`
+	// Need@speech-fingerprint pairs whose reused motion design failed the
+	// render check; those needs are designed fresh for the current speech.
+	RejectedMotionReuse []string `json:"rejected_motion_reuse,omitempty"`
 	ConfigSnapshot      map[string]string     `json:"config_snapshot"`
 	Edits               WorkflowEdits         `json:"edits,omitempty"`
 	AwaitingSince       *time.Time            `json:"awaiting_since,omitempty"`

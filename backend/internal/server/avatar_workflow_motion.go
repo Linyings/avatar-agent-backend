@@ -74,7 +74,7 @@ func (w *avatarWorkflowService) planMotion(ctx context.Context, s *avatar.Workfl
 	if data, err := os.ReadFile(file); err == nil && json.Unmarshal(data, &cached) == nil && cached.Fingerprint == fingerprint && avatar.ValidateMotionPlan(cached.Plan, seg.Text) == nil && !avatar.DirectorWorkflow(s) {
 		return cached.Plan, nil
 	}
-	if s.ReusedFrom != "" && s.Edits.MaterialOnly != need.ID && !workflowRerunsNode(s, "F07") {
+	if s.ReusedFrom != "" && s.Edits.MaterialOnly != need.ID && !workflowRerunsNode(s, "F07") && !w.motionReuseRejected(s, need, seg) {
 		if reused, ok := w.reusableMotionDesign(ctx, s, need, seg); ok {
 			cached.Fingerprint, cached.Plan = fingerprint, reused
 			if err := avatar.WriteJSON(file, cached); err != nil {

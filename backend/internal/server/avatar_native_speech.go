@@ -35,7 +35,9 @@ func nativeAsset(in avatar.WorkflowInput, id string) (avatar.SourceAsset, bool) 
 func (w *avatarWorkflowService) nativeSpeechFingerprint(s *avatar.WorkflowState, seg avatar.Segment) string {
 	photo, _ := nativeAsset(s.Input, s.Input.Photo)
 	voice, _ := nativeAsset(s.Input, s.Input.VoiceReference)
-	values := []any{"seedance-native/2", seg.Text, seg.NativePrompt, seg.NativeRevision, photo.SHA256, photo.ID, voice.SHA256, voice.ID, s.Input.Direction, s.Input.Ratio, s.Input.UseAvatar, s.ConfigSnapshot["video"]}
+	// v3: no green screen, brisk 1.5x pacing and restrained mouth movement.
+	// Older takes must not be reused from the speech cache.
+	values := []any{"seedance-native/3", seg.Text, seg.NativePrompt, seg.NativeRevision, photo.SHA256, photo.ID, voice.SHA256, voice.ID, s.Input.Direction, s.Input.Ratio, s.Input.UseAvatar, s.ConfigSnapshot["video"]}
 	// Changes to the default voice anchor must also invalidate later segments.
 	if voice.ID == "" && len(s.Segments) > 0 && seg.ID != s.Segments[0].ID {
 		values = append(values, s.Segments[0].Fingerprint)
@@ -257,24 +259,8 @@ func (w *avatarWorkflowService) useNativeMaterial(ctx context.Context, s *avatar
 		if err = copyWorkflowFile(source, filepath.Join(w.dir(s.ID), filepath.FromSlash(relative))); err != nil {
 			return err
 		}
-		// Run chromakey to remove the green-screen background and produce an
-		// alpha WebM. The compositor uses the alpha channel at render time to
-		// layer the presenter over animation/real materials.
-		ckInput := map[string]any{
-			"need_id":          need.ID,
-			"source_path":      relative,
-			"background":       "studio",
-			"chroma_color":     "0x00B140",
-			"similarity":       0.30,
-			"blend":            0.08,
-		}
-		var ckResult map[string]any
-		if err = w.mediaStep(ctx, s, "chromakey", ckInput, &ckResult); err != nil {
-			// Non-fatal: fall back to opaque video if chromakey fails
-			s.AddWarning("F06/"+need.ID, "quality", "绿幕抠像未完成，使用原始视频；合成时人物背景可能可见")
-		} else if alphaPath, ok := ckResult["alpha_path"].(string); ok && alphaPath != "" {
-			relative = alphaPath
-		}
+		// The presenter is used exactly as shot over its own backdrop; there is
+		// no background compositing in this workflow, so no keying is needed.
 		m := avatar.Material{NeedID: need.ID, SegmentID: seg.ID, Kind: "avatar", Path: relative, Duration: seg.Duration, Fingerprint: seg.Fingerprint, BaseFingerprint: seg.Fingerprint}
 		// Avatar needs from different segments may be produced concurrently.
 		w.withState(func() {

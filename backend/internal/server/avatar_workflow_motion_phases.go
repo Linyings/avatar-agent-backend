@@ -293,11 +293,24 @@ func (w *avatarWorkflowService) planMotionPhases(ctx context.Context, s *avatar.
 		overhead += len(quote) + 70
 	}
 	budget := min(6000, (18000-overhead)/len(plan.Scenes))
+	// The design phase already resolved palette, tone and visual context. Per
+	// scene code requests get a bounded digest instead of the full style prose,
+	// so a long segment no longer pays for the same reference once per scene.
+	var palette []string
+	if raw, ok := input["style_profile"].(map[string]any); ok {
+		if values, ok := raw["palette"].([]any); ok {
+			for _, v := range values {
+				palette = append(palette, fmt.Sprint(v))
+			}
+		}
+	}
+	styleDigest := styleDigestForCode(fmt.Sprint(input["style_reference"]), palette)
 	for i := range plan.Scenes {
 		codeInput := map[string]any{"scene": timing.Scenes[i], "scene_index": i + 1, "scene_count": len(plan.Scenes), "code_max_bytes": budget, "tone": plan.Tone, "visual_context": plan.VisualContext}
 		for _, key := range []string{"style", "style_profile", "style_reference", "ratio", "director", "material_design", "direction"} {
 			codeInput[key] = input[key]
 		}
+		codeInput = compactCodeInput(codeInput, styleDigest)
 		var output struct {
 			Code string `json:"code"`
 		}

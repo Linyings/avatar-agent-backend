@@ -41,6 +41,16 @@ func safeRepairText(text string) string {
 	return string(runes)
 }
 
+// truncateRepairText cuts on rune boundaries. Slicing bytes would split a
+// multi-byte character and make the JSON unmarshalable for the model.
+func truncateRepairText(text string, runes int) string {
+	values := []rune(strings.TrimSpace(text))
+	if len(values) <= runes {
+		return string(values)
+	}
+	return string(values[:runes]) + "…（已截断）"
+}
+
 func mediaFailure(stage string, log []byte) *workflowMediaError {
 	failure := &workflowMediaError{Stage: stage, Code: "media_execution", Message: "执行失败，请查看任务日志"}
 	for _, line := range strings.Split(string(log), "\n") {
@@ -192,10 +202,20 @@ func (w *avatarWorkflowService) repairModelInput(s *avatar.WorkflowState, step *
 	if step.Attempt > 1 {
 		file := filepath.Join(w.dir(s.ID), "model-results", fmt.Sprintf("%s-attempt-%d.json", avatar.Digest(step.ID)[:16], step.Attempt-1))
 		if prior, err := os.ReadFile(file); err == nil {
-			if len(prior) > 10000 {
-				prior = prior[:10000]
+			// Parse and strip any nested retry_context: carrying it forward makes
+			// every retry re-embed all earlier retries, so the prompt grows
+			// geometrically with attempt count. Only the code body is useful.
+			var previous map[string]any
+			if json.Unmarshal(prior, &previous) == nil {
+				delete(previous, "retry_context")
+				if code, ok := previous["code"].(string); ok && len(previous) <= 2 {
+					previous = map[string]any{"code": code}
+				}
+				if encoded, e := json.Marshal(previous); e == nil {
+					prior = encoded
+				}
 			}
-			detail["previous_output"] = string(prior)
+			detail["previous_output"] = truncateRepairText(string(prior), 6000)
 		}
 	}
 	request["retry_context"] = detail

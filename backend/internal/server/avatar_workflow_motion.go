@@ -120,6 +120,9 @@ func (w *avatarWorkflowService) planMotion(ctx context.Context, s *avatar.Workfl
 			}
 		}
 	}
+	// Bound the assembled reference. The template brief plus production method
+	// can otherwise carry several KB into every design request for the segment.
+	styleReference = truncateRunes(styleReference, designStyleReferenceBudget)
 	direction := s.Input.Direction
 	if len(s.ProductionNotes) > 0 {
 		direction += "\n" + strings.Join(s.ProductionNotes, "\n")

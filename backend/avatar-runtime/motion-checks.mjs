@@ -16,9 +16,12 @@ export function motionLabelCovered(label,drawn){
  label=compact(label);const parts=drawn.map(compact).filter(Boolean);
  // A number plus its unit must remain intact. Never accept 300 inside 1300,
  // or reconstruct a decimal from unrelated individual digits.
- const numeric=label.match(/\d+(?:[.,]\d+)*(?:%|％|万亿(?:美元|元)?|亿(?:美元|元)?|万(?:美元|元)?|美元|亿元|元|倍|年|月|日|秒|人)?/g)||[];
+ const numeric=label.match(/\d+(?:[.,]\d+)*(?:%|％|万亿(?:美元|元)?|亿(?:美元|元)?|万(?:美元|元)?|美元|亿元|元|倍|年|月|日|号|秒|人)?/g)||[];
  for(const token of numeric){
-  if(!parts.some(p=>{let at=p.indexOf(token);while(at>=0){if(!/[\d.]/.test(p[at-1]||'')&&!/[\d.]/.test(p[at+token.length]||''))return true;at=p.indexOf(token,at+1)}return false}))return false;
+  // Only a bare digit edge can be extended into a different number ("300" in
+  // "1300"). A unit already ends the token, so "11月" followed by "9号" is fine.
+  const guardEnd=/\d$/.test(token);
+  if(!parts.some(p=>{let at=p.indexOf(token);while(at>=0){if(!/[\d.]/.test(p[at-1]||'')&&!(guardEnd&&/[\d.]/.test(p[at+token.length]||'')))return true;at=p.indexOf(token,at+1)}return false}))return false;
  }
  const covered=Array(label.length).fill(false);
  for(const part of parts){
@@ -40,8 +43,11 @@ export function checkMotionFrames(scene,frames,fps,sceneIndex){
   }
   if(longest===0)missing.push(element.label);else if(longest+1e-6<hold)short.push(element.label);
  }
- const detail={scene_index:sceneIndex+1,scene_quote:scene.quote,scene_duration:scene.end-scene.start,missing_labels:missing,short_labels:short};
+ const drawn=[...new Set(frames.flatMap(f=>f.labels))];
+ // drawn_labels lets the caller tell a real omission from a checker fault: a
+ // "missing" label that appears verbatim here was drawn, so redrawing cannot help.
+ const detail={scene_index:sceneIndex+1,scene_quote:scene.quote,scene_duration:scene.end-scene.start,missing_labels:missing,short_labels:short,drawn_labels:drawn.slice(0,40)};
  if(missing.length)throw new MotionValidationError('motion_text_missing',`场景 ${sceneIndex+1} 关键内容未完整展示：${missing.join('、')}；场景只有 ${(scene.end-scene.start).toFixed(2)} 秒，请按本场时长调整出场时间`,detail);
  if(short.length)throw new MotionValidationError('motion_text_too_brief',`场景 ${sceneIndex+1} 关键内容展示时间不足：${short.join('、')}；请提前出场并保留阅读时间`,detail);
- return {...detail,drawn:[...new Set(frames.flatMap(f=>f.labels))],missing_numeric_labels:[]};
+ return {...detail,drawn,missing_numeric_labels:[]};
 }

@@ -13,6 +13,16 @@ test('numeric labels may be split into value/unit and caption without accepting 
  for(const labels of [['1300 亿美元','融资'],['300','融资'],['30 亿美元','融资'],['300 亿美元']])assert.equal(motionLabelCovered('融资 300 亿美元',labels),false);
  assert.equal(motionLabelCovered('1.4 万亿美元估值',['1','4 万亿美元','估值']),false);
 });
+test('dates with units between numbers are recognised when drawn verbatim',()=>{
+ // Regression: "11 月 9 号" was reported missing on every frame although it was
+ // drawn, because the unit-bearing token "11月" is followed by the digit 9.
+ for(const label of ['11 月 9 号','11月9号','2026年11月','2026 年 11 月 9 日','3 月 15 日'])assert.equal(motionLabelCovered(label,[label]),true,label);
+ assert.equal(motionLabelCovered('11 月 9 号',['11 月 9 号 发布']),true);
+ assert.equal(motionLabelCovered('11 月 9 号',['11 月','9 号']),true);
+ // Still reject a different date or a digit-extended number.
+ for(const drawn of [['11 月 19 号'],['1 月 9 号'],['11 月 8 号'],['111 月 9 号']])assert.equal(motionLabelCovered('11 月 9 号',drawn),false,drawn[0]);
+ assert.equal(motionLabelCovered('2026年11月',['2026年1月']),false);
+});
 test('coverage is checked within frames and requires a readable hold, not fragments from different times',()=>{
  const scene={quote:'融资 300 亿美元',start:0,end:2,elements:[{label:'融资 300 亿美元',at:1}]};
  const make=labels=>Array.from({length:50},(_,i)=>({time:i/25,labels:labels(i)}));

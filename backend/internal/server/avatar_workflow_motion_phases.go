@@ -154,7 +154,7 @@ func (w *avatarWorkflowService) motionPhase(ctx context.Context, s *avatar.Workf
 					// A renderer upgrade may fix a false alarm without another model
 					// call. Otherwise repair this candidate with its current diagnostic.
 					rememberWorkflowFailure(step, err.Error())
-					if ctx.Err() != nil || !motionAutoRetryable(*step, err) {
+					if ctx.Err() != nil || !motionRepairable(*step, err) {
 						return err
 					}
 				}

@@ -15,17 +15,45 @@ import (
 const motionAutomaticRetryLimit = 3
 
 type workflowMediaError struct {
-	Code       string `json:"code"`
-	Message    string `json:"message"`
-	SceneIndex int    `json:"scene_index,omitempty"`
-	Stage      string `json:"-"`
+	Code          string   `json:"code"`
+	Message       string   `json:"message"`
+	SceneIndex    int      `json:"scene_index,omitempty"`
+	MissingLabels []string `json:"missing_labels,omitempty"`
+	DrawnLabels   []string `json:"drawn_labels,omitempty"`
+	Stage         string   `json:"-"`
 }
 
 func (e *workflowMediaError) Error() string {
-	if e.Stage == "" {
-		return e.Message
+	message := e.Message
+	if e.checkerFault() {
+		message += "（画面中已绘制这些文字，属于文字校验误判，不是动效问题；已停止自动重绘）"
 	}
-	return fmt.Sprintf("本地媒体步骤 %s：%s", e.Stage, e.Message)
+	if e.Stage == "" {
+		return message
+	}
+	return fmt.Sprintf("本地媒体步骤 %s：%s", e.Stage, message)
+}
+
+// checkerFault reports a "missing" label that appears verbatim among the drawn
+// text. The frame shows it; the check is wrong, so redrawing cannot fix it.
+func (e *workflowMediaError) checkerFault() bool {
+	if e == nil || e.Code != "motion_text_missing" || len(e.MissingLabels) == 0 {
+		return false
+	}
+	compact := func(s string) string { return strings.Join(strings.Fields(s), "") }
+	for _, label := range e.MissingLabels {
+		found := false
+		for _, drawn := range e.DrawnLabels {
+			if strings.Contains(compact(drawn), compact(label)) {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return false
+		}
+	}
+	return true
 }
 
 var repairSecret = regexp.MustCompile(`(?i)(api[_ -]?key|authorization|access_token|token|secret|password)\s*[:=]\s*["']?[^\s,"'}]+`)
@@ -126,7 +154,14 @@ func rememberWorkflowFailure(step *avatar.WorkflowStep, message string) {
 	if step.Retry == nil {
 		step.Retry = &avatar.WorkflowRetry{}
 	}
-	step.Retry.LastError = safeRepairText(message)
+	text := safeRepairText(message)
+	// Several call sites record the same failure; only a new attempt shifts
+	// history, so one failure is never mistaken for a repeat of itself.
+	if step.Attempt != step.Retry.LastAttempt {
+		step.Retry.PreviousError = step.Retry.LastError
+		step.Retry.LastAttempt = step.Attempt
+	}
+	step.Retry.LastError = text
 	step.Retry.Strategy = repairStrategy(message)
 }
 
@@ -223,20 +258,44 @@ func (w *avatarWorkflowService) repairModelInput(s *avatar.WorkflowState, step *
 }
 
 func motionAutoRetryable(step avatar.WorkflowStep, err error) bool {
+	return motionRepairable(step, err) && !motionRepeatedFailure(step, err)
+}
+
+// motionRepairable: the failure kind can be fixed by asking the model to
+// redraw. Re-validating an unchanged cached candidate uses this directly, as
+// its identical error is expected and is not evidence of a stalled repair.
+func motionRepairable(step avatar.WorkflowStep, err error) bool {
 	if step.Submission == "unknown" || step.Submission == "submitting" {
+		return false
+	}
+	var media *workflowMediaError
+	if errors.As(err, &media) && media.checkerFault() {
 		return false
 	}
 	if step.ErrorType == "model_output" || step.ErrorType == "transient_provider" || step.ErrorType == "validation" {
 		return true
 	}
-	var media *workflowMediaError
-	if errors.As(err, &media) {
+	if media != nil {
 		switch media.Code {
 		case "motion_code_invalid", "motion_plan_invalid", "motion_text_missing", "motion_text_too_brief", "motion_draw_failed":
 			return true
 		}
 	}
 	return false
+}
+
+// motionRepeatedFailure: a model repair already ran and the next attempt
+// produced exactly the same render diagnostic. Another try only spends tokens.
+func motionRepeatedFailure(step avatar.WorkflowStep, err error) bool {
+	if step.Retry == nil || step.Retry.AutomaticRetries < 1 || err == nil || step.Retry.PreviousError == "" {
+		return false
+	}
+	var media *workflowMediaError
+	if !errors.As(err, &media) {
+		return false
+	}
+	current := safeRepairText(err.Error())
+	return step.Retry.LastError == current && step.Retry.PreviousError == current
 }
 
 // Render diagnostics identify the exact scene. Mark only that phase for repair;

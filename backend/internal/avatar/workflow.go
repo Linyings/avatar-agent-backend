@@ -181,6 +181,10 @@ type WorkflowRetry struct {
 	Strategy         string `json:"strategy"`
 	AutomaticRetries int    `json:"automatic_retries"`
 	Exhausted        bool   `json:"exhausted,omitempty"`
+	// PreviousError is the diagnostic of the attempt before LastError's; an
+	// identical pair after a model repair means the repair is not progressing.
+	PreviousError string `json:"previous_error,omitempty"`
+	LastAttempt   int    `json:"last_attempt,omitempty"`
 }
 type WorkflowArtifact struct {
 	ID        string `json:"id"`

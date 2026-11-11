@@ -95,17 +95,28 @@ func (w *avatarWorkflowService) planMotion(ctx context.Context, s *avatar.Workfl
 	if s.Input.UseAvatar && len(contextResult.Frames) == 0 {
 		return plan, fmt.Errorf("本段人物素材尚未就绪，动效需读取实际人物画面后再制作")
 	}
-	// Extract only the style's signature section. The original creative seed and
-	// output/demo instructions never enter a production model request.
+	// Extract style features, production method, and the complete original prompt
+	// to give the model full context about the intended visual style and technique.
 	styleReference := fmt.Sprint(style.Design["features"])
 	if method, ok := workflowStyleProductionContext(w.app.avatarMVP.options.RuntimeRoot, s.Input.Style)["method"].(string); ok {
-		styleReference += "\n" + method
+		styleReference += "\n\n制作方法：\n" + method
 	}
+	// Read the complete original prompt for full style context
 	if data, err := os.ReadFile(filepath.Join(w.app.avatarMVP.options.RuntimeRoot, "templates", s.Input.Style, "original-prompt.md")); err == nil {
 		text := string(data)
-		if start := strings.Index(text, "# Signature features"); start >= 0 {
-			if end := strings.Index(text[start:], "# How to work"); end > 0 {
-				styleReference = text[start : start+end]
+		// Extract the Prompt section which contains the original creative brief
+		if start := strings.Index(text, "## Prompt"); start >= 0 {
+			end := len(text)
+			// Find the next section marker to bound the prompt
+			if nextSection := strings.Index(text[start+10:], "\n## "); nextSection > 0 {
+				end = start + 10 + nextSection
+			}
+			promptSection := strings.TrimSpace(text[start:end])
+			// Remove the markdown code fence if present
+			promptSection = strings.TrimPrefix(promptSection, "## Prompt\n\n```text\n")
+			promptSection = strings.TrimSuffix(promptSection, "\n```")
+			if len(promptSection) > 0 && len(promptSection) < 3000 {
+				styleReference += "\n\n原始风格提示词（参考画面风格、UI布局和视觉处理手法，根据当前文案内容改编）：\n" + promptSection
 			}
 		}
 	}

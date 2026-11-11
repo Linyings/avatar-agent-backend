@@ -62,25 +62,54 @@ func mediaFailure(stage string, log []byte) *workflowMediaError {
 }
 
 func repairStrategy(message string) string {
-	switch {
-	case strings.Contains(message, "截断"), strings.Contains(message, "字节"), strings.Contains(message, "JSON"):
-		return "压缩当前场景的输出，删除重复代码和长注释；保留必需字段并返回完整、正确转义的 JSON。"
-	case strings.Contains(message, "Canvas"), strings.Contains(message, "全局变量"):
-		return "根据具体校验位置修复当前场景代码，使用局部变量及确定性的 Canvas 绘制，保留原内容与风格。"
-	case strings.Contains(message, "时间"), strings.Contains(message, "展示"), strings.Contains(message, "绘制"):
-		if strings.Contains(message, "场景") || strings.Contains(message, "动效") {
-			return "根据本场实际 duration、elements.local_at 和 enter_at 修正出场时间；数字和单位原样保留，允许分开排版，关键内容须在结束前完整展示并留出阅读时间。"
-		}
-		return "根据当前输入的真实时长、可用素材区间和起止时间修复时间映射，保留已经完成的内容。"
-	case strings.Contains(message, "渲染"), strings.Contains(message, "render"), strings.Contains(message, "Remotion"):
-		return "渲染失败通常由无效属性或超出范围的值引起；检查动效代码中的数值范围、类型匹配和 Remotion API 用法，不要改变内容意图。"
-	case strings.Contains(message, "语法"), strings.Contains(message, "SyntaxError"), strings.Contains(message, "parse"):
-		return "修复代码语法错误；确保括号、引号、逗号配对，返回合法的 JavaScript 表达式，不要截断输出。"
-	case strings.Contains(message, "超时"), strings.Contains(message, "timeout"), strings.Contains(message, "TIMEOUT"):
-		return "简化本场景的复杂度：减少元素数量，缩短动画计算，避免深层嵌套；保留核心内容和视觉意图。"
-	default:
-		return "根据上次后台错误检查当前步骤的输入与输出，仅修复失败部分；保留已经成功的内容，不能原样返回失败结果。"
+	// More specific error classification with actionable repair instructions
+	lower := strings.ToLower(message)
+	
+	// JSON truncation or size issues
+	if strings.Contains(message, "截断") || strings.Contains(lower, "truncat") || strings.Contains(message, "字节") {
+		return "输出被截断，立即压缩：(1) 删除所有注释和空行 (2) 合并重复的绘图逻辑为函数 (3) 简化变量名 (4) 如果场景过多，只保留最重要的 2-3 个关键场景，其他合并为简化版本。确保返回完整、正确转义的 JSON。"
 	}
+	
+	// JSON format errors
+	if strings.Contains(lower, "json") && (strings.Contains(lower, "invalid") || strings.Contains(lower, "parse") || strings.Contains(message, "格式") || strings.Contains(message, "无效")) {
+		return "JSON 格式错误：(1) 检查所有引号、括号、逗号是否正确配对 (2) 确保字符串中的换行符用 \\n 转义 (3) 确保反斜杠用 \\\\ 转义 (4) 不要在 code 字段中使用未转义的双引号。返回严格的 JSON 格式。"
+	}
+	
+	// Canvas API or global variable errors
+	if strings.Contains(message, "Canvas") || strings.Contains(lower, "global") || strings.Contains(message, "全局变量") || strings.Contains(lower, "undefined") {
+		return "Canvas 代码错误：(1) 只使用 ctx (CanvasRenderingContext2D) 的标准方法：fillRect, strokeRect, arc, lineTo, fillText 等 (2) 所有变量必须在函数内声明，不能使用全局变量 (3) 不能使用 DOM、window、document、setTimeout、setInterval (4) 只能使用 Math 和标准 JavaScript。检查报错位置，修复具体的 API 调用或变量声明。"
+	}
+	
+	// Timing and duration issues
+	if strings.Contains(message, "时间") || strings.Contains(lower, "duration") || strings.Contains(message, "展示") || strings.Contains(lower, "timing") {
+		if strings.Contains(message, "scene") || strings.Contains(message, "场景") || strings.Contains(message, "动效") {
+			return "场景时间安排错误：(1) 所有元素必须在 scene.duration - scene.hold_seconds 之前完整出现 (2) 使用 elements[i].local_at 或 enter_at 判断元素何时入场，不要用固定的秒数 (3) 如果 duration 只有 2-3 秒，同时展示多个元素而不是顺序动画 (4) 文字、数字、单位必须在同一画面完整可见。立即修正所有 if (t > xxx) 的时间判断。"
+		}
+		return "时间映射错误：根据报错信息中的具体时间值，检查 (1) 素材的实际起止时间是否在可用区间内 (2) 动画的时间计算是否正确 (3) 是否误用了全局时间而不是本场景的相对时间。"
+	}
+	
+	// Rendering or Remotion errors
+	if strings.Contains(lower, "render") || strings.Contains(message, "渲染") || strings.Contains(lower, "remotion") {
+		return "渲染失败：(1) 检查是否使用了无效的 CSS 属性值（如负数的 width/height、超出 0-1 范围的 opacity） (2) 确保所有数值类型正确（不要把字符串当数字用） (3) 检查是否误用了 React 组件而不是纯 Canvas 绘图 (4) 确保 fillStyle 和 strokeStyle 是有效的颜色值。根据具体报错信息修复对应的代码行。"
+	}
+	
+	// Syntax errors
+	if strings.Contains(lower, "syntax") || strings.Contains(message, "语法") || strings.Contains(lower, "syntaxerror") {
+		return "JavaScript 语法错误：(1) 检查所有括号 () [] {} 是否正确配对 (2) 检查字符串引号是否正确闭合 (3) 检查每行结尾是否缺少分号或逗号 (4) 检查是否有拼写错误的关键字。仔细阅读报错信息中的行号和错误位置，精确修复该处的语法问题。"
+	}
+	
+	// Timeout errors
+	if strings.Contains(lower, "timeout") || strings.Contains(message, "超时") {
+		return "执行超时：(1) 减少场景数量，合并相似内容 (2) 简化每个场景的绘图逻辑，删除复杂的循环和计算 (3) 减少文字数量和图形元素 (4) 避免深层嵌套的循环。优先保留核心信息，次要细节可以省略。"
+	}
+	
+	// Text or element display issues
+	if strings.Contains(message, "文字") || strings.Contains(lower, "text") || strings.Contains(message, "标签") || strings.Contains(lower, "label") {
+		return "文字显示问题：(1) 只能使用 scene.title、scene.elements[].label 和它们的子串，不能添加额外文字 (2) 数值和单位必须完整保留（如 \"1.5亿\" 不能拆成 \"1.5\" 和 \"亿\"） (3) 字号不能小于 min(w,h)*0.038 (4) 确保所有文字在画面结束前完整可见并留出阅读时间。"
+	}
+	
+	// Default: generic repair instruction with error context emphasis
+	return "根据报错信息修复代码：(1) 仔细阅读错误消息中的具体问题描述 (2) 定位到出错的代码行 (3) 针对性地修复该处的具体问题，不要改动其他正常工作的部分 (4) 保持原有的内容意图和视觉风格。如果错误信息不明确，尝试简化代码复杂度。"
 }
 
 func rememberWorkflowFailure(step *avatar.WorkflowStep, message string) {

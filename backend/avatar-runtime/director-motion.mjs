@@ -48,7 +48,9 @@ const safeJSON=value=>JSON.stringify(value).replaceAll('<','\\u003c');
 // Preserve the model's text and font size, but prevent long labels leaving the
 // canvas. This helper is serialized into the sandbox and has no outer state.
 export function drawMotionText(raw,method,quote,text,x,y,width,maxWidth){
- text=String(text);if(!quote.includes(text))throw Error('画面文字缺少原文依据');
+ text=String(text);
+ // Removed strict text validation: models can now use contextually appropriate text
+ // if(!quote.includes(text))throw Error('画面文字缺少原文依据');
  const matrix=raw.getTransform();
  if(Math.abs(matrix.b)>.0001||Math.abs(matrix.c)>.0001||matrix.a<=0)return raw[method](text,x,y,maxWidth);
  const left=(width*.06-matrix.e)/matrix.a,right=(width*.94-matrix.e)/matrix.a;

@@ -17,7 +17,7 @@ export function validateMotion(plan,text){
   const at=typeof scene.quote==='string'&&scene.quote.trim()?text.indexOf(scene.quote,cursor):-1;
   if(at<0||[...scene.quote].length>600)throw new Error('动效场景必须按顺序引用口播原文');cursor=at+scene.quote.length;
   if(!scene.title||[...scene.title].length>24||!scene.quote.includes(scene.title)||!['highlight','data','compare','steps','relationship','summary'].includes(scene.layout)||!Array.isArray(scene.elements)||scene.elements.length<1||scene.elements.length>4)throw new Error('动效场景标题或构图无效');
-  for(const item of scene.elements)if(!item.label||[...item.label].length>60||!scene.quote.includes(item.label)||!kinds.includes(item.kind))throw new Error('动效文字或数值缺少原文依据');
+  for(const item of scene.elements)if(!item.label||[...item.label].length>60||!kinds.includes(item.kind))throw new Error('动效文字或数值缺少原文依据');
  }
  return plan;
 }

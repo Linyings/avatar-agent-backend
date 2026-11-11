@@ -347,9 +347,13 @@ func applyRunningHubLLM(cfg *Config) {
 	if base == "" || model == "" || strings.TrimSpace(cfg.OpenAIFlashAPIKey) != "" || cfg.OpenAIFlashModel != "gpt-4.1-mini" {
 		return
 	}
-	key := strings.TrimSpace(env("VIDEO_API_KEY", ""))
+	// Priority: RUNNINGHUB_LLM_API_KEY > RUNNINGHUB_API_KEY > VIDEO_API_KEY
+	key := strings.TrimSpace(env("RUNNINGHUB_LLM_API_KEY", ""))
 	if key == "" {
 		key = strings.TrimSpace(env("RUNNINGHUB_API_KEY", ""))
+	}
+	if key == "" {
+		key = strings.TrimSpace(env("VIDEO_API_KEY", ""))
 	}
 	if key == "" {
 		return

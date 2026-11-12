@@ -40,6 +40,25 @@ class ProbeAnyFileTests(unittest.TestCase):
             self.assertTrue(out.get('converted'))
 
     @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'requires FFmpeg')
+    def test_long_voice_reference_is_trimmed_to_a_sample(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder = Path(d); p = folder/'voice.mp3'
+            subprocess.run(['ffmpeg', '-y', '-v', 'error', '-f', 'lavfi', '-i', 'sine=frequency=300:duration=90', '-b:a', '64k', str(p)], check=True)
+            out = run_probe(folder, p, 'audio')
+            self.assertTrue(2 <= out['duration'] <= 30, out['duration'])
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'requires FFmpeg')
+    def test_large_photo_is_recompressed_not_rejected(self):
+        with tempfile.TemporaryDirectory() as d:
+            folder = Path(d); p = folder/'huge.png'
+            # Noise does not compress: a 3000x3000 noise PNG is far over 8MB.
+            subprocess.run(['ffmpeg', '-y', '-v', 'error', '-f', 'lavfi', '-i', 'nullsrc=s=3000x3000,geq=random(1)*255:128:128', '-frames:v', '1', str(p)], check=True)
+            self.assertGreater(p.stat().st_size, 8 << 20)
+            out = run_probe(folder, p, 'photo')
+            self.assertLessEqual(p.stat().st_size, 8 << 20)
+            self.assertTrue(out['converted'])
+
+    @unittest.skipUnless(shutil.which('ffmpeg') and shutil.which('ffprobe'), 'requires FFmpeg')
     def test_png_image_is_kept_unchanged(self):
         with tempfile.TemporaryDirectory() as d:
             folder = Path(d); p = folder/'portrait.png'

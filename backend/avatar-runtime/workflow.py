@@ -99,10 +99,16 @@ def command_probe(args):
         return {'duration':0,'sha256':hashlib.sha256(data).hexdigest()}
     info=probe(args,p)
     if inp['kind']=='audio':
-        if p.stat().st_size>20<<20:raise ValueError('参考音色不能超过 20MB')
         if not any(s.get('codec_type')=='audio' for s in info['streams']):raise ValueError('参考音色文件没有音轨')
         sec=duration(info,'audio')
-        if not 2<=sec<=30:raise ValueError('参考音色需要 2–30 秒')
+        if sec<2:raise ValueError('参考音色至少需要 2 秒')
+        if sec>30 or p.stat().st_size>20<<20:
+            # A long recording keeps a 20-second voice sample instead of being
+            # rejected; only timbre is used from the reference.
+            start=1 if sec>23 else 0
+            out=p.with_name(p.name+'.sample.mp3')
+            run([args.ffmpeg,'-y','-v','error','-ss',start,'-t',20,'-i',p,'-map','0:a:0','-vn','-af','afade=t=out:st=19.6:d=0.4','-ac',1,'-b:a','128k',out],stdout=subprocess.DEVNULL)
+            out.replace(p);info=probe(args,p);sec=duration(info,'audio')
         run([args.ffmpeg,'-v','error','-i',p,'-map','0:a:0','-f','null','-'],stdout=subprocess.DEVNULL)
         return {'duration':sec,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest()}
     kind='video' if inp['kind']=='video' else 'image'
@@ -116,8 +122,19 @@ def command_probe(args):
         out.replace(p);converted=True
         info=probe(args,p);stream=next(s for s in info['streams'] if s['codec_type']=='video')
     if kind=='image' and (stream.get('codec_name') not in ['png','mjpeg'] or not any(x in info.get('format',{}).get('format_name','') for x in ['image2','png_pipe','jpeg_pipe'])):raise ValueError('Photo must decode as a static PNG or JPEG image')
-    if stream['width']<64 or stream['height']<64 or stream['width']>8192 or stream['height']>8192:raise ValueError('Unsupported dimensions')
-    if kind=='image' and p.stat().st_size>8<<20:raise ValueError('Image exceeds 8MB')
+    if stream['width']<64 or stream['height']<64:raise ValueError('Unsupported dimensions')
+    if stream['width']>8192 or stream['height']>8192:
+        if kind!='image':raise ValueError('Unsupported dimensions')
+        # Very large stills are downscaled instead of rejected.
+        out=p.with_name(p.name+'.scaled.jpg')
+        run([args.ffmpeg,'-y','-v','error','-i',p,'-frames:v',1,'-vf',"scale='min(8192,iw)':'min(8192,ih)':force_original_aspect_ratio=decrease",'-q:v',2,out],stdout=subprocess.DEVNULL)
+        out.replace(p);converted=True
+    if kind=='image' and p.stat().st_size>8<<20:
+        # Large photos are recompressed rather than rejected.
+        out=p.with_name(p.name+'.small.jpg')
+        run([args.ffmpeg,'-y','-v','error','-i',p,'-frames:v',1,'-vf',"scale='min(4096,iw)':'min(4096,ih)':force_original_aspect_ratio=decrease",'-q:v',3,out],stdout=subprocess.DEVNULL)
+        out.replace(p);converted=True
+        if p.stat().st_size>8<<20:raise ValueError('Image exceeds 8MB')
     # Decode the first frame to reject renamed/non-media uploads.
     run([args.ffmpeg,'-v','error','-i',p,'-frames:v',1,'-f','null','-'],stdout=subprocess.DEVNULL)
     return {'duration':duration(info,'video') if kind=='video' else 0,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest(),'converted':converted}

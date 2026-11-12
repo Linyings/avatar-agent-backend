@@ -86,6 +86,11 @@ def command_portrait_frames(args):
 
 def command_probe(args):
     inp=read(args.task/'probe-input.json');p=Path(inp['path'])
+    if inp['kind']=='file':
+        # Any other upload is kept as a project attachment; it is never decoded
+        # or executed, only fingerprinted.
+        if p.stat().st_size==0:raise ValueError('Attachment is empty')
+        return {'duration':0,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest()}
     if inp['kind']=='text':
         data=p.read_bytes()
         if len(data)>1048576:raise ValueError('Reference text exceeds 1MB')
@@ -102,12 +107,20 @@ def command_probe(args):
         return {'duration':sec,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest()}
     kind='video' if inp['kind']=='video' else 'image'
     stream=next(s for s in info['streams'] if s['codec_type']=='video')
+    converted=False
+    # Downstream models and the renderer read PNG/JPEG. Other still images
+    # (WebP, HEIC, BMP, GIF first frame ...) are converted in place to JPEG.
+    if kind=='image' and (stream.get('codec_name') not in ['png','mjpeg'] or not any(x in info.get('format',{}).get('format_name','') for x in ['image2','png_pipe','jpeg_pipe'])):
+        out=p.with_name(p.name+'.converted.jpg')
+        run([args.ffmpeg,'-y','-v','error','-i',p,'-frames:v',1,'-vf',"scale='min(8192,iw)':'min(8192,ih)':force_original_aspect_ratio=decrease",'-q:v',2,out],stdout=subprocess.DEVNULL)
+        out.replace(p);converted=True
+        info=probe(args,p);stream=next(s for s in info['streams'] if s['codec_type']=='video')
     if kind=='image' and (stream.get('codec_name') not in ['png','mjpeg'] or not any(x in info.get('format',{}).get('format_name','') for x in ['image2','png_pipe','jpeg_pipe'])):raise ValueError('Photo must decode as a static PNG or JPEG image')
     if stream['width']<64 or stream['height']<64 or stream['width']>8192 or stream['height']>8192:raise ValueError('Unsupported dimensions')
     if kind=='image' and p.stat().st_size>8<<20:raise ValueError('Image exceeds 8MB')
     # Decode the first frame to reject renamed/non-media uploads.
     run([args.ffmpeg,'-v','error','-i',p,'-frames:v',1,'-f','null','-'],stdout=subprocess.DEVNULL)
-    return {'duration':duration(info,'video') if kind=='video' else 0,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest()}
+    return {'duration':duration(info,'video') if kind=='video' else 0,'sha256':hashlib.file_digest(p.open('rb'),'sha256').hexdigest(),'converted':converted}
 
 def command_voice_reference(args):
     source=Path(args.inp['source']);info=probe(args,source)

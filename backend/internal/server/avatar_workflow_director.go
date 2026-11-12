@@ -140,6 +140,15 @@ func (w *avatarWorkflowService) analyzeReferences(ctx context.Context, s *avatar
 				continue
 			}
 			ref := avatar.ReferenceAnalysis{ID: asset.ID, Kind: asset.Kind, Name: asset.Name, Status: "analyzed"}
+			if asset.Kind == "file" {
+				// Kept for the user and the Agent; its bytes are not analysed.
+				ref.Status = "stored"
+				ref.Summary = "用户上传的附件，系统暂不解析其内容"
+				ref.Limitations = "仅保存文件，未读取内容，不作为事实或画面依据"
+				refs = append(refs, ref)
+				s.References = refs
+				continue
+			}
 			if asset.Kind == "video" {
 				var parts []string
 				for _, d := range s.Descriptions {

@@ -474,7 +474,7 @@ func ValidateNeeds(in WorkflowInput, segs []Segment, needs []MaterialNeed) error
 		case "real":
 			found := false
 			for _, a := range in.Assets {
-				if a.ID == n.SourceID && !a.Excluded {
+				if a.ID == n.SourceID && !a.Excluded && a.Kind != "file" {
 					found = true
 					if n.SourceStart < 0 || (a.Duration > 0 && n.SourceStart+n.Duration > a.Duration+.03) {
 						return fmt.Errorf("真实素材源区间不足")

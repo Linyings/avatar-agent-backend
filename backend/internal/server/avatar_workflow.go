@@ -933,6 +933,16 @@ func (a *App) workflowArtifact(c *gin.Context) {
 	}
 	fail(c, 404, "产物不存在")
 }
+// validUploadKind lists the asset kinds an upload may declare. "file" is any
+// other document kept as a project attachment without decoding.
+func validUploadKind(kind string) bool {
+	switch kind {
+	case "photo", "image", "video", "audio", "text", "file":
+		return true
+	}
+	return false
+}
+
 func (a *App) workflowUpload(c *gin.Context) {
 	id, err := uuid.Parse(c.Param("projectId"))
 	if err != nil {
@@ -957,7 +967,7 @@ func (a *App) workflowUpload(c *gin.Context) {
 		defer c.Request.MultipartForm.RemoveAll()
 	}
 	kind := c.Request.FormValue("kind")
-	if kind != "photo" && kind != "video" && kind != "image" && kind != "text" && kind != "audio" {
+	if !validUploadKind(kind) {
 		fail(c, 400, "素材类型无效")
 		return
 	}
@@ -997,7 +1007,7 @@ func (a *App) workflowUpload(c *gin.Context) {
 	avatar.WriteJSON(filepath.Join(probeDir, "probe-input.json"), map[string]any{"path": path, "kind": kind})
 	raw, err := a.avatarWorkflow.media(c.Request.Context(), "probe", probeDir)
 	if err != nil {
-		fail(c, 400, "文件无法解码或不符合素材要求；参考音色需为 2–30 秒且不超过 20MB 的有效音频")
+		fail(c, 400, "文件无法识别为所选类型；参考音色需为 2–30 秒且不超过 20MB 的有效音频，其他文件可作为附件上传")
 		return
 	}
 	var info struct {

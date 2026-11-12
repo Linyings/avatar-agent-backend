@@ -117,7 +117,7 @@ const {chromium, expect} = require('../../frontend/node_modules/@playwright/test
     await page.screenshot({path: resolve(output, 'workspace.png'), fullPage: true});
     await page.getByRole('button', {name:'制作设置',exact:true}).click();
     const nativeMode = (studioBody.data??studioBody).project.input.speech_mode === 'native-video';
-    if (nativeMode) await expect(page.getByRole('button', {name:'上传参考音色（2–30 秒）',exact:true})).toBeVisible();
+    if (nativeMode) await expect(page.getByRole('button', {name:'上传参考音色（较长录音自动截取 20 秒）',exact:true})).toBeVisible();
     else await expect(page.getByRole('textbox', {name:'全片配音语速',exact:true})).toBeVisible();
     if (!nativeMode && legacyRun?.segments?.length) {
       await page.getByText('单段语速微调', {exact:true}).click();
